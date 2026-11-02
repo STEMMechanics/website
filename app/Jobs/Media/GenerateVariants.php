@@ -3,6 +3,7 @@
 namespace App\Jobs\Media;
 
 use App\Models\Media;
+use App\Models\SiteOption;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
@@ -77,6 +78,7 @@ class GenerateVariants implements ShouldQueue
         try {
             if ($media->path() === null) {
                 $processingError = 'Source file is missing from '.$media->storageDiskName().' storage.';
+
                 return;
             }
 
@@ -88,6 +90,7 @@ class GenerateVariants implements ShouldQueue
             $temp = $media->getAsTempFile();
             if ($temp === null) {
                 $processingError = 'Could not create a temporary working copy of the media file.';
+
                 return;
             }
 
@@ -107,6 +110,7 @@ class GenerateVariants implements ShouldQueue
 
             if ($matchingMimeType === 'image/*') {
                 $this->generateImageVariants($media, $temp, $tempDir, $variantData, $targetVariants);
+
                 return;
             }
 
@@ -118,8 +122,8 @@ class GenerateVariants implements ShouldQueue
                 $width = (int) $variantData['thumbnail']['width'];
                 $height = (int) $variantData['thumbnail']['height'];
 
-                $manager = new ImageManager(new Driver());
-                $image = $manager->create($width, $height)->fill('fff');
+                $manager = new ImageManager(new Driver);
+                $image = $manager->createImage($width, $height)->fill('fff');
 
                 $numLines = 5;
                 $text = (string) file_get_contents($temp);
@@ -142,8 +146,9 @@ class GenerateVariants implements ShouldQueue
                 }
 
                 $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
-                $image->save($variantFile, quality: 75);
+                $image->save($variantFile, quality: $this->variantQuality());
                 $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+
                 return;
             }
 
@@ -155,18 +160,19 @@ class GenerateVariants implements ShouldQueue
                 $width = (int) $variantData['thumbnail']['width'];
                 $height = (int) $variantData['thumbnail']['height'];
 
-                $manager = new ImageManager(new Driver());
+                $manager = new ImageManager(new Driver);
 
-                $imagick = new \Imagick();
+                $imagick = new \Imagick;
                 $imagick->readImage($temp.'[0]');
                 $imagick->setImageFormat('png');
 
-                $image = $manager->read($imagick);
+                $image = $manager->decode($imagick);
                 $image->scaleDown($width, $height);
 
                 $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
-                $image->save($variantFile, quality: 75);
+                $image->save($variantFile, quality: $this->variantQuality());
                 $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+
                 return;
             }
 
@@ -204,10 +210,10 @@ class GenerateVariants implements ShouldQueue
                     $width = (int) $variantData['thumbnail']['width'];
                     $height = (int) $variantData['thumbnail']['height'];
 
-                    $manager = new ImageManager(new Driver());
-                    $image = $manager->read($tempImage);
+                    $manager = new ImageManager(new Driver);
+                    $image = $manager->decodePath($tempImage);
                     $image->scaleDown($width, $height);
-                    $image->save($variantFile, quality: 75);
+                    $image->save($variantFile, quality: $this->variantQuality());
 
                     $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
                 } catch (Throwable $e) {
@@ -218,6 +224,7 @@ class GenerateVariants implements ShouldQueue
                 if (is_file($tempImage)) {
                     @unlink($tempImage);
                 }
+
                 return;
             }
 
@@ -243,13 +250,13 @@ class GenerateVariants implements ShouldQueue
     }
 
     /**
-     * @param array<string, array<string, int>> $variantData
-     * @param array<int, string> $targetVariants
+     * @param  array<string, array<string, int>>  $variantData
+     * @param  array<int, string>  $targetVariants
      */
     private function generateImageVariants(Media $media, string $temp, string $tempDir, array $variantData, array $targetVariants): void
     {
-        $manager = new ImageManager(new Driver());
-        $baseImage = $manager->read($temp);
+        $manager = new ImageManager(new Driver);
+        $baseImage = $manager->decodePath($temp);
 
         $isPortrait = $baseImage->height() > $baseImage->width();
 
@@ -258,7 +265,7 @@ class GenerateVariants implements ShouldQueue
                 continue;
             }
 
-            $image = $manager->read($temp);
+            $image = $manager->decodePath($temp);
 
             if ($isPortrait === true) {
                 $width = (int) $size['height'];
@@ -274,7 +281,7 @@ class GenerateVariants implements ShouldQueue
 
             $image->scaleDown($width, $height);
             $variantFile = $tempDir.'/'.$media->hash.'-'.$variantName.'.webp';
-            $image->save($variantFile, quality: 75);
+            $image->save($variantFile, quality: $this->variantQuality());
 
             $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
         }
@@ -283,6 +290,11 @@ class GenerateVariants implements ShouldQueue
     private function buildProcessingError(string $message, Throwable $e): string
     {
         return mb_substr(trim($message.' '.$e->getMessage()), 0, 2000);
+    }
+
+    private function variantQuality(): int
+    {
+        return max(1, min(100, SiteOption::intValue('media.variant-quality', 75)));
     }
 
     private function isVariantReady(Media $media, string $variantName): bool

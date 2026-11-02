@@ -65,6 +65,21 @@ class SiteOption extends Model
                 'description' => 'Maximum upload size in bytes for non-admin media uploads. Admin accounts are not limited by this site option.',
                 'input_type' => 'number',
             ],
+            'media.variant-quality' => [
+                'value' => '75',
+                'description' => 'WebP quality used for generated media variants such as thumbnails and scaled images. Higher values preserve more detail but use more storage.',
+                'input_type' => 'number',
+            ],
+            'media.editor-quality' => [
+                'value' => '90',
+                'description' => 'Image quality used when saving a rotated or cropped uploaded image before its media variants are generated.',
+                'input_type' => 'number',
+            ],
+            'media.flyer-quality' => [
+                'value' => '84',
+                'description' => 'JPEG quality used for workshop promotional flyer images embedded in generated PDFs.',
+                'input_type' => 'number',
+            ],
             'backup.database.keep' => [
                 'value' => '168',
                 'description' => 'Number of database backup files to retain when database:backup runs without an explicit --keep value.',
