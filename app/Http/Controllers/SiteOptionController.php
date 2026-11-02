@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
 use App\Services\Finance\ProductCostAllocation;
+use App\Services\NewsletterWorkshopSelectionService;
 use App\Services\OnlineVisitors;
 use App\Services\ProductRecipeService;
 use App\Services\ServerMaintenanceService;
@@ -274,6 +275,12 @@ class SiteOptionController extends Controller
 
         if ($optionName === 'finance.owner-hourly-rate') {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
+        }
+        if ($optionName === NewsletterWorkshopSelectionService::SEND_DAY_OPTION) {
+            $rules['value'] = ['required', 'integer', 'min:0', 'max:6'];
+        }
+        if ($optionName === NewsletterWorkshopSelectionService::SEND_TIME_OPTION) {
+            $rules['value'] = ['required', 'date_format:H:i'];
         }
         if (str_starts_with($optionName, 'store.costing.')) {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];

@@ -12,6 +12,7 @@ use App\Services\DashboardSnapshot;
 use App\Services\FileBackupUploadService;
 use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
+use App\Services\NewsletterWorkshopSelectionService;
 use App\Services\SponsorshipBillingScheduleService;
 use App\Services\SponsorshipService;
 use App\Services\WorkshopWelcomeService;
@@ -59,7 +60,16 @@ Artisan::command('email:send', function () {
         $selector->clearPresentation($draft);
         new UpcomingWorkshops('', storeSelection: $selector->selection());
     }
-})->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, '16:00');
+})->purpose('Send newsletter to confirmed subscribers')
+    ->everyMinute()
+    ->when(function (): bool {
+        $newsletterSchedule = app(NewsletterWorkshopSelectionService::class);
+        $now = now();
+
+        return $now->dayOfWeek === $newsletterSchedule->sendDay()
+            && $now->format('H:i') === $newsletterSchedule->sendTime();
+    })
+    ->timezone((string) config('app.timezone', 'UTC'));
 
 Artisan::command('cleanup', function () {
 

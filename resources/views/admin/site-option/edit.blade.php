@@ -34,6 +34,8 @@
                 </x-ui.select>
             @elseif($inputType === 'date')
                 <x-ui.input type="date" label="Value" name="value" :value="$siteOption->value ?? ''" />
+            @elseif($inputType === 'time')
+                <x-ui.input type="time" label="Value" name="value" :value="$siteOption->value ?? ''" />
             @elseif($inputType === 'number')
                 <x-ui.input
                     type="number"

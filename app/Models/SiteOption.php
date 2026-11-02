@@ -46,6 +46,16 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'Optional notice bar shown across the site.',
             ],
+            'newsletter.send-day' => [
+                'value' => '3',
+                'description' => 'Day of the week for the newsletter. Use 0 for Sunday through 6 for Saturday.',
+                'input_type' => 'number',
+            ],
+            'newsletter.send-time' => [
+                'value' => '16:00',
+                'description' => 'Local application time when the newsletter is sent, in 24-hour HH:MM format.',
+                'input_type' => 'time',
+            ],
             AnalyticsIpFilter::OPTION => [
                 'value' => '125.63.25.220',
                 'description' => 'Exact IPv4 or IPv6 addresses excluded from online visitors and analytics. Defaults to 125.63.25.220. Separate addresses with spaces, commas, or new lines.',
