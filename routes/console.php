@@ -26,8 +26,6 @@ use Illuminate\Support\Facades\Storage;
  * To access the cronjob, run `crontab -u www-data -e` and add the following line:
  * * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
  */
-$newsletterSchedule = app(NewsletterWorkshopSelectionService::class);
-
 Artisan::command('email:send', function () {
     $subjects = [
         '🚀 Your STEM Adventure Awaits!',
@@ -63,7 +61,14 @@ Artisan::command('email:send', function () {
         new UpcomingWorkshops('', storeSelection: $selector->selection());
     }
 })->purpose('Send newsletter to confirmed subscribers')
-    ->weeklyOn($newsletterSchedule->sendDay(), $newsletterSchedule->sendTime())
+    ->everyMinute()
+    ->when(function (): bool {
+        $newsletterSchedule = app(NewsletterWorkshopSelectionService::class);
+        $now = now();
+
+        return $now->dayOfWeek === $newsletterSchedule->sendDay()
+            && $now->format('H:i') === $newsletterSchedule->sendTime();
+    })
     ->timezone((string) config('app.timezone', 'UTC'));
 
 Artisan::command('cleanup', function () {
