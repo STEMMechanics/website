@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Media;
+use App\Models\SiteOption;
 use Illuminate\Http\UploadedFile;
 use Intervention\Image\Drivers\Imagick\Driver;
 use Intervention\Image\ImageManager;
@@ -10,7 +11,7 @@ use Intervention\Image\ImageManager;
 class MediaImageEditor
 {
     /**
-     * @param array<string, mixed> $input
+     * @param  array<string, mixed>  $input
      * @return array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int}
      */
     public function normalize(array $input): array
@@ -31,7 +32,7 @@ class MediaImageEditor
     }
 
     /**
-     * @param array<string, mixed> $input
+     * @param  array<string, mixed>  $input
      */
     public function hasEdits(array $input): bool
     {
@@ -55,7 +56,7 @@ class MediaImageEditor
     }
 
     /**
-     * @param array<string, mixed> $input
+     * @param  array<string, mixed>  $input
      */
     public function applyToUploadedFile(UploadedFile $file, array $input): UploadedFile
     {
@@ -76,7 +77,7 @@ class MediaImageEditor
     }
 
     /**
-     * @param array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int} $edits
+     * @param  array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int}  $edits
      */
     public function renderEditedTempFile(string $sourcePath, string $extension, array $edits): string
     {
@@ -89,8 +90,8 @@ class MediaImageEditor
         $targetPath = $outputPath.'.'.$extension;
         @rename($outputPath, $targetPath);
 
-        $manager = new ImageManager(new Driver());
-        $image = $manager->read($sourcePath);
+        $manager = new ImageManager(new Driver);
+        $image = $manager->decodePath($sourcePath);
 
         if ($edits['rotation'] !== 0) {
             $image->rotate($edits['rotation']);
@@ -111,13 +112,13 @@ class MediaImageEditor
             $image->crop($cropWidth, $cropHeight, $left, $top);
         }
 
-        $image->save($targetPath, quality: 90);
+        $image->save($targetPath, quality: $this->editorQuality());
 
         return $targetPath;
     }
 
     /**
-     * @param array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int} $edits
+     * @param  array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int}  $edits
      * @return array{rotation:int,crop_top:int,crop_right:int,crop_bottom:int,crop_left:int}
      */
     private function normalizeCropTotals(array $edits): array
@@ -141,8 +142,13 @@ class MediaImageEditor
         return $edits;
     }
 
+    private function editorQuality(): int
+    {
+        return max(1, min(100, SiteOption::intValue('media.editor-quality', 90)));
+    }
+
     /**
-     * @param mixed $value
+     * @param  mixed  $value
      */
     private function clampPercent($value): int
     {
