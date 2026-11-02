@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\Format;
 use Intervention\Image\ImageManager;
 use Throwable;
 
@@ -144,7 +145,7 @@ class WorkshopPromotionalFlyerController extends Controller
                 $zoom = max(100, min(200, $zoom));
                 $positionX = max(0, min(100, $positionX));
                 $positionY = max(0, min(100, $positionY));
-                $image = (new ImageManager(new Driver))->read($contents);
+                $image = (new ImageManager(new Driver))->decodeBinary($contents);
                 $coverScale = max(1200 / $image->width(), 425 / $image->height());
                 $scale = $coverScale * ($zoom / 100);
                 $scaledWidth = (int) ceil($image->width() * $scale);
@@ -155,7 +156,7 @@ class WorkshopPromotionalFlyerController extends Controller
                     ->resize($scaledWidth, $scaledHeight)
                     ->crop(1200, 425, $offsetX, $offsetY);
 
-                return $image->toJpeg(84)->toDataUri();
+                return $image->encodeUsingFormat(Format::JPEG, quality: 84)->toDataUri()->toString();
             } catch (Throwable $exception) {
                 $lastError = $exception;
             }
