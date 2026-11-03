@@ -287,8 +287,9 @@ class WorkshopAllocationFinalisationTest extends TestCase
         $other->title = 'Unrelated workshop';
         $other->save();
         $url = route('admin.workshop.index', ['view' => 'list', 'allocation_state' => 'needs_review']);
-        $this->get(route('admin.workshop.index', ['view' => 'list']))->assertOk()->assertSeeText('Ready for review')
+        $response = $this->get(route('admin.workshop.index', ['view' => 'list']))->assertOk()->assertSeeText('Ready for review')
             ->assertViewHas('workshops', fn ($rows) => $rows->total() === 2);
+        $this->assertStringNotContainsString('aria-label="Ready for review, 1"', $response->getContent());
         $this->get($url)->assertOk()->assertSee('Allocation review')->assertSee('Clear filters')
             ->assertViewHas('workshops', fn ($rows) => $rows->pluck('id')->all() === [$f['workshop']->id]);
         $this->getJson($url.'&select_listing=1')->assertOk()->assertJsonPath('names', [$f['workshop']->id]);

@@ -33,7 +33,7 @@
         @if($inline) data-workshop-allocation="{{ $workshop->id }}" data-allocation-ready="{{ $state['ready'] ? '1' : '0' }}" data-allocation-changed="{{ $state['ready'] && !$state['current'] ? '1' : '0' }}" @endif
         x-data="SM.allocationTally(@js(['workshopId' => $workshop->id, 'received' => $allocation['income']['net'], 'workshopInputs' => $allocation['assumptions'], 'workshopRules' => $rules, 'values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $planningTotal, 'exact' => false, 'enabled' => $enabled]))"
         @if($inline) x-on:workshop-allocation-inputs.window="previewWorkshop($event.detail)" x-on:invoice-lines-updated.window="previewWorkshopFunding($event.detail)" @endif
-        x-effect="@if($inline) $el.dataset.allocationChanged = {{ $state['ready'] && !$state['current'] ? 'true' : 'false' }} || allocationChanged ? '1' : '0'; @endif $dispatch('allocation-plan-updated', { key: '{{ $allocationKey }}', values: { ...values }, funding: total, inspect: {{ !$state['ready'] || ($allocation['budget']?->finalised_at && !$state['current']) ? 'true' : 'false' }} })">
+        x-effect="@if($inline) $el.dataset.allocationChanged = {{ $state['ready'] && !$state['current'] ? 'true' : 'false' }} || allocationChanged ? '1' : '0'; @endif $dispatch('allocation-plan-updated', { key: '{{ $allocationKey }}', values: { ...values }, funding: total, inspect: false })">
         @csrf
         <input type="hidden" name="source_hash" value="{{ $state['hash'] }}">
         <input type="hidden" name="revision" value="{{ $allocation['budget'] ? hash('sha256', json_encode((array) $allocation['budget'])) : '' }}">
