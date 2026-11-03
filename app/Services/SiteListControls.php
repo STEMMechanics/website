@@ -264,6 +264,17 @@ class SiteListControls
             'admin.reminder.index' => ['Upcoming' => ['view' => 'upcoming'], 'Sent' => ['view' => 'sent'], 'Failed' => ['view' => 'failed'], 'All reminders' => ['view' => 'all']],
             default => [],
         };
+        if (request()->routeIs('admin.workshop.index')) {
+            $counts = request()->attributes->get('collection_preset_counts', []);
+            $needsAttention = (int) ($counts['Needs attention'] ?? 0);
+            $allocationReview = (int) ($counts['Ready for review'] ?? 0);
+
+            // Allocation review is already included in Needs attention. Keep the
+            // more specific preset only when it would show a different set.
+            if ($needsAttention > 0 && $needsAttention === $allocationReview) {
+                unset($presets['Ready for review']);
+            }
+        }
         $active = array_filter(request()->only([...array_keys($this->filterFields()), 'search']), fn ($value) => is_array($value) ? count($value) > 0 : (is_scalar($value) && (string) $value !== ''));
 
         return collect($presets)->map(fn ($filters, $title) => [
