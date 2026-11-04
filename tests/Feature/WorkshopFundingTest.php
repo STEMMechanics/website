@@ -235,6 +235,34 @@ class WorkshopFundingTest extends TestCase
         $this->assertSame(Invoice::STATUS_DRAFT, $invoice->fresh()->status);
     }
 
+    public function test_balanced_manual_funding_recovers_legacy_budget_without_funding_metadata(): void
+    {
+        $user = $this->admin();
+        $workshop = $this->workshop();
+        $invoice = $this->createInvoice([$this->line($workshop)]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
+        $service->finalise($workshop, [
+            'source_hash' => $service->state($workshop)['hash'],
+            'override' => 1,
+            'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')],
+        ], $user->id);
+
+        $budget = DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first();
+        $assumptions = json_decode((string) $budget->assumptions, true, 512, JSON_THROW_ON_ERROR);
+        unset($assumptions['allocation_basis'], $assumptions['funding_line_id']);
+        DB::table('finance_budgets')->where('id', $budget->id)->update([
+            'assumptions' => json_encode($assumptions),
+            'source_hash' => str_repeat('0', 64),
+        ]);
+
+        $state = $service->state($workshop->fresh());
+        $this->assertTrue($state['current']);
+        $this->assertSame('Finalised', $state['status']);
+        $this->assertNotContains($workshop->id, array_map(fn ($row) => $row['workshop']->id, $service->attention()));
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->fresh()->status);
+    }
+
     public function test_attendance_funding_requires_review_when_attendee_count_changes(): void
     {
         $user = $this->admin();

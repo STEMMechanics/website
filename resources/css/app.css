@@ -2287,6 +2287,12 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     color: white;
 }
 
+/* Keep sidebar links blue on hover even when the shared hover variant is unavailable. */
+[data-sidebar-navigation] .sm-admin-nav-link:hover {
+    background-color: var(--color-sky-600) !important;
+    color: white !important;
+}
+
 [data-site-navbar] [role="menuitem"]:focus-visible,
 [data-sidebar-keyboard-selected="true"] {
     background-color: var(--color-sky-600) !important;
