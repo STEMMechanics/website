@@ -128,23 +128,25 @@ class WorkshopAllocation
                 ->all();
         }
         $legacyHash = hash('sha256', json_encode($source, JSON_THROW_ON_ERROR));
+        $fundingLine = null;
+        $fundingBasis = null;
         if ($hasFundingPlan) {
             $fundingLine = $invoices
                 ->reject(fn ($invoice) => in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true))
                 ->flatMap(fn ($invoice) => $invoice->lines->flatMap(fn ($line) => app(WorkshopFunding::class)->entries($line)))
                 ->first(fn ($line) => ($line->details_json['workshop']['linked_workshop_id'] ?? null) === $workshop->id);
-            $basis = $fundingLine->details_json['workshop']['allocation_basis'] ?? 'manual';
+            $fundingBasis = $fundingLine->details_json['workshop']['allocation_basis'] ?? 'manual';
 
             // Closing registrations does not change an invoice-funded cost plan; cancellation does.
             $source['workshop'][2] = $workshop->status === 'cancelled' ? 'cancelled' : 'open';
             $source['tickets'] = $tickets
-                ->filter(fn ($ticket) => ! in_array($basis, ['manual', 'capacity'], true)
+                ->filter(fn ($ticket) => ! in_array($fundingBasis, ['manual', 'capacity'], true)
                     || $ticket->invoice_id
                     || in_array($ticket->status, [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT], true))
-                ->map(fn ($ticket) => [$ticket->id, $ticket->status, $ticket->invoice_id, $ticket->invoice_line_id, $basis === 'attendance' ? $ticket->attended_at?->toIso8601String() : null])
+                ->map(fn ($ticket) => [$ticket->id, $ticket->status, $ticket->invoice_id, $ticket->invoice_line_id, $fundingBasis === 'attendance' ? $ticket->attended_at?->toIso8601String() : null])
                 ->values()->all();
             // Attendance affects costs only when the funding line uses attended participants.
-            if ($basis !== 'attendance') {
+            if ($fundingBasis !== 'attendance') {
                 $source['drop_in_attendance_count'] = 0;
                 if (isset($source['session_attendance'])) {
                     $source['session_attendance'] = [];
@@ -156,9 +158,20 @@ class WorkshopAllocation
         $noAllocationRequired = $workshop->status === 'cancelled' && ! $budget?->finalised_at
             && $pending === 0 && ! $unresolved && array_sum(array_column($events, 'gross')) === 0;
         $ready = ! $noAllocationRequired && ($hasFundingPlan || ($workshop->effectiveEndsAt() && $workshop->effectiveEndsAt()->lte(now()))) && $pending === 0 && ! $unresolved;
+        $balancedManualFunding = false;
+        if ($ready && $workshop->status !== 'cancelled' && $budget?->finalised_at && $budget->manual && $hasFundingPlan && $fundingBasis === 'manual') {
+            $savedAssumptions = json_decode((string) $budget->assumptions, true, 512, JSON_THROW_ON_ERROR);
+            $savedTargets = json_decode((string) $budget->targets, true, 512, JSON_THROW_ON_ERROR);
+            $balancedManualFunding = ($savedAssumptions['allocation_basis'] ?? null) === 'manual'
+                && (string) ($savedAssumptions['funding_line_id'] ?? '') === (string) $fundingLine->id
+                && array_sum($savedTargets) === $invoices
+                    ->reject(fn ($invoice) => in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true))
+                    ->sum(fn ($invoice) => $parts->total($invoice, $workshop->id));
+        }
         // Keep unchanged snapshots made before funding inputs were normalised current.
         $current = $budget && $budget->finalised_at && (hash_equals((string) $budget->source_hash, $hash)
-            || ($hasFundingPlan && hash_equals((string) $budget->source_hash, $legacyHash)));
+            || ($hasFundingPlan && hash_equals((string) $budget->source_hash, $legacyHash))
+            || $balancedManualFunding);
         $status = match (true) {
             (bool) $current => 'Finalised',
             (bool) $budget?->finalised_at => 'Allocation needs review',
