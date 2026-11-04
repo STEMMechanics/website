@@ -163,7 +163,7 @@ class WorkshopAllocation
             $savedAssumptions = json_decode((string) $budget->assumptions, true, 512, JSON_THROW_ON_ERROR);
             $savedTargets = json_decode((string) $budget->targets, true, 512, JSON_THROW_ON_ERROR);
             $balancedManualFunding = ($savedAssumptions['allocation_basis'] ?? null) === 'manual'
-                && (string) ($savedAssumptions['funding_line_id'] ?? '') === (string) ($fundingLine?->id ?? '')
+                && (string) ($savedAssumptions['funding_line_id'] ?? '') === (string) $fundingLine->id
                 && array_sum($savedTargets) === $invoices
                     ->reject(fn ($invoice) => in_array($invoice->status, [Invoice::STATUS_CANCELLED, Invoice::STATUS_WRITTEN_OFF], true))
                     ->sum(fn ($invoice) => $parts->total($invoice, $workshop->id));
