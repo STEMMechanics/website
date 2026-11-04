@@ -30,13 +30,13 @@ class NavbarThemeTest extends TestCase
         $this->assertStringNotContainsString('repeating-linear-gradient(45deg', $html);
     }
 
-    public function test_sidebar_hover_has_a_legacy_safe_blue_fallback(): void
+    public function test_sidebar_menu_hover_has_a_legacy_safe_blue_fallback(): void
     {
         $styles = file_get_contents(base_path('resources/css/app.css'));
 
         $this->assertIsString($styles);
         $this->assertMatchesRegularExpression(
-            '/\[data-sidebar-navigation\]\s+\.sm-admin-nav-link:hover\s*\{[^}]*background-color:\s*#0284c7\s*!important/s',
+            '/\[data-sidebar-navigation\]\s+\[role="menuitem"\]:hover\s*\{[^}]*background-color:\s*#0284c7\s*!important/s',
             $styles,
         );
     }
