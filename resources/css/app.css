@@ -2287,9 +2287,9 @@ body:has([data-dynamic-list][aria-busy="true"]) .sm-loading-progress::before { a
     color: white;
 }
 
-/* Keep sidebar links blue on hover even when the shared hover variant is unavailable. */
+/* Keep sidebar links blue on hover even when the shared hover variant or OKLCH custom property is unavailable. */
 [data-sidebar-navigation] .sm-admin-nav-link:hover {
-    background-color: var(--color-sky-600) !important;
+    background-color: #0284c7 !important;
     color: white !important;
 }
 
