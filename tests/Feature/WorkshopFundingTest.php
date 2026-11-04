@@ -208,6 +208,33 @@ class WorkshopFundingTest extends TestCase
         }
     }
 
+    public function test_balanced_manual_funding_stays_finalised_when_non_financial_workshop_details_change(): void
+    {
+        $user = $this->admin();
+        $workshop = $this->workshop();
+        $workshop->update(['status' => 'open']);
+        $invoice = $this->createInvoice([$this->line($workshop)]);
+        $service = app(WorkshopAllocation::class);
+        $context = $service->context($workshop);
+        $hash = $service->state($workshop)['hash'];
+
+        $service->finalise($workshop, [
+            'source_hash' => $hash,
+            'override' => 1,
+            'targets' => [1 => number_format($context['invoicedFunding'] / 100, 2, '.', '')],
+        ], $user->id);
+
+        $workshop->update(['max_tickets' => $workshop->max_tickets + 1]);
+
+        $state = $service->state($workshop);
+        $this->assertNotSame($hash, $state['hash']);
+        $this->assertTrue($state['current']);
+        $this->assertSame('Finalised', $state['status']);
+        $this->get(route('admin.workshop.allocation.edit', $workshop))->assertOk()
+            ->assertSeeText('Finalised')->assertSeeText('Update allocation')->assertDontSeeText('Allocation needs review');
+        $this->assertSame(Invoice::STATUS_DRAFT, $invoice->fresh()->status);
+    }
+
     public function test_attendance_funding_requires_review_when_attendee_count_changes(): void
     {
         $user = $this->admin();
