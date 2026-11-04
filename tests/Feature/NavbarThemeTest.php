@@ -30,6 +30,17 @@ class NavbarThemeTest extends TestCase
         $this->assertStringNotContainsString('repeating-linear-gradient(45deg', $html);
     }
 
+    public function test_sidebar_hover_has_a_legacy_safe_blue_fallback(): void
+    {
+        $styles = file_get_contents(base_path('resources/css/app.css'));
+
+        $this->assertIsString($styles);
+        $this->assertMatchesRegularExpression(
+            '/\[data-sidebar-navigation\]\s+\.sm-admin-nav-link:hover\s*\{[^}]*background-color:\s*#0284c7\s*!important/s',
+            $styles,
+        );
+    }
+
     public function test_admin_nav_uses_categories_label_for_workshop_categories(): void
     {
         $this->actingAs($this->createAdminUser());
