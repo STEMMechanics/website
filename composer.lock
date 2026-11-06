@@ -8,27 +8,27 @@
     "packages": [
         {
             "name": "altcha-org/altcha",
-            "version": "v1.3.3",
+            "version": "v2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/altcha-org/altcha-lib-php.git",
-                "reference": "9a9b98c48dea0b2e8c353ea991d5f5627cbdab36"
+                "reference": "afcdf1592749726aac37b7671e33b501e06ea99e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/altcha-org/altcha-lib-php/zipball/9a9b98c48dea0b2e8c353ea991d5f5627cbdab36",
-                "reference": "9a9b98c48dea0b2e8c353ea991d5f5627cbdab36",
+                "url": "https://api.github.com/repos/altcha-org/altcha-lib-php/zipball/afcdf1592749726aac37b7671e33b501e06ea99e",
+                "reference": "afcdf1592749726aac37b7671e33b501e06ea99e",
                 "shasum": ""
             },
             "require": {
-                "php": ">=8.2"
+                "php": ">=8.1"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.72",
                 "phpstan/extension-installer": "^1.4",
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-phpunit": "^2.0",
-                "phpunit/phpunit": "^11.5.50"
+                "phpunit/phpunit": "^10.5 || ^11.5"
             },
             "type": "library",
             "autoload": {
@@ -46,11 +46,12 @@
                     "email": "536331+ovx@users.noreply.github.com"
                 }
             ],
+            "description": "A lightweight PHP library for creating and verifying ALTCHA challenges.",
             "support": {
                 "issues": "https://github.com/altcha-org/altcha-lib-php/issues",
-                "source": "https://github.com/altcha-org/altcha-lib-php/tree/v1.3.3"
+                "source": "https://github.com/altcha-org/altcha-lib-php/tree/v2.3.0"
             },
-            "time": "2026-04-02T12:13:35+00:00"
+            "time": "2026-10-04T08:28:24+00:00"
         },
         {
             "name": "barryvdh/laravel-dompdf",
@@ -1276,20 +1277,20 @@
         },
         {
             "name": "grantholle/laravel-altcha",
-            "version": "2.2.0",
+            "version": "2.3.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/grantholle/laravel-altcha.git",
-                "reference": "f9ce89c4b42b966be4953ee2e6dc2b5055417525"
+                "reference": "7e6239428856703bc9209bdc03faa541233d6c07"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/grantholle/laravel-altcha/zipball/f9ce89c4b42b966be4953ee2e6dc2b5055417525",
-                "reference": "f9ce89c4b42b966be4953ee2e6dc2b5055417525",
+                "url": "https://api.github.com/repos/grantholle/laravel-altcha/zipball/7e6239428856703bc9209bdc03faa541233d6c07",
+                "reference": "7e6239428856703bc9209bdc03faa541233d6c07",
                 "shasum": ""
             },
             "require": {
-                "altcha-org/altcha": "^1.3.1",
+                "altcha-org/altcha": "^2.0.2",
                 "illuminate/contracts": "^10.0|^11.0|^12.0|^13.0",
                 "php": "^8.2",
                 "spatie/laravel-package-tools": "^1.14.0"
@@ -1340,7 +1341,7 @@
             ],
             "support": {
                 "issues": "https://github.com/grantholle/laravel-altcha/issues",
-                "source": "https://github.com/grantholle/laravel-altcha/tree/2.2.0"
+                "source": "https://github.com/grantholle/laravel-altcha/tree/2.3.0"
             },
             "funding": [
                 {
@@ -1348,7 +1349,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-21T16:34:52+00:00"
+            "time": "2026-10-05T01:06:06+00:00"
         },
         {
             "name": "guzzlehttp/guzzle",
@@ -5202,16 +5203,16 @@
         },
         {
             "name": "spatie/laravel-package-tools",
-            "version": "1.93.2",
+            "version": "1.93.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "e927d5b5b05e9fecae098e559e51918aa608ad02"
+                "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/e927d5b5b05e9fecae098e559e51918aa608ad02",
-                "reference": "e927d5b5b05e9fecae098e559e51918aa608ad02",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/7aeef26bd8d4909bec744dbf47aee7d1395588c1",
+                "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1",
                 "shasum": ""
             },
             "require": {
@@ -5251,7 +5252,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.2"
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.3"
             },
             "funding": [
                 {
@@ -5259,7 +5260,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-26T09:13:25+00:00"
+            "time": "2026-09-28T07:16:50+00:00"
         },
         {
             "name": "spatie/temporary-directory",
@@ -13237,16 +13238,16 @@
         },
         {
             "name": "symfony/yaml",
-            "version": "v8.1.6",
+            "version": "v8.1.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/yaml.git",
-                "reference": "0b4aa53a67f9fece88c665f1a1dadcfd25d93fe5"
+                "reference": "e8266f55160f674f290a5f567cb55e11e21f921b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/yaml/zipball/0b4aa53a67f9fece88c665f1a1dadcfd25d93fe5",
-                "reference": "0b4aa53a67f9fece88c665f1a1dadcfd25d93fe5",
+                "url": "https://api.github.com/repos/symfony/yaml/zipball/e8266f55160f674f290a5f567cb55e11e21f921b",
+                "reference": "e8266f55160f674f290a5f567cb55e11e21f921b",
                 "shasum": ""
             },
             "require": {
@@ -13289,7 +13290,7 @@
             "description": "Loads and dumps YAML files",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/yaml/tree/v8.1.6"
+                "source": "https://github.com/symfony/yaml/tree/v8.1.11"
             },
             "funding": [
                 {
@@ -13309,7 +13310,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-30T01:03:44+00:00"
+            "time": "2026-11-04T08:39:20+00:00"
         },
         {
             "name": "theseer/tokenizer",
