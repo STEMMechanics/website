@@ -358,10 +358,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/media/selection', [MediaController::class, 'admin_selection'])->name('admin.media.selection');
     Route::patch('/admin/media/{media}/details', [MediaController::class, 'admin_quick_update'])->name('admin.media.quick-update');
     Route::get('/admin/media/duplicates', [MediaController::class, 'admin_duplicates'])->name('admin.media.duplicates');
+    Route::post('/admin/media/duplicates/manual', [MediaController::class, 'admin_manual_duplicate'])->name('admin.media.duplicates.manual');
+    Route::get('/admin/media/duplicates/manual/review', [MediaController::class, 'admin_manual_duplicate_review'])->name('admin.media.duplicates.manual.review');
     Route::get('/admin/media/downloads', [MediaController::class, 'admin_downloads'])->name('admin.media.downloads');
     Route::post('/admin/media/duplicates/merge', [MediaController::class, 'admin_merge_duplicates'])->name('admin.media.duplicates.merge');
     Route::post('/admin/media/duplicates/scan-similar', [MediaController::class, 'admin_scan_similar'])->name('admin.media.duplicates.scan-similar');
     Route::post('/admin/media/duplicates/merge-similar', [MediaController::class, 'admin_merge_similar'])->name('admin.media.duplicates.merge-similar');
+    Route::post('/admin/media/duplicates/merge-manual', [MediaController::class, 'admin_merge_manual'])->name('admin.media.duplicates.merge-manual');
     Route::post('/admin/media/duplicates/ignore-similar', [MediaController::class, 'admin_ignore_similar'])->name('admin.media.duplicates.ignore-similar');
     Route::delete('/admin/media/duplicates/ignore-similar', [MediaController::class, 'admin_restore_similar'])->name('admin.media.duplicates.restore-similar');
     Route::post('/admin/media/regenerate-missing-variants', [MediaController::class, 'admin_regenerate_missing_variants'])->name('admin.media.regenerate-missing-variants');
@@ -597,6 +600,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/expenses', [ExpenseController::class, 'index'])->name('admin.expense.index');
     Route::post('/admin/expenses/export/zip', [ExpenseController::class, 'exportZip'])->name('admin.expense.export.zip');
     Route::get('/admin/expenses/create', [ExpenseController::class, 'create'])->name('admin.expense.create');
+    Route::post('/admin/expenses/imports', [ExpenseController::class, 'startImport'])->name('admin.expense.import.start');
+    Route::get('/admin/expenses/imports/{batchId}/items/{itemId}/file', [ExpenseController::class, 'importFile'])->name('admin.expense.import.file');
+    Route::get('/admin/expenses/imports/{batchId}/items/{itemId}/ai', [ExpenseController::class, 'importAiStatus'])->name('admin.expense.import.ai');
+    Route::post('/admin/expenses/imports/{batchId}/items/{itemId}/skip', [ExpenseController::class, 'skipImport'])->name('admin.expense.import.skip');
+    Route::get('/admin/expenses/duplicate-invoice', [ExpenseController::class, 'duplicateInvoice'])->name('admin.expense.duplicate-check');
     Route::post('/admin/expenses', [ExpenseController::class, 'store'])->name('admin.expense.store');
     Route::get('/admin/expenses/{expense}', [ExpenseController::class, 'edit'])->name('admin.expense.edit');
     Route::match(['post', 'put'], '/admin/expenses/{expense}', [ExpenseController::class, 'update'])->name('admin.expense.update');

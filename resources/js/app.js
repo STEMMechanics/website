@@ -37,6 +37,7 @@ import './product-materials';
 import './product-variant-editor';
 import './product-stock-adjustment';
 import './expense-product-purchases';
+import './expense-duplicate-check';
 import './document-product-editor';
 import './store-order-invoice';
 
@@ -69,6 +70,7 @@ import './deployment-status';
 import './workplan-checkoff';
 
 import './admin-ai';
+import './expense-import-queue';
 import './admin-dashboard-actions';
 
 import './form-keyboard';

@@ -1,5 +1,11 @@
 <x-layout>
-    <x-mast backRoute="admin.expense.index" backTitle="Expenses">{{ isset($expense) ? 'Edit' : 'Record' }} Expense</x-mast>
+    @php
+        $expenseImport = $expenseImport ?? null;
+        $expenseMastTitle = $expenseImport
+            ? 'Record Expense · '.$expenseImport['position'].'/'.$expenseImport['total']
+            : (isset($expense) ? 'Edit' : 'Record').' Expense';
+    @endphp
+    <x-mast backRoute="admin.expense.index" backTitle="Expenses" :title="$expenseMastTitle" />
 
     @php
         $defaultPaidOn = isset($expense) && $expense->paid_on
@@ -16,8 +22,31 @@
     @endphp
 
     <x-container class="mt-4">
-        <form id="expense-form" data-sm-file-upload-managed method="POST" enctype="multipart/form-data" action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}">
+        <form
+            id="expense-form"
+            data-sm-file-upload-managed
+            data-expense-duplicate-check-url="{{ route('admin.expense.duplicate-check') }}"
+            data-expense-id="{{ $expense->id ?? '' }}"
+            data-expense-import-file-url="{{ $expenseImport['file_url'] ?? '' }}"
+            data-expense-import-file-name="{{ $expenseImport['file_name'] ?? '' }}"
+            data-expense-import-file-type="{{ $expenseImport['file_type'] ?? '' }}"
+            data-expense-import-ai-status-url="{{ $expenseImport['ai_status_url'] ?? '' }}"
+            data-expense-import-skip-url="{{ $expenseImport ? route('admin.expense.import.skip', [$expenseImport['batch_id'], $expenseImport['item_id']]) : '' }}"
+            data-expense-import-loading="{{ $expenseImport ? 'true' : 'false' }}"
+            method="POST"
+            enctype="multipart/form-data"
+            action="{{ route('admin.expense.' . (isset($expense) ? 'update' : 'store'), $expense ?? []) }}"
+        >
             @csrf
+            @if($expenseImport)
+                <input type="hidden" name="expense_import_batch" value="{{ $expenseImport['batch_id'] }}">
+                <input type="hidden" name="expense_import_item" value="{{ $expenseImport['item_id'] }}">
+                <input type="hidden" name="batch_import" value="1">
+                <div data-expense-import-loading class="mb-5 flex items-center gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" role="status" aria-live="polite">
+                    <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
+                    <span data-expense-import-loading-text>Loading this receipt for review…</span>
+                </div>
+            @endif
 
             <x-ui.input
                 label="Supplier"
@@ -97,6 +126,7 @@
                 class="sm-ai-status-toast pointer-events-none fixed left-4 right-4 top-4 z-[140] mx-auto max-w-md -translate-y-full opacity-0 transition-all duration-300 ease-out"
                 data-ai-widget
                 data-ai-auto-file="#expense-receipt-file"
+                data-ai-background="{{ $expenseImport ? 'true' : 'false' }}"
                 data-ai-configured="{{ filled(config('services.openai.api_key')) ? 'true' : 'false' }}"
                 data-ai-url="{{ route('admin.ai.expenses.extract.stream') }}"
                 data-ai-json-url="{{ route('admin.ai.expenses.extract') }}"
@@ -107,6 +137,7 @@
                 data-ai-fill-scope="#expense-form"
                 data-ai-fill-fields="supplier,description,invoice_id,paid_on,total_amount,gst_amount"
                 data-ai-product-purchases="true"
+                data-ai-fast="{{ $expenseImport ? 'true' : 'false' }}"
                 aria-hidden="true"
             >
                 <div data-ai-status class="overflow-hidden rounded-xl border border-sky-200 bg-white text-sm font-medium shadow-lg" role="status" aria-live="polite">
@@ -348,8 +379,17 @@
                 @isset($expense)
                     <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
                 @endisset
+                @if($expenseImport)
+                    <x-ui.button type="button" color="outline" id="expense-skip-button" data-expense-import-skip>
+                        <span id="expense-skip-label">{{ $expenseImport['is_last'] ? 'Skip' : 'Skip and Next' }}</span>
+                        <span id="expense-skip-loading" class="hidden items-center gap-2">
+                            <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
+                            <span>Skipping…</span>
+                        </span>
+                    </x-ui.button>
+                @endif
                 <x-ui.button type="submit" id="expense-save-button">
-                    <span id="expense-save-label">Save</span>
+                    <span id="expense-save-label">{{ $expenseImport && ! $expenseImport['is_last'] ? 'Save and Next' : 'Save' }}</span>
                     <span id="expense-save-loading" class="hidden items-center gap-2">
                         <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
                         <span id="expense-save-loading-text">Saving...</span>
@@ -865,6 +905,7 @@
             const invalidControls = new Map();
             const clearSaveErrors = () => {
                 expenseForm.querySelectorAll('[data-validation-error]').forEach((error) => {
+                        if (error.dataset?.expenseDuplicateActive === 'true') return;
                     error.textContent = '';
                     error.hidden = true;
                 });

@@ -54,6 +54,7 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-6-luna'),
         'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'max'),
+        'expense_batch_reasoning_effort' => env('OPENAI_EXPENSE_BATCH_REASONING_EFFORT', 'low'),
         'copy_reasoning_effort' => env('OPENAI_COPY_REASONING_EFFORT', 'low'),
         'complex_copy_reasoning_effort' => env('OPENAI_COMPLEX_COPY_REASONING_EFFORT', 'medium'),
         'timeout' => (int) env('OPENAI_TIMEOUT', 180),

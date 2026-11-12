@@ -43,7 +43,16 @@ class Expense extends Model
                 $name = trim((string) $expense->supplier);
                 $expense->supplier_id = $name === '' ? null : Supplier::forName($name)->id;
             }
+
+            $expense->invoice_id_normalized = self::normalizeInvoiceId($expense->invoice_id) ?: null;
         });
+    }
+
+    public static function normalizeInvoiceId(?string $invoiceId): string
+    {
+        $invoiceId = mb_strtolower(trim((string) $invoiceId));
+
+        return preg_replace('/\s+/u', ' ', $invoiceId) ?: $invoiceId;
     }
 
     public function creator(): BelongsTo

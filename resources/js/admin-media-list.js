@@ -45,6 +45,12 @@ function initialiseSelection() {
         root.querySelector('#admin-media-selection-toolbar').dataset.selected = String(selected.length > 0);
         root.querySelector('#admin-media-edit-selected').disabled = !selected.length;
         root.querySelector('#admin-media-download-selected').disabled = !selected.length;
+        const reviewDuplicate = root.querySelector('#admin-media-review-duplicate');
+        if (reviewDuplicate) {
+            const canReview = selected.length >= 2 && selected.length <= 50;
+            reviewDuplicate.disabled = !canReview;
+            reviewDuplicate.title = canReview ? 'Review the selected images as possible duplicates' : 'Select between 2 and 50 images';
+        }
         root.querySelector('#admin-media-bulk-inputs').replaceChildren(...selected.map(name => {
             const input = document.createElement('input'); input.type = 'hidden'; input.name = 'media_names[]'; input.value = name; return input;
         }));
@@ -96,6 +102,23 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else initialiseMediaPage();
 
 document.addEventListener('click', event => {
+    const reviewDuplicate = event.target.closest('[data-media-review-duplicate]');
+    if (reviewDuplicate) {
+        event.preventDefault();
+        if (reviewDuplicate.disabled || reviewDuplicate.dataset.busy === 'true' || selected.length < 2 || selected.length > 50) return;
+        reviewDuplicate.dataset.busy = 'true';
+        reviewDuplicate.disabled = true;
+        reviewDuplicate.closest('dialog')?.close();
+        requestJson(reviewDuplicate.dataset.url, { method: 'POST', body: JSON.stringify({ media_names: [...selected] }) })
+            .then(data => {
+                try { sessionStorage.removeItem(storageKey); } catch {}
+                selected = [];
+                window.location.assign(data.redirect);
+            })
+            .catch(error => notify('Could not open duplicate manager', error.message, 'danger'))
+            .finally(() => { reviewDuplicate.dataset.busy = 'false'; });
+        return;
+    }
     const edit = event.target.closest('[data-edit-media]');
     if (edit) {
         const data = JSON.parse(edit.dataset.editMedia);

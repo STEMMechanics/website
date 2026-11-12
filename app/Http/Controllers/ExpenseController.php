@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Helpers;
+use App\Jobs\ExtractExpenseImportItem;
 use App\Models\Expense;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Services\Finance\ExpenseAllocation;
 use App\Services\Finance\FinanceAttention;
 use App\Services\Finance\FinancePlanner;
+use App\Services\ExpenseDuplicateService;
+use App\Services\ExpenseImportBatchService;
 use App\Services\PdfTextExtractor;
 use App\Services\ProductPurchaseService;
 use App\Services\ProductRecipeService;
@@ -16,6 +19,7 @@ use App\Services\SiteListControls;
 use App\Services\StoreInventoryAllocatorService;
 use App\Support\ListPageSize;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -24,13 +28,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use ZipArchive;
 
 class ExpenseController extends Controller
 {
-    public function __construct(private PdfTextExtractor $documentTextExtractor) {}
+    public function __construct(
+        private PdfTextExtractor $documentTextExtractor,
+        private ExpenseDuplicateService $expenseDuplicates,
+        private ExpenseImportBatchService $expenseImports,
+    ) {}
 
     public function index(Request $request)
     {
@@ -149,13 +158,129 @@ class ExpenseController extends Controller
 
     public function create(Request $request)
     {
-        $data = $request->validate(['supplier' => 'nullable|string|max:255']);
+        $data = $request->validate([
+            'supplier' => 'nullable|string|max:255',
+            'import_batch' => ['nullable', 'uuid'],
+            'import_item' => ['nullable', 'uuid'],
+        ]);
+        $expenseImport = null;
+        if (filled($data['import_batch'] ?? null) || filled($data['import_item'] ?? null)) {
+            if (! filled($data['import_batch'] ?? null) || ! filled($data['import_item'] ?? null)) {
+                abort(404);
+            }
+
+            $expenseImport = $this->expenseImportContext((string) $data['import_batch'], (string) $data['import_item']);
+        }
 
         return view('admin.expense.edit', [
             'supplierSuggestions' => $this->supplierSuggestions(),
             'supplierName' => $data['supplier'] ?? '',
             'purchaseCatalog' => app(ProductPurchaseService::class)->catalog(),
             'purchaseRows' => [],
+            'expenseImport' => $expenseImport,
+        ]);
+    }
+
+    public function startImport(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'files' => ['required', 'array', 'min:1', 'max:50'],
+            'files.*' => ['required', 'file', 'mimetypes:application/pdf,image/jpeg,image/png,image/webp', 'max:12288'],
+        ]);
+        $batch = $this->expenseImports->create((string) Auth::id(), $validated['files']);
+        foreach ($batch['items'] as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            ExtractExpenseImportItem::dispatch(
+                $batch['id'],
+                (string) $item['id'],
+                (string) Auth::id(),
+            );
+        }
+        $first = $batch['items'][0] ?? null;
+        if (! is_array($first)) {
+            throw new RuntimeException('The receipt import did not contain any files.');
+        }
+
+        return response()->json([
+            'success' => true,
+            'batch_id' => $batch['id'],
+            'count' => count($batch['items']),
+            'redirect' => route('admin.expense.create', [
+                'import_batch' => $batch['id'],
+                'import_item' => $first['id'],
+            ]),
+        ]);
+    }
+
+    public function importFile(string $batchId, string $itemId)
+    {
+        $entry = $this->expenseImports->itemForUser($batchId, $itemId, (string) Auth::id());
+        abort_if($entry === null, 404);
+
+        $item = $entry['item'];
+        $path = $this->expenseImports->stagedFilePath($item);
+        $name = preg_replace('/[\r\n"]+/', '', basename((string) ($item['name'] ?? 'receipt'))) ?: 'receipt';
+
+        return response()->file($path, [
+            'Content-Type' => (string) ($item['mime_type'] ?? 'application/octet-stream'),
+            'Content-Disposition' => 'inline; filename="'.$name.'"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function importAiStatus(string $batchId, string $itemId): JsonResponse
+    {
+        $entry = $this->expenseImports->aiItemForUser($batchId, $itemId, (string) Auth::id());
+        abort_if($entry === null, 404);
+
+        $item = $entry['item'];
+
+        return response()->json([
+            'status' => (string) ($item['ai_status'] ?? 'queued'),
+            'result' => is_array($item['ai_result'] ?? null) ? $item['ai_result'] : null,
+            'message' => filled($item['ai_message'] ?? null) ? (string) $item['ai_message'] : null,
+        ])->header('Cache-Control', 'no-store, private');
+    }
+
+    public function skipImport(string $batchId, string $itemId): JsonResponse
+    {
+        $entry = $this->expenseImports->itemForUser($batchId, $itemId, (string) Auth::id());
+        abort_if($entry === null, 404);
+
+        $next = $this->expenseImports->markSkipped($batchId, $itemId, (string) Auth::id());
+        $redirect = $next === null
+            ? route('admin.expense.index')
+            : route('admin.expense.create', [
+                'import_batch' => $batchId,
+                'import_item' => $next['id'],
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'skipped_item_id' => $itemId,
+            'redirect' => $redirect,
+        ]);
+    }
+
+    public function duplicateInvoice(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'supplier' => ['nullable', 'string', 'max:255'],
+            'invoice_id' => ['nullable', 'string', 'max:120'],
+            'expense_id' => ['nullable', 'integer', 'exists:expenses,id'],
+        ]);
+
+        $matches = $this->expenseDuplicates->matches(
+            $validated['supplier'] ?? null,
+            $validated['invoice_id'] ?? null,
+            isset($validated['expense_id']) ? (int) $validated['expense_id'] : null,
+        );
+
+        return response()->json([
+            'matches' => $matches->map(fn (Expense $expense): array => $this->expenseDuplicates->payload($expense))->values()->all(),
         ]);
     }
 
@@ -164,7 +289,9 @@ class ExpenseController extends Controller
         ProductPurchaseService $purchases,
         StoreInventoryAllocatorService $stockAllocator,
     ) {
+        $expenseImport = $this->prepareExpenseImport($request);
         $validated = $this->validateRequest($request);
+        $this->ensureInvoiceIsNotDuplicate($validated['supplier'], $validated['invoice_id']);
         $purchaseRows = $purchases->validate($request);
 
         $expense = new Expense;
@@ -202,6 +329,22 @@ class ExpenseController extends Controller
         $expense->save();
         $this->allocateProducts($productIds, $stockAllocator);
 
+        $redirect = route('admin.expense.index');
+        if ($expenseImport !== null) {
+            $next = $this->expenseImports->markSaved(
+                $expenseImport['batch_id'],
+                $expenseImport['item_id'],
+                (string) Auth::id(),
+                (int) $expense->id,
+            );
+            if ($next !== null) {
+                $redirect = route('admin.expense.create', [
+                    'import_batch' => $expenseImport['batch_id'],
+                    'import_item' => $next['id'],
+                ]);
+            }
+        }
+
         session()->flash('message', 'Expense has been recorded');
         session()->flash('message-title', 'Expense recorded');
         session()->flash('message-type', 'success');
@@ -209,11 +352,13 @@ class ExpenseController extends Controller
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'redirect' => route('admin.expense.index'),
+                'expense_id' => $expense->id,
+                'expense_url' => route('admin.expense.edit', $expense),
+                'redirect' => $redirect,
             ]);
         }
 
-        return redirect()->route('admin.expense.index');
+        return redirect()->to($redirect);
     }
 
     public function edit(Expense $expense)
@@ -246,6 +391,7 @@ class ExpenseController extends Controller
         $purchaseRows = $purchases->validate($request);
 
         $expense->fill($validated);
+        $this->ensureInvoiceIsNotDuplicate($expense->supplier, $expense->invoice_id, $expense->id);
         $productIds = DB::transaction(function () use ($request, $expense, $purchases, $purchaseRows): array {
             DB::table('finance_settings')->where('id', 1)->lockForUpdate()->first();
             $expense->save();
@@ -342,6 +488,70 @@ class ExpenseController extends Controller
             'total_amount' => ['required', 'numeric', 'min:0'],
             'gst_amount' => ['required', 'numeric', 'min:0', 'lte:total_amount'],
             'receipt_document_file' => ['nullable', 'file', 'max:'.$maxSize],
+        ]);
+    }
+
+    /** @return array{batch_id: string, item_id: string}|null */
+    private function prepareExpenseImport(Request $request): ?array
+    {
+        $batchId = trim((string) $request->input('expense_import_batch', ''));
+        $itemId = trim((string) $request->input('expense_import_item', ''));
+        if ($batchId === '' && $itemId === '') {
+            return null;
+        }
+        if ($batchId === '' || $itemId === '') {
+            abort(404);
+        }
+
+        $entry = $this->expenseImports->itemForUser($batchId, $itemId, (string) Auth::id());
+        abort_if($entry === null, 404);
+        $item = $entry['item'];
+        if (! $request->hasFile('receipt_document_file')) {
+            $path = $this->expenseImports->stagedFilePath($item);
+            $request->files->set('receipt_document_file', new UploadedFile(
+                $path,
+                basename((string) ($item['name'] ?? 'receipt')),
+                (string) ($item['mime_type'] ?? 'application/octet-stream'),
+                UPLOAD_ERR_OK,
+                true,
+            ));
+        }
+
+        return ['batch_id' => $batchId, 'item_id' => $itemId];
+    }
+
+    /** @return array<string, mixed> */
+    private function expenseImportContext(string $batchId, string $itemId): array
+    {
+        $entry = $this->expenseImports->itemForUser($batchId, $itemId, (string) Auth::id());
+        abort_if($entry === null, 404);
+
+        $batch = $entry['batch'];
+        $item = $entry['item'];
+
+        return [
+            'batch_id' => $batchId,
+            'item_id' => $itemId,
+            'file_url' => route('admin.expense.import.file', [$batchId, $itemId]),
+            'file_name' => (string) ($item['name'] ?? 'receipt'),
+            'file_type' => (string) ($item['mime_type'] ?? 'application/octet-stream'),
+            'position' => (int) ($item['position'] ?? 1),
+            'total' => count($batch['items']),
+            'is_last' => $this->expenseImports->nextPending($batch, $itemId) === null,
+            'ai_status_url' => route('admin.expense.import.ai', [$batchId, $itemId]),
+        ];
+    }
+
+    private function ensureInvoiceIsNotDuplicate(?string $supplier, ?string $invoiceId, ?int $ignoreExpenseId = null): void
+    {
+        $matches = $this->expenseDuplicates->matches($supplier, $invoiceId, $ignoreExpenseId);
+        if ($matches->isEmpty()) {
+            return;
+        }
+
+        $first = $matches->first();
+        throw ValidationException::withMessages([
+            'invoice_id' => 'Possible duplicate invoice ID. Review expense #'.$first->id.' before saving.',
         ]);
     }
 

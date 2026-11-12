@@ -475,6 +475,7 @@ const makePayload = async (button, form) => {
         getAiBlankFields(button, scope).forEach((name) => payload.append('fill_fields[]', name));
     }
     if (button.dataset.aiProductPurchases === 'true') payload.append('include_product_purchases', '1');
+    if (button.dataset.aiFast === 'true') payload.append('fast', '1');
     if (button.dataset.aiMode) payload.append('mode', button.dataset.aiMode);
     if (button.dataset.aiKind) payload.append('kind', button.dataset.aiKind);
     if (button.hasAttribute?.('data-ai-context') || button.dataset.aiContext) {
@@ -572,6 +573,65 @@ const clearResults = (root) => {
     root._adminAiResult = null;
     const panel = root.querySelector('[data-ai-results]');
     if (panel) panel.hidden = true;
+};
+
+const applyAutomaticExpenseResult = (root, trigger, form, result) => {
+    populateResults(root, result);
+    setStatus(root, 'Filling blank fields…', false, true);
+
+    const fillScope = trigger.dataset.aiFillScope ? document.querySelector(trigger.dataset.aiFillScope) : form;
+    const fields = (trigger.dataset.aiFillFields || '').split(',').map((field) => field.trim()).filter(Boolean);
+    const filledCount = fields.reduce((count, name) => count + Number(fillField(fillScope, name, result[name], trigger, true)), 0);
+    let purchasesPrepared = 0;
+    if (trigger.dataset.aiProductPurchases === 'true' && Array.isArray(result.product_purchases)) {
+        const purchasesEditor = fillScope?.querySelector('[data-expense-product-purchases]');
+        if (purchasesEditor) {
+            const event = new CustomEvent('sm-expense-product-purchases-ai', {
+                detail: { items: result.product_purchases, appliedCount: 0 },
+            });
+            purchasesEditor.dispatchEvent(event);
+            purchasesPrepared = Number(event.detail.appliedCount) || 0;
+        }
+    }
+
+    const documentType = typeof result.document_type === 'string' && result.document_type.trim() !== ''
+        ? result.document_type.trim().slice(0, 48)
+        : 'Receipt processed';
+    const pages = [...new Set(Object.values(result.evidence || {})
+        .map((evidence) => Number(evidence?.page))
+        .filter((page) => Number.isInteger(page) && page > 0))];
+    const pageSummary = pages.length ? pages.length + (pages.length === 1 ? ' page' : ' pages') : 'receipt read';
+    const fieldSummary = filledCount > 0
+        ? filledCount + (filledCount === 1 ? ' field filled' : ' fields filled')
+        : 'no blank fields to fill';
+    const purchaseSummary = purchasesPrepared > 0
+        ? ' · ' + purchasesPrepared + (purchasesPrepared === 1 ? ' purchase row' : ' purchase rows') + ' prepared'
+        : '';
+    const reviewCount = Array.isArray(result.needs_review) ? result.needs_review.length : 0;
+    const reviewSummary = reviewCount > 0 ? ' · ' + reviewCount + ' to review' : '';
+    setStatus(root, documentType + ' · ' + pageSummary + ' · ' + fieldSummary + purchaseSummary + reviewSummary);
+};
+
+window.SM = window.SM || {};
+window.SM.setExpenseAiBackgroundStatus = (message, isError = false, isProcessing = false) => {
+    const root = document.querySelector('[data-ai-widget][data-ai-background="true"]');
+    if (root) setStatus(root, message, isError, isProcessing);
+};
+window.SM.applyExpenseAiBackgroundResult = (result) => {
+    const root = document.querySelector('[data-ai-widget][data-ai-background="true"]');
+    if (!root || !result || typeof result !== 'object') return false;
+
+    const form = root.dataset.aiFillScope ? document.querySelector(root.dataset.aiFillScope) : root.closest('form');
+    root._adminAiProcessing = false;
+    root.removeAttribute('aria-busy');
+
+    try {
+        applyAutomaticExpenseResult(root, root, form, result);
+        return true;
+    } catch (error) {
+        setStatus(root, error instanceof Error ? error.message : 'The AI result could not be applied.', true);
+        return false;
+    }
 };
 
 const lockAiFields = (trigger, form) => {
@@ -910,6 +970,7 @@ document.addEventListener('change', (event) => {
         return candidate.dataset.aiAutoFile && document.querySelector(candidate.dataset.aiAutoFile) === input;
     });
     if (!widget) return;
+    if (widget.dataset.aiBackground === 'true') return;
 
     const file = input.files?.[0];
     if (!file) {

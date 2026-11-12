@@ -1,5 +1,6 @@
 @php
     $media = $group['media']->values();
+    $mergeRoute = $mergeRoute ?? route('admin.media.duplicates.merge');
     $fields = collect(\App\Services\MediaDuplicateService::MERGEABLE_METADATA_FIELDS)
         ->reject(fn (string $field): bool => $field === 'status')
         ->values();
@@ -63,7 +64,7 @@
 
 <form
     method="POST"
-    action="{{ route('admin.media.duplicates.merge') }}"
+    action="{{ $mergeRoute }}"
     x-data="{
         keeper: @js($defaultKeeper),
         advancedKeeper: @js($defaultKeeper),

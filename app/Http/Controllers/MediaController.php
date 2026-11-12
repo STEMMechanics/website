@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 class MediaController extends Controller
@@ -178,6 +179,39 @@ class MediaController extends Controller
         ]);
     }
 
+    public function admin_manual_duplicate(Request $request): RedirectResponse|JsonResponse
+    {
+        $names = $this->validatedManualNames($request);
+        $media = Media::query()->whereIn('name', $names)->get();
+        if ($media->count() !== count($names) || $media->contains(fn (Media $medium): bool => ! str_starts_with((string) $medium->mime_type, 'image/'))) {
+            throw ValidationException::withMessages(['media_names' => 'Select two or more image files to review as possible duplicates.']);
+        }
+
+        $redirect = route('admin.media.duplicates.manual.review', ['media_names' => $names]);
+        if ($request->expectsJson()) {
+            return response()->json(['redirect' => $redirect]);
+        }
+
+        return redirect()->to($redirect);
+    }
+
+    public function admin_manual_duplicate_review(Request $request, MediaUsageService $usageService)
+    {
+        $names = $this->validatedManualNames($request);
+        $media = Media::query()->with('user')->whereIn('name', $names)->get()->keyBy('name');
+        if ($media->count() !== count($names) || $media->contains(fn (Media $medium): bool => ! str_starts_with((string) $medium->mime_type, 'image/'))) {
+            throw ValidationException::withMessages(['media_names' => 'Select two or more image files to review as possible duplicates.']);
+        }
+        $media = collect($names)->map(fn (string $name): Media => $media->get($name))->values();
+        foreach ($media as $medium) {
+            $medium->setAttribute('usage_count', count($usageService->usagesFor((string) $medium->name)) + $medium->workshops()->count());
+        }
+
+        return view('admin.media.manual-duplicate', [
+            'media' => $media,
+        ]);
+    }
+
     public function admin_scan_similar(): RedirectResponse
     {
         $queued = 0;
@@ -213,6 +247,43 @@ class MediaController extends Controller
         return redirect()->route('admin.media.duplicates')
             ->with('message', $duplicate->title.' has been merged into '.$keeper->title.'.')
             ->with('message-title', 'Similar images merged')
+            ->with('message-type', 'success');
+    }
+
+    public function admin_merge_manual(Request $request, MediaDuplicateService $duplicates): RedirectResponse
+    {
+        $names = $this->validatedManualNames($request);
+        $validated = $request->validate([
+            'keeper' => ['nullable', 'string'],
+            'metadata_sources' => ['sometimes', 'array'],
+            'metadata_sources.*' => ['required', 'string'],
+        ]);
+        $keeperName = trim((string) ($validated['keeper'] ?? ''));
+        if ($keeperName === '') {
+            $keeperName = $names[0];
+        }
+        if (! in_array($keeperName, $names, true)) {
+            throw ValidationException::withMessages(['members' => 'The selected keeper must be one of the reviewed images.']);
+        }
+
+        $media = Media::query()->whereIn('name', $names)->get()->keyBy('name');
+        if ($media->count() !== count($names) || $media->contains(fn (Media $medium): bool => ! str_starts_with((string) $medium->mime_type, 'image/'))) {
+            throw ValidationException::withMessages(['members' => 'Manual duplicate review is available for images only.']);
+        }
+
+        $keeper = $media->get($keeperName);
+        $duplicateNames = array_values(array_diff($names, [$keeperName]));
+        $metadataSources = $validated['metadata_sources'] ?? [];
+
+        try {
+            $merged = $duplicates->mergeManual($keeper, $duplicateNames, $metadataSources);
+        } catch (InvalidArgumentException $exception) {
+            return redirect()->back()->withErrors(['members' => $exception->getMessage()]);
+        }
+
+        return redirect()->route('admin.media.duplicates')
+            ->with('message', $merged.' manually selected duplicate '.($merged === 1 ? 'record has' : 'records have').' been merged into '.$keeper->title.'.')
+            ->with('message-title', 'Manual duplicates merged')
             ->with('message-type', 'success');
     }
 
@@ -253,6 +324,35 @@ class MediaController extends Controller
         ]);
 
         return [Media::query()->findOrFail($validated['first']), Media::query()->findOrFail($validated['second'])];
+    }
+
+    /** @return list<string> */
+    private function validatedManualNames(Request $request): array
+    {
+        $validated = $request->validate([
+            'media_names' => ['nullable', 'array', 'min:2', 'max:50'],
+            'media_names.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+            'members' => ['nullable', 'array', 'min:2', 'max:50'],
+            'members.*' => ['required', 'string', 'distinct', Rule::exists('media', 'name')],
+            'first' => ['nullable', 'string', 'different:second', Rule::exists('media', 'name')],
+            'second' => ['nullable', 'string', 'different:first', Rule::exists('media', 'name')],
+        ]);
+
+        $names = is_array($validated['media_names'] ?? null) ? array_values($validated['media_names']) : [];
+        if ($names === []) {
+            $names = is_array($validated['members'] ?? null) ? array_values($validated['members']) : [];
+        }
+        if ($names === [] && filled($validated['first'] ?? null) && filled($validated['second'] ?? null)) {
+            $names = [(string) $validated['first'], (string) $validated['second']];
+        }
+
+        if (count($names) < 2 || count($names) > 50) {
+            throw ValidationException::withMessages([
+                'media_names' => 'Select between two and fifty images to review as possible duplicates.',
+            ]);
+        }
+
+        return array_values(array_unique(array_map(static fn ($name): string => (string) $name, $names)));
     }
 
     public function admin_merge_duplicates(Request $request, MediaDuplicateService $duplicates): RedirectResponse
