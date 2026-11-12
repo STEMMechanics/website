@@ -130,9 +130,10 @@ class OpenAiWorkflowAssistant
      * @param  array<string, mixed>|list<array<string, mixed>>  $input
      * @param  array<string, mixed>  $schema
      * @param  callable(string): void  $onDocumentType
+     * @param  string|null  $reasoningEffort
      * @return array<string, mixed>
      */
-    public function generateJsonStreaming(string $instructions, array|string $input, string $schemaName, array $schema, callable $onDocumentType): array
+    public function generateJsonStreaming(string $instructions, array|string $input, string $schemaName, array $schema, callable $onDocumentType, ?string $reasoningEffort = null): array
     {
         $apiKey = trim((string) config('services.openai.api_key'));
         if ($apiKey === '') {
@@ -141,7 +142,7 @@ class OpenAiWorkflowAssistant
 
         $payload = [
             'model' => (string) config('services.openai.model', 'gpt-6-luna'),
-            'reasoning' => ['effort' => (string) config('services.openai.reasoning_effort', 'max')],
+            'reasoning' => ['effort' => trim((string) ($reasoningEffort ?: config('services.openai.reasoning_effort', 'max')))],
             'instructions' => $instructions,
             'input' => $input,
             'store' => false,

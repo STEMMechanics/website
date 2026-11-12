@@ -9,6 +9,7 @@ use App\Models\SponsorshipInvoiceRequest;
 use App\Models\SponsorshipPayment;
 use App\Models\Ticket;
 use App\Services\DashboardSnapshot;
+use App\Services\ExpenseImportBatchService;
 use App\Services\FileBackupUploadService;
 use App\Services\Finance\FinancePlanner;
 use App\Services\NewsletterProductSelectionService;
@@ -108,6 +109,8 @@ Artisan::command('cleanup', function () {
             }
             $invoiceRequest->delete();
         });
+
+    app(ExpenseImportBatchService::class)->cleanupExpired();
 
 })->purpose('Clean up expired data')->everyMinute();
 

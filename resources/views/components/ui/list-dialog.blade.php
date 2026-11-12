@@ -1,11 +1,13 @@
-@props(['id', 'title', 'kind' => 'filters', 'draggable' => false, 'centered' => false, 'size' => 'default'])
-<dialog id="{{ $id }}" data-list-dialog class="sm-list-dialog sm-list-dialog-{{ $kind }} {{ $centered ? 'sm-list-dialog-centered' : '' }} {{ $size === 'small' ? 'sm-list-dialog-small' : '' }}" aria-labelledby="{{ $id }}-title">
-    <div class="sm-list-dialog-header" @if($draggable) data-dialog-drag-handle @endif>
-        <h2 tabindex="-1" autofocus id="{{ $id }}-title" class="text-lg font-bold text-slate-900">{{ $title }}</h2>
-        <div class="flex shrink-0 items-center gap-1">
-            {{ $headerActions ?? '' }}
-            <x-ui.button variant="plain" data-close-dialog aria-label="Close {{ $title }}" class="sm-dialog-close rounded-lg text-slate-500" size="icon"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+@props(['id', 'title', 'kind' => 'filters', 'draggable' => false, 'centered' => false, 'size' => 'default', 'showHeader' => true])
+<dialog id="{{ $id }}" data-list-dialog class="sm-list-dialog sm-list-dialog-{{ $kind }} {{ $centered ? 'sm-list-dialog-centered' : '' }} {{ $size === 'small' ? 'sm-list-dialog-small' : '' }}" @if($showHeader) aria-labelledby="{{ $id }}-title" @else aria-label="{{ $title }}" @endif>
+    @if($showHeader)
+        <div class="sm-list-dialog-header" @if($draggable) data-dialog-drag-handle @endif>
+            <h2 tabindex="-1" autofocus id="{{ $id }}-title" class="text-lg font-bold text-slate-900">{{ $title }}</h2>
+            <div class="flex shrink-0 items-center gap-1">
+                {{ $headerActions ?? '' }}
+                <x-ui.button variant="plain" data-close-dialog aria-label="Close {{ $title }}" class="sm-dialog-close rounded-lg text-slate-500" size="icon"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+            </div>
         </div>
-    </div>
+    @endif
     {{ $slot }}
 </dialog>

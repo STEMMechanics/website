@@ -137,6 +137,42 @@ class AdminAiWorkflowTest extends TestCase
         });
     }
 
+    public function test_batch_expense_extraction_uses_low_image_detail_and_reasoning_effort(): void
+    {
+        Http::fake(['https://api.openai.com/v1/responses' => Http::response([
+            'output_text' => json_encode([
+                'document_type' => 'Receipt',
+                'supplier' => 'Fast Supplier',
+                'description' => 'Fast extraction',
+                'invoice_id' => 'FAST-1',
+                'paid_on' => '2026-11-01',
+                'date_basis' => 'transaction_date',
+                'total_amount' => '22.00',
+                'gst_amount' => '2.00',
+                'currency' => 'AUD',
+                'evidence' => [],
+                'needs_review' => [],
+            ]),
+        ], 200)]);
+
+        $this->actingAs($this->createAdminUser())
+            ->postJson(route('admin.ai.expenses.extract'), [
+                'receipt_pdf' => UploadedFile::fake()->image('receipt.jpg', 120, 80),
+                'fill_fields' => ['supplier', 'description', 'invoice_id', 'paid_on', 'total_amount', 'gst_amount'],
+                'fast' => 1,
+            ])
+            ->assertOk()
+            ->assertJsonPath('result.invoice_id', 'FAST-1');
+
+        Http::assertSent(function (ClientRequest $request): bool {
+            $data = $request->data();
+            $imageInput = collect($data['input'][0]['content'] ?? [])->firstWhere('type', 'input_image');
+
+            return ($data['reasoning']['effort'] ?? null) === 'low'
+                && ($imageInput['detail'] ?? null) === 'low';
+        });
+    }
+
     public function test_ai_extracts_only_the_requested_blank_expense_fields(): void
     {
         $fields = [

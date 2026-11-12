@@ -8,6 +8,7 @@ use App\Models\PickListTemplate;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\Workshop;
+use App\Services\ExpenseDuplicateService;
 use App\Services\NewsletterAiContext;
 use App\Services\OpenAiWorkflowAssistant;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +24,10 @@ use Throwable;
 
 class AdminAiController extends Controller
 {
-    public function __construct(private readonly OpenAiWorkflowAssistant $assistant) {}
+    public function __construct(
+        private readonly OpenAiWorkflowAssistant $assistant,
+        private readonly ExpenseDuplicateService $expenseDuplicates,
+    ) {}
 
     public function csrfToken(): JsonResponse
     {
@@ -38,13 +42,16 @@ class AdminAiController extends Controller
             'fill_fields' => ['nullable', 'array'],
             'fill_fields.*' => ['string', 'in:supplier,description,invoice_id,paid_on,total_amount,gst_amount'],
             'include_product_purchases' => ['nullable', 'boolean'],
+            'fast' => ['nullable', 'boolean'],
         ]);
 
         $file = $validated['receipt_pdf'];
         $requestedFields = array_values($validated['fill_fields'] ?? []);
         $includePurchases = (bool) ($validated['include_product_purchases'] ?? false);
+        $fast = (bool) ($validated['fast'] ?? false);
+        $this->extendExecutionLimit();
 
-        return $this->run(fn (): array => $this->extractExpenseResult($file, null, $requestedFields, $includePurchases));
+        return $this->run(fn (): array => $this->extractExpenseResult($file, null, $requestedFields, $includePurchases, $fast));
     }
 
     public function extractExpenseStream(Request $request): StreamedResponse
@@ -54,13 +61,15 @@ class AdminAiController extends Controller
             'fill_fields' => ['nullable', 'array'],
             'fill_fields.*' => ['string', 'in:supplier,description,invoice_id,paid_on,total_amount,gst_amount'],
             'include_product_purchases' => ['nullable', 'boolean'],
+            'fast' => ['nullable', 'boolean'],
         ]);
         $file = $validated['receipt_pdf'];
         $requestedFields = array_values($validated['fill_fields'] ?? []);
         $includePurchases = (bool) ($validated['include_product_purchases'] ?? false);
+        $fast = (bool) ($validated['fast'] ?? false);
         $this->extendExecutionLimit();
 
-        return response()->stream(function () use ($file, $requestedFields, $includePurchases): void {
+        return response()->stream(function () use ($file, $requestedFields, $includePurchases, $fast): void {
             echo ": connected\n\n";
             if (ob_get_level() > 0) {
                 @ob_flush();
@@ -72,7 +81,7 @@ class AdminAiController extends Controller
                     $this->emitSseEvent('progress', [
                         'message' => Str::limit('Identified: '.$documentType.' · reading expense details…', 100, ''),
                     ]);
-                }, $requestedFields, $includePurchases);
+                }, $requestedFields, $includePurchases, $fast);
                 $this->emitSseEvent('result', ['result' => $result]);
             } catch (RuntimeException $exception) {
                 $this->emitSseEvent('error', ['message' => $exception->getMessage()]);
@@ -93,12 +102,30 @@ class AdminAiController extends Controller
         ]);
     }
 
+    /**
+     * Run the expense extractor from a background job.
+     *
+     * @param  list<string>  $requestedFields
+     * @return array<string, mixed>
+     */
+    public function extractExpenseFile(
+        UploadedFile $file,
+        array $requestedFields = [],
+        bool $includePurchases = true,
+        bool $fast = true,
+    ): array {
+        $this->extendExecutionLimit();
+
+        return $this->extractExpenseResult($file, null, $requestedFields, $includePurchases, $fast);
+    }
+
     /** @return array<string, mixed> */
     private function extractExpenseResult(
         UploadedFile $file,
         ?callable $onDocumentType = null,
         array $requestedFields = [],
         bool $includePurchases = false,
+        bool $fast = false,
     ): array {
         $knownSuppliers = DB::table('finance_supplier_rules as rules')
             ->leftJoin('finance_categories as categories', 'categories.id', '=', 'rules.category_id')
@@ -117,17 +144,18 @@ class AdminAiController extends Controller
 
         $mimeType = strtolower((string) ($file->getMimeType() ?: $file->getClientMimeType()));
         $encodedFile = base64_encode((string) file_get_contents($file->getRealPath()));
+        $inputDetail = $fast ? 'low' : 'high';
         $documentInput = in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)
             ? [
                 'type' => 'input_image',
                 'image_url' => 'data:'.$mimeType.';base64,'.$encodedFile,
-                'detail' => 'high',
+                'detail' => $inputDetail,
             ]
             : [
                 'type' => 'input_file',
                 'filename' => Str::limit((string) $file->getClientOriginalName(), 120, ''),
                 'file_data' => 'data:application/pdf;base64,'.$encodedFile,
-                'detail' => 'high',
+                'detail' => $inputDetail,
             ];
 
         $expenseFieldLabels = [
@@ -208,8 +236,21 @@ class AdminAiController extends Controller
         ]);
 
         $result = $onDocumentType
-            ? $this->assistant->generateJsonStreaming($instructions, $input, 'expense_receipt_extraction', $schema, $onDocumentType)
-            : $this->assistant->generateJson($instructions, $input, 'expense_receipt_extraction', $schema);
+            ? $this->assistant->generateJsonStreaming(
+                $instructions,
+                $input,
+                'expense_receipt_extraction',
+                $schema,
+                $onDocumentType,
+                $fast ? (string) config('services.openai.expense_batch_reasoning_effort', 'low') : null,
+            )
+            : $this->assistant->generateJson(
+                $instructions,
+                $input,
+                'expense_receipt_extraction',
+                $schema,
+                $fast ? (string) config('services.openai.expense_batch_reasoning_effort', 'low') : null,
+            );
 
         $catalogProductIds = array_fill_keys(array_map('intval', array_column($purchaseCatalog, 'id')), true);
         $catalogProducts = array_column($purchaseCatalog, null, 'id');
@@ -860,29 +901,26 @@ class AdminAiController extends Controller
     /** @param array<string, mixed> $result */
     private function possibleDuplicateExpense(array $result): string
     {
-        $invoiceId = mb_strtolower(trim((string) ($result['invoice_id'] ?? '')));
-        $supplier = mb_strtolower(trim((string) ($result['supplier'] ?? '')));
-        $query = Expense::query();
+        $invoiceId = trim((string) ($result['invoice_id'] ?? ''));
+        $supplier = trim((string) ($result['supplier'] ?? ''));
 
         if ($invoiceId !== '') {
-            $query->whereRaw('LOWER(invoice_id) = ?', [$invoiceId]);
-            if ($supplier !== '') {
-                $query->whereRaw('LOWER(supplier) = ?', [$supplier]);
-            }
+            $duplicate = $this->expenseDuplicates->matches($supplier, $invoiceId)->first();
         } elseif ($supplier !== '' && is_numeric($result['total_amount'] ?? null) && filled($result['paid_on'] ?? null)) {
+            $query = Expense::query();
             try {
                 $date = Carbon::parse((string) $result['paid_on']);
             } catch (Throwable) {
                 return '';
             }
-            $query->whereRaw('LOWER(supplier) = ?', [$supplier])
+            $query->whereRaw('LOWER(TRIM(supplier)) = ?', [mb_strtolower($supplier)])
                 ->where('total_amount', (float) $result['total_amount'])
                 ->whereBetween('paid_on', [$date->copy()->subDays(7)->toDateString(), $date->copy()->addDays(7)->toDateString()]);
+            $duplicate = $query->latest('paid_on')->first(['id', 'supplier', 'invoice_id', 'paid_on', 'total_amount']);
         } else {
             return '';
         }
 
-        $duplicate = $query->latest('paid_on')->first(['id', 'supplier', 'invoice_id', 'paid_on', 'total_amount']);
         if (! $duplicate) {
             return '';
         }

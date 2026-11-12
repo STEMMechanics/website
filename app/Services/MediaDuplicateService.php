@@ -109,6 +109,29 @@ class MediaDuplicateService
     }
 
     /**
+     * @param  Media|array<int, string>  $duplicates
+     */
+    public function mergeManual(Media $keeper, Media|array $duplicates, array $metadataSources = []): int
+    {
+        $duplicateRecords = $duplicates instanceof Media
+            ? collect([$duplicates])
+            : Media::query()->whereIn('name', array_values(array_unique($duplicates)))->get();
+
+        if ($duplicateRecords->isEmpty()
+            || $duplicateRecords->contains(fn (Media $duplicate): bool => $keeper->name === $duplicate->name
+                || ! str_starts_with((string) $duplicate->mime_type, 'image/'))
+            || ! str_starts_with((string) $keeper->mime_type, 'image/')) {
+            throw new InvalidArgumentException('Manual duplicate review is available for two or more different images only.');
+        }
+
+        if (is_array($duplicates) && $duplicateRecords->count() !== count(array_unique($duplicates))) {
+            throw new InvalidArgumentException('One or more selected images could not be found.');
+        }
+
+        return $this->mergeRecords($keeper, $duplicateRecords, false, $metadataSources);
+    }
+
+    /**
      * @param  Collection<int, Media>  $duplicates
      */
     private function mergeRecords(Media $keeper, Collection $duplicates, bool $normalizeStorageDisk, array $metadataSources = []): int

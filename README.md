@@ -29,7 +29,9 @@ php artisan serve
 ```
 
 For frontend development, run `npm run dev` in a separate terminal. Features
-that dispatch background jobs require `php artisan queue:work`.
+that dispatch background jobs require `php artisan queue:work`. The
+multi-receipt expense importer queues one AI job per file; run multiple queue
+workers when you want several receipts to be extracted in parallel.
 
 Use local configuration and development data. Keep credentials, customer data,
 business documents and operational notes out of source control.

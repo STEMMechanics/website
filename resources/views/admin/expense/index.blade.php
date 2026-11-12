@@ -13,13 +13,42 @@
     @endif
 
     <x-container class="py-5 sm:py-8">
-        <div data-expense-drop data-create-url="{{ route('admin.expense.create', isset($selectedSupplier) ? ['supplier' => $selectedSupplier->name] : []) }}">
+        <div
+            data-expense-drop
+            data-import-url="{{ route('admin.expense.import.start') }}"
+            data-csrf-url="{{ route('admin.ai.csrf-token') }}"
+        >
+            <input data-expense-batch-input type="file" class="sr-only" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp">
             <div data-expense-drop-overlay hidden class="pointer-events-none fixed inset-0 z-[400] bg-sky-950/30 backdrop-blur-sm">
                 <div class="absolute inset-4 grid place-items-center rounded-2xl border-4 border-dashed border-sky-500 bg-white/90">
-                    <p class="px-6 text-center text-xl font-semibold text-sky-900">Drop a receipt to start a new expense</p>
+                    <div class="px-6 text-center">
+                        <i class="fa-solid fa-file-invoice-dollar text-4xl text-sky-700" aria-hidden="true"></i>
+                        <p class="mt-3 text-xl font-semibold text-sky-900">Drop expense receipts here</p>
+                        <p class="mt-1 text-sm text-sky-800">You can drop multiple PDF or image files.</p>
+                    </div>
                 </div>
             </div>
             <p data-expense-drop-error role="alert" class="text-sm text-red-600" hidden></p>
+
+            <dialog data-expense-batch class="sm-expense-import-dialog m-auto max-h-[90dvh] w-[min(32rem,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-sky-200 bg-white p-0 shadow-2xl" aria-labelledby="expense-batch-title" aria-hidden="true">
+                <h2 id="expense-batch-title" class="sr-only">Receipt import</h2>
+                <div class="flex flex-col items-center justify-center px-5 py-6 sm:px-6">
+                    <div class="w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50 px-5 py-5 text-center">
+                        <div class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700">Uploading</div>
+                        <div class="mt-2 text-lg font-semibold text-gray-900">Receipt upload in progress</div>
+                        <p data-expense-batch-summary class="mt-2 text-sm text-gray-600" aria-live="polite">Preparing receipts…</p>
+                        <p data-expense-batch-detail class="mt-1 text-xs text-slate-500" aria-live="polite">Preparing receipts…</p>
+                        <div class="mt-5 h-3 overflow-hidden rounded-full bg-sky-100" role="progressbar" aria-label="Uploading receipts" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" data-expense-batch-progress>
+                            <div data-expense-batch-progress-bar class="h-full w-0 rounded-full bg-sky-600 transition-all duration-200"></div>
+                        </div>
+                        <div data-expense-batch-percent class="mt-2 text-xs font-medium text-sky-800">0% complete</div>
+                    </div>
+                    <div class="mt-4 flex flex-wrap justify-end gap-2">
+                        <x-ui.button type="button" color="outline" data-expense-batch-add><i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Add files</x-ui.button>
+                        <x-ui.button type="button" variant="plain" data-expense-batch-close>Close</x-ui.button>
+                    </div>
+                </div>
+            </dialog>
         </div>
         <x-ui.dynamic-list name="admin-expense-index">
         @if(isset($selectedSupplier))

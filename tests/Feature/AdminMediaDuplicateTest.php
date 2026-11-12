@@ -303,6 +303,123 @@ class AdminMediaDuplicateTest extends TestCase
         Storage::disk('media')->assertMissing((string) $duplicate->hash);
     }
 
+    public function test_two_selected_images_can_open_manual_duplicate_review_without_scanner_matches(): void
+    {
+        $admin = $this->createAdmin();
+        $first = $this->createMedia('manual-first.png', 'Manual First', $admin, str_repeat('a', 64));
+        $second = $this->createMedia('manual-second.png', 'Manual Second', $admin, str_repeat('b', 64));
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.media.duplicates.manual'), [
+                'media_names' => [$first->name, $second->name],
+            ])
+            ->assertOk();
+
+        $reviewUrl = $response->json('redirect');
+        $this->assertNotEmpty($reviewUrl);
+
+        $this->actingAs($admin)
+            ->get($reviewUrl)
+            ->assertOk()
+            ->assertSeeText('Manual Duplicate Review')
+            ->assertSeeText('The automatic scanner does not need to have flagged them')
+            ->assertSeeText('Manual First')
+            ->assertSeeText('Manual Second')
+            ->assertSeeText('2 images selected')
+            ->assertSeeText('Merge into selected image');
+    }
+
+    public function test_three_selected_images_can_open_manual_duplicate_review_as_a_group(): void
+    {
+        $admin = $this->createAdmin();
+        $media = collect([
+            $this->createMedia('manual-group-one.png', 'Manual Group One', $admin, str_repeat('e', 64)),
+            $this->createMedia('manual-group-two.png', 'Manual Group Two', $admin, str_repeat('f', 64)),
+            $this->createMedia('manual-group-three.png', 'Manual Group Three', $admin, str_repeat('0', 64)),
+        ]);
+
+        $reviewUrl = $this->actingAs($admin)
+            ->postJson(route('admin.media.duplicates.manual'), [
+                'media_names' => $media->pluck('name')->all(),
+            ])
+            ->assertOk()
+            ->json('redirect');
+
+        $this->actingAs($admin)
+            ->get($reviewUrl)
+            ->assertOk()
+            ->assertSeeText('3 images selected')
+            ->assertSeeText('Manual Group One')
+            ->assertSeeText('Manual Group Two')
+            ->assertSeeText('Manual Group Three')
+            ->assertSee('xl:grid-cols-3', false)
+            ->assertSee('name="members[]"', false);
+    }
+
+    public function test_manual_duplicate_merge_moves_references_without_a_scanner_match(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->createAdmin();
+        $keeper = $this->createMedia('manual-keeper.png', 'Manual Keeper', $admin, str_repeat('c', 64));
+        $duplicate = $this->createMedia('manual-duplicate.png', 'Manual Duplicate', $admin, str_repeat('d', 64));
+        Storage::disk('media')->put((string) $keeper->hash, 'keeper-file');
+        Storage::disk('media')->put((string) $duplicate->hash, 'duplicate-file');
+        $workshop = Workshop::query()->create([
+            'title' => 'Manual Duplicate Workshop',
+            'content' => '<p>Content</p>',
+            'starts_at' => now()->addDay(),
+            'ends_at' => now()->addDay()->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addHours(12),
+            'status' => 'open',
+            'registration' => 'none',
+            'location_id' => Location::factory()->create()->id,
+            'user_id' => $admin->id,
+            'hero_media_name' => $duplicate->name,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.media.duplicates.merge-manual'), [
+                'first' => $keeper->name,
+                'second' => $duplicate->name,
+            ])
+            ->assertRedirect(route('admin.media.duplicates'));
+
+        $this->assertDatabaseMissing('media', ['name' => $duplicate->name]);
+        $this->assertDatabaseHas('media', ['name' => $keeper->name]);
+        $this->assertSame($keeper->name, $workshop->fresh()->hero_media_name);
+        Storage::disk('media')->assertExists((string) $keeper->hash);
+        Storage::disk('media')->assertMissing((string) $duplicate->hash);
+    }
+
+    public function test_manual_duplicate_merge_can_merge_three_selected_images_into_one(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->createAdmin();
+        $keeper = $this->createMedia('manual-group-keeper.png', 'Manual Group Keeper', $admin, str_repeat('1', 64));
+        $second = $this->createMedia('manual-group-second.png', 'Manual Group Second', $admin, str_repeat('2', 64));
+        $third = $this->createMedia('manual-group-third.png', 'Manual Group Third', $admin, str_repeat('3', 64));
+        Storage::disk('media')->put((string) $keeper->hash, 'keeper-file');
+        Storage::disk('media')->put((string) $second->hash, 'second-file');
+        Storage::disk('media')->put((string) $third->hash, 'third-file');
+
+        $this->actingAs($admin)
+            ->post(route('admin.media.duplicates.merge-manual'), [
+                'keeper' => $keeper->name,
+                'members' => [$keeper->name, $second->name, $third->name],
+            ])
+            ->assertRedirect(route('admin.media.duplicates'));
+
+        $this->assertDatabaseHas('media', ['name' => $keeper->name]);
+        $this->assertDatabaseMissing('media', ['name' => $second->name]);
+        $this->assertDatabaseMissing('media', ['name' => $third->name]);
+        Storage::disk('media')->assertExists((string) $keeper->hash);
+        Storage::disk('media')->assertMissing((string) $second->hash);
+        Storage::disk('media')->assertMissing((string) $third->hash);
+    }
+
     private function createAdmin(): User
     {
         $admin = User::factory()->create();

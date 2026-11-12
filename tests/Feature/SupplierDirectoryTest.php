@@ -32,6 +32,7 @@ class SupplierDirectoryTest extends TestCase
         $this->assertEquals([1 => 25, 2 => 75], $supplier->splits);
         $future = Expense::factory()->create(['supplier' => ' NEW SPLIT SUPPLIER ', 'total_amount' => 220, 'gst_amount' => 20]);
         $this->assertSame([1 => 5000, 2 => 15000], app(FinancePlanner::class)->expenseSplits($future));
+        $data['invoice_id'] = 'NEW-002';
         $data['splits'] = [1 => 100];
         $this->post(route('admin.expense.store'), $data)->assertSessionHasNoErrors();
         $this->assertEquals([1 => 25, 2 => 75], $supplier->fresh()->splits);
