@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ExpenseDuplicateService
 {
+    /** @return Collection<int, Expense> */
     public function matches(?string $supplier, ?string $invoiceId, ?int $ignoreExpenseId = null): Collection
     {
         $invoiceId = Expense::normalizeInvoiceId($invoiceId);
