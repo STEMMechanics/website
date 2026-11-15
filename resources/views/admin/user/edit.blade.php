@@ -12,7 +12,7 @@
     $loginUnavailableReason = match (true) {
         $user->isAnonymized() => 'This user cannot log in because the account has been anonymized.',
         ! $user->canReceiveEmail() => 'This user cannot log in because they do not have an email address.',
-        $user->email_verified_at === null => 'This user cannot log in because their email address is not verified.',
+        $user->email_verified_at === null && ! $user->canUseEmailLogin() => 'This user cannot log in because their email address is not verified.',
         default => null,
     };
 @endphp

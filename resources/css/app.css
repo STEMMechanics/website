@@ -2226,6 +2226,7 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     .sm-mobile-cards .sm-data-table tbody tr > td { display: block; min-width: 0; padding: 0; border: 0; text-align: left !important; white-space: normal; overflow-wrap: anywhere; }
     .sm-mobile-cards .sm-data-table tbody tr > td.hidden { display: none; }
     .sm-mobile-cards td[data-label]::before { content: attr(data-label); display: block; margin-bottom: .3rem; color: #64748b; font-size: .75rem; font-weight: 400; }
+    .sm-mobile-cards .sm-data-table tbody tr > td[data-mobile-align="center"] { text-align: center !important; }
     .sm-mobile-cards td[data-mobile-primary], .sm-mobile-cards td[data-mobile-wide], .sm-mobile-cards td[data-mobile-actions], .sm-mobile-cards td[colspan] { grid-column: 1 / -1; }
     .sm-mobile-cards td[data-mobile-primary] { font-size: 1rem; }
     .sm-mobile-cards td[data-mobile-primary] a { display: block; padding-block: .25rem; }

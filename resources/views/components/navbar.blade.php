@@ -17,6 +17,7 @@
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
         $hasMySponsorships = $navUser ? \App\Models\Sponsor::query()->where('user_id', $navUser->id)->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
+        $hasMyWorkshopReports = $navUser ? $navUser->requestedWorkshops()->exists() : false;
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -264,6 +265,9 @@
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <div class="border-t border-gray-200 my-2"></div>
                 <a href="{{ route('account.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
+                @if($hasMyWorkshopReports)
+                    <a href="{{ route('account.workshop-report.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chart-column w-4 mr-2"></i>Workshop Reports</a>
+                @endif
                 @if($hasMyOrders)
                 <a href="{{ route('account.order.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-box-open w-4 mr-2"></i>Orders</a>
                 @endif

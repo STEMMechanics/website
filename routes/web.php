@@ -73,6 +73,7 @@ use App\Http\Controllers\WorkshopInterestReminderController;
 use App\Http\Controllers\WorkshopPickListController;
 use App\Http\Controllers\WorkshopPromotionalFlyerController;
 use App\Http\Controllers\WorkshopRecommendationController;
+use App\Http\Controllers\WorkshopReportController;
 use App\Http\Controllers\WorkshopTicketFlowController;
 use App\Http\Controllers\WorkshopWelcomeController;
 use App\Models\Workshop;
@@ -223,6 +224,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/sponsorships/manage', [SponsorshipController::class, 'managePortal'])->middleware('nocache')->name('sponsor.account.manage');
     Route::get('/account/media', [MediaController::class, 'account_index'])->name('account.media.index');
     Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
+    Route::middleware('nocache')->prefix('/account/workshops')->name('account.workshop-report.')->group(function () {
+        Route::get('/', [WorkshopReportController::class, 'index'])->name('index');
+        Route::get('/export.csv', [WorkshopReportController::class, 'export'])->name('export');
+        Route::get('/photos.zip', [WorkshopReportController::class, 'downloadAllPhotos'])->name('photos.download');
+        Route::get('/{workshop}/photos/{media}', [WorkshopReportController::class, 'photo'])->name('photo');
+        Route::get('/{workshop}/photos/{media}/download', [WorkshopReportController::class, 'downloadPhoto'])->name('photo.download');
+    });
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
     Route::middleware('full-account')->group(function () {
