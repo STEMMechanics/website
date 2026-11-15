@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name' => '', 'label' => 'Gallery', 'info', 'value' => '', 'editor' => false, 'downloads' => false])
+@props(['type' => 'text', 'name' => '', 'label' => 'Gallery', 'info', 'value' => '', 'editor' => false, 'downloads' => false, 'items' => null, 'viewerId' => null, 'visibleLimit' => null])
 
 @php
     $hasError = $errors->has($name);
@@ -6,7 +6,14 @@
     $editor = filter_var($editor, FILTER_VALIDATE_BOOLEAN);
 @endphp
 
-@if($value !== '' || $editor === true)
+@if($items !== null)
+    @include('components.ui.gallery-viewer', [
+        'items' => $items,
+        'downloads' => $downloads,
+        'viewerId' => $viewerId,
+        'visibleLimit' => $visibleLimit,
+    ])
+@elseif($value !== '' || $editor === true)
 <div x-data="{ dragGalleryIndex: -1, dragGalleryDropIndex: -1, galleryDropActive: false }" class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
     @if($editor === true)
         <h3 class="text-xl font-semibold">{{ $label }}</h3>

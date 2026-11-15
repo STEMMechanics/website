@@ -483,8 +483,8 @@ class User extends Authenticatable implements MustVerifyEmail
     public function canUseEmailLogin(): bool
     {
         return ! $this->isAnonymized()
-            && $this->email_verified_at !== null
-            && $this->canReceiveEmail();
+            && $this->canReceiveEmail()
+            && ($this->email_verified_at !== null || $this->requestedWorkshops()->exists());
     }
 
     public function isFullAccount(): bool
