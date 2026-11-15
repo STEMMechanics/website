@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Location;
+use App\Services\SiteListControls;
+use App\Support\ListPageSize;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -19,7 +23,7 @@ class LocationController extends Controller
             $query->orWhere('address', 'like', '%'.$request->search.'%');
         }
 
-        $locations = $query->orderBy('name')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))->onEachSide(1);
+        $locations = $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))->onEachSide(1);
 
         return view('admin.location.index', [
             'locations' => $locations,
@@ -111,12 +115,29 @@ class LocationController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Location $location)
+    public function destroy(Request $request, Location $location): RedirectResponse|JsonResponse
     {
+        if ($location->workshops()->exists()) {
+            $message = 'This location cannot be deleted because it is assigned to one or more workshops.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 422);
+            }
+
+            return redirect()->back()->withErrors(['location' => $message]);
+        }
+
         $location->delete();
         session()->flash('message', 'Location has been deleted');
         session()->flash('message-title', 'Location deleted');
         session()->flash('message-type', 'danger');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.location.index'),
+            ]);
+        }
 
         return redirect()->route('admin.location.index');
     }

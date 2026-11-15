@@ -8,7 +8,11 @@
     $locationLabel = $showHostedFor
         ? $workshop->hostedFor->name
         : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());
-    if (!$showHostedFor && !$workshop->is_private && trim((string) $workshop->location?->suburb) !== '') {
+    if (!$showHostedFor
+        && !$workshop->is_private
+        && $workshop->location !== null
+        && trim((string) $workshop->location->suburb) !== ''
+        && ! $workshop->location->suburbIsContainedInNameOrAddress()) {
         $locationLabel .= ', '.$workshop->location->suburb;
     }
     $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
