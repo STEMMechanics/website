@@ -20,10 +20,10 @@
                     @foreach ($locations as $location)
                         <tr>
                             <td>
-                                <div class="whitespace-normal">{{ $location->name }}</div>
-                                <div class="md:hidden text-xs text-gray-500 whitespace-normal">{{ $location->address }}</div>
+                                <a href="{{ route('admin.location.edit', $location) }}" class="whitespace-normal font-semibold text-primary-color hover:text-primary-color-dark hover:underline">{{ $location->name }}</a>
+                                <div class="md:hidden text-xs text-gray-500 whitespace-normal">{{ $location->formattedAddress() }}</div>
                             </td>
-                            <td class="hidden md:table-cell">{{ $location->address }}</td>
+                            <td class="hidden md:table-cell">{{ $location->formattedAddress() }}</td>
                             <td class="text-center!">
                                 <x-ui.row-actions>
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.location.edit', $location) }}" />
