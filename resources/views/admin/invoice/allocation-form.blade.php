@@ -1,6 +1,6 @@
 @php
     $productSnapshots = $invoice->lines->filter(fn ($line) => ! empty($line->product_allocation_snapshot))->mapWithKeys(fn ($line) => [$line->id => $line->product_allocation_snapshot])->all();
-    $hasWorkshopPricing = $invoice->lines->whereIn('kind', ['workshop', 'travel', 'multi_workshop'])->isNotEmpty();
+    $hasWorkshopPricing = $invoice->lines->whereIn('kind', ['workshop', 'travel', 'multi_workshop', 'multi_travel'])->isNotEmpty();
     $hasPricingDefaults = array_sum($allocation['suggestedTargets']) > 0;
     $linkedWorkshops = $invoice->tickets()->with('workshop')->get()->pluck('workshop')->filter()->merge(\App\Models\Workshop::whereIn('id', $invoice->lines->flatMap(fn ($line) => app(\App\Services\Finance\WorkshopFunding::class)->entries($line))->pluck('details_json.workshop.linked_workshop_id'))->get())->unique('id');
 @endphp

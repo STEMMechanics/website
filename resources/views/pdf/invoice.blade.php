@@ -264,7 +264,7 @@
                     if ($lineKind === 'shipping') {
                     $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
                     }
-                    $typeLabel = ['multi_workshop' => 'Workshop Delivery', 'workshop' => 'Workshop Delivery', 'travel' => 'Travel Fee', 'product' => 'Store Product', 'ticket' => 'Ticket', 'shipping' => 'Shipping'][$lineKind] ?? '';
+                    $typeLabel = ['multi_workshop' => 'Workshop Delivery', 'workshop' => 'Workshop Delivery', 'travel' => 'Travel Fee', 'multi_travel' => 'Travel Fee', 'product' => 'Store Product', 'ticket' => 'Ticket', 'shipping' => 'Shipping'][$lineKind] ?? '';
                     if (in_array($lineKind, ['product', 'shipping'], true) && trim($lineDescription) !== '') {
                     $typeLabel = '';
                     }
@@ -273,7 +273,7 @@
                         <td>
 
                             <div class="line-desc"><strong>{{ $typeLabel !== '' ? $typeLabel : $lineDescription }}{{ $hasMixedTaxTreatment && ! $gstApplicable ? '*' : '' }}</strong></div>
-                            @if($typeLabel !== '' && trim($lineDescription) !== '' && (in_array($lineKind, ['workshop', 'multi_workshop'], true) || strcasecmp(trim($lineDescription), $typeLabel) !== 0))
+                            @if($typeLabel !== '' && trim($lineDescription) !== '' && (in_array($lineKind, ['workshop', 'multi_workshop', 'multi_travel'], true) || strcasecmp(trim($lineDescription), $typeLabel) !== 0))
                                 <div class="line-note">{{ $lineDescription }}</div>
                             @endif
                             @if($lineNotes !== '')

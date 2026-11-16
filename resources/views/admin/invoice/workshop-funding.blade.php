@@ -12,9 +12,11 @@
             @if($fundingLine->kind === 'multi_workshop')
                 <p class="mb-3 text-xs text-slate-500">Funding is split using each delivery's billed hours × seats.</p>
                 @foreach($fundingLine->details_json['multi_workshop']['rows'] ?? [] as $rowIndex => $fundingRow)
-                    <div class="mt-4 border-t border-slate-100 pt-4" x-data="{ item: @js($fundingRow) }">
-                        <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]"><div><span class="mb-1 block text-sm">Workshop</span><x-finance.workshop-funding-fields :billing-locked="true" :name-prefix="'workshop_funding['.$fundingLine->id.'][rows]['.$rowIndex.']'" /></div><div><span class="mb-1 block text-sm">Allocation seats</span><x-finance.workshop-seats-field :billing-locked="true" /></div></div>
-                    </div>
+                    @if(! in_array(($fundingRow['row_type'] ?? 'workshop'), ['spacing', 'heading'], true))
+                        <div class="mt-4 border-t border-slate-100 pt-4" x-data="{ item: @js($fundingRow) }">
+                            <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]"><div><span class="mb-1 block text-sm">Workshop</span><x-finance.workshop-funding-fields :billing-locked="true" :name-prefix="'workshop_funding['.$fundingLine->id.'][rows]['.$rowIndex.']'" /></div><div><span class="mb-1 block text-sm">Allocation seats</span><x-finance.workshop-seats-field :billing-locked="true" /></div></div>
+                        </div>
+                    @endif
                 @endforeach
             @else
                 <div class="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]"><div><span class="mb-1 block text-sm">Workshop</span><x-finance.workshop-funding-fields :billing-locked="true" :name-prefix="'workshop_funding['.$fundingLine->id.']'" /></div><div><span class="mb-1 block text-sm">Allocation seats</span><x-finance.workshop-seats-field :billing-locked="true" /></div></div>

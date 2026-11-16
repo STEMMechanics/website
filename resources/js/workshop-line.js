@@ -17,6 +17,10 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
         updateMultipleWorkshops(item, plan, inclusive);
         return;
     }
+    if (item.kind === 'multi_travel') {
+        updateMultipleTravel(item, plan, inclusive);
+        return;
+    }
     if (item.kind === 'travel' && item.travel_hours !== '' && item.travel_hours != null) {
         item.travel_units = Number(item.travel_hours) * 4;
         item.quantity = Number(item.travel_hours);
@@ -79,6 +83,34 @@ function applyPlanPrice(item, plan, inclusive) {
     }
 }
 window.SM = window.SM || {};
+const workshopSpacingAliases = new Set(['-', 'space', 'spacing', '- spacing', '- (space)']);
+const committedWorkshopSpacingLabels = new Set(['- spacing', '- (space)', 'spacing']);
+window.SM.isWorkshopSpacing = row => {
+    const description = String(row?.description ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+    if (row?.row_type === 'heading') return true;
+    if (row?.row_type === 'spacing') return true;
+    return committedWorkshopSpacingLabels.has(description);
+};
+window.SM.commitWorkshopSpacing = row => {
+    const description = String(row?.description ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+    const isSpacing = row?.row_type === 'heading' || workshopSpacingAliases.has(description);
+    if (!isSpacing) {
+        if (row?.row_type === 'spacing') delete row.row_type;
+        return row;
+    }
+    row.row_type = 'spacing';
+    row.description = '- (space)';
+    // Keep the hidden workshop controls' Alpine state valid while the spacer is displayed.
+    row.details_json = { workshop: { allocation_basis: 'manual', allocation_seats: null } };
+    row.workshop_date = '';
+    row.workshop_hours = '';
+    row.workshop_seats = '';
+    row.venue_supplied = true;
+    row.supplied_categories = {};
+    delete row.spacer_after;
+    return row;
+};
+window.SM.normalizeWorkshopSpacing = window.SM.commitWorkshopSpacing;
 window.SM.currentGstRate = () => Number(typeof document !== 'undefined' ? document.querySelector?.('meta[name="gst-rate"]')?.content ?? 0.10 : 0.10);
 window.SM.lineTaxRate = item => item.gst_applicable === false ? 0 : Number(item.tax_rate ?? window.SM.currentGstRate());
 window.SM.gstRateForDate = date => {
@@ -156,7 +188,7 @@ window.SM.cleanPriceQuote = (inclusive, quantity, taxRate = window.SM.currentGst
     };
 };
 window.SM.priceRoundingForLine = item => {
-    if (!item || !['workshop', 'multi_workshop', 'travel'].includes(item.kind)) return null;
+    if (!item || !['workshop', 'multi_workshop', 'travel', 'multi_travel'].includes(item.kind)) return null;
     const inclusive = Number(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? 0);
     const taxRate = window.SM.lineTaxRate(item);
     if (taxRate > 0 && Math.abs(taxRate - window.SM.currentGstRate()) > 0.00000001) return null;
@@ -288,13 +320,73 @@ window.SM.invoiceRoundingAllowance = (items, rules, prices) => window.SM.expandW
     return sum + Math.max(0, Math.round(net - cost));
 }, 0);
 
-window.SM.expandWorkshopGroups = items => items.flatMap(item => item.kind === 'multi_workshop'
-    ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).map(row => ({ ...row, kind: 'workshop', gst_applicable: item.gst_applicable,
-        details_json: { ...(row.details_json || {}), ...(item.details_json?.pricing_basis ? { pricing_basis: item.details_json.pricing_basis } : {}) } }))
-    : [item]);
+window.SM.expandWorkshopGroups = items => items.flatMap(item => {
+    if (item.kind === 'multi_workshop') {
+        return (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).filter(row => !window.SM.isWorkshopSpacing(row)).map(row => ({ ...row, kind: 'workshop', gst_applicable: item.gst_applicable,
+            details_json: { ...(row.details_json || {}), ...(item.details_json?.pricing_basis ? { pricing_basis: item.details_json.pricing_basis } : {}) } }));
+    }
+    if (item.kind === 'multi_travel') {
+        return (item.travel_rows ?? item.details_json?.multi_travel?.rows ?? []).filter(row => !window.SM.isWorkshopSpacing(row) && Number(row.travel_hours) > 0).map(row => ({ ...row, kind: 'travel', gst_applicable: item.gst_applicable,
+            travel_hours: row.travel_hours ?? row.details_json?.travel?.hours ?? '',
+            details_json: { ...(row.details_json || {}) } }));
+    }
+    return [item];
+});
 window.SM.addWorkshopRow = item => {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
-    item.workshops.push({ description: '', workshop_date: '', workshop_hours: 1, workshop_seats: 10, venue_supplied: true, supplied_categories: {} });
+    item.workshops.push({ description: '', workshop_date: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {} });
+};
+window.SM.hydrateMultiTravelLine = item => {
+    if (item?.kind !== 'multi_travel') return item;
+    item.travel_rows ??= JSON.parse(JSON.stringify(item.details_json?.multi_travel?.rows || []));
+    return item;
+};
+window.SM.addTravelRow = item => {
+    window.SM.hydrateMultiTravelLine(item);
+    item.travel_rows.push({ description: '', travel_date: '', travel_hours: '', supplied_categories: {} });
+};
+window.SM.copyWorkshopRowsToTravel = (item, workshopItem) => {
+    if (!item || !workshopItem) return false;
+    const sourceRows = Array.isArray(workshopItem.workshops) && workshopItem.workshops.length
+        ? workshopItem.workshops
+        : workshopItem.details_json?.multi_workshop?.rows ?? [];
+    if (!Array.isArray(sourceRows)) return false;
+    const spacingAliases = new Set(['-', 'space', 'spacing', '- spacing', '- (space)']);
+    const rows = sourceRows
+        .filter(row => {
+            if (!row || typeof row !== 'object') return false;
+            const description = String(row.description ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+            return window.SM.isWorkshopSpacing(row)
+                || spacingAliases.has(description)
+                || description !== ''
+                || String(row.workshop_date ?? '').trim() !== ''
+                || String(row.details_json?.workshop?.date ?? '').trim() !== ''
+                || (row.workshop_hours ?? '') !== ''
+                || (row.workshop_seats ?? '') !== '';
+        })
+        .map(row => {
+            const description = String(row.description ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+            if (window.SM.isWorkshopSpacing(row) || spacingAliases.has(description)) {
+                return { row_type: 'spacing', description: '- (space)', travel_date: '', travel_hours: 0, supplied_categories: {} };
+            }
+            return {
+                description: String(row.description ?? '').trim(),
+                travel_date: row.workshop_date || row.details_json?.workshop?.date || '',
+                travel_hours: 0,
+                supplied_categories: {},
+            };
+        });
+    if (!rows.length) return false;
+    item.travel_rows = rows;
+    return true;
+};
+window.SM.moveWorkshopRow = (item, index, direction) => {
+    const rows = item?.kind === 'multi_travel' ? item.travel_rows : item?.workshops;
+    if (!Array.isArray(rows)) return;
+    const destination = Number(index) + Number(direction);
+    if (!Number.isInteger(Number(index)) || ![-1, 1].includes(Number(direction)) || destination < 0 || destination >= rows.length) return;
+    [rows[index], rows[destination]] = [rows[destination], rows[index]];
+    updateWorkshopLine(item);
 };
 function generatedWorkshopNotes(item) {
     const calculation = row => {
@@ -303,10 +395,20 @@ function generatedWorkshopNotes(item) {
         return `${hours} ${hours === 1 ? 'hr' : 'hrs'} × ${seats} seats`;
     };
     if (item.kind === 'multi_workshop') {
-        return (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).map(row => {
+        const lines = [];
+        (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).forEach(row => {
+            if (window.SM.isWorkshopSpacing(row)) {
+                if (lines.length && lines.at(-1) !== '') lines.push('');
+                return;
+            }
+            const description = String(row.description || '').trim();
+            const hasData = description !== '' || row.workshop_date || row.workshop_hours !== '' && row.workshop_hours != null || row.workshop_seats !== '' && row.workshop_seats != null;
+            if (!hasData) return;
             const date = row.workshop_date ? row.workshop_date.split('-').reverse().join('/') + ' - ' : '';
-            return '- ' + date + (row.description || '').trim() + ' - (' + calculation(row) + ')';
-        }).join('\n');
+            lines.push('- ' + date + description + ' - (' + calculation(row) + ')');
+            if (row.spacer_after) lines.push('');
+        });
+        return lines.join('\n').replace(/\n+$/, '');
     } else if (item.kind === 'workshop') {
         return calculation({ ...item.details_json?.workshop, ...item });
     }
@@ -385,7 +487,16 @@ window.SM.initializeWorkshopText = item => {
 };
 window.SM.workshopNotesPreview = (item, catalog = []) => {
     const rows = item.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [item];
-    const entries = rows.map(row => {
+    const rowsWithData = item.kind === 'multi_workshop'
+        ? rows.filter(row => window.SM.isWorkshopSpacing(row)
+            || String(row.description ?? '').trim() !== ''
+            || String(row.workshop_date ?? '').trim() !== ''
+            || (row.workshop_hours ?? '') !== ''
+            || (row.workshop_seats ?? '') !== ''
+            || !!row.details_json?.workshop?.linked_workshop_id)
+        : rows;
+    const entries = rowsWithData.map(row => {
+        if (window.SM.isWorkshopSpacing(row)) return { spacing: true, date: '', workshop: '', duration: '', seats: '' };
         const settings = row.details_json?.workshop ?? {};
         const linked = catalog.find(option => option.id === settings.linked_workshop_id);
         const date = row.workshop_date ?? settings.date ?? linked?.date ?? '';
@@ -400,15 +511,74 @@ window.SM.workshopNotesPreview = (item, catalog = []) => {
     });
     return String(item.notes ?? '').split(/\r\n|\r|\n/).flatMap(line => /\{(?:date|workshop|duration|seats)\}/.test(line)
         ? entries.map(entry => {
+            if (entry.spacing) return '';
             let text = line;
             for (const optional of ['date', 'workshop']) if (!entry[optional]) text = text.replace(new RegExp(`\\{${optional}\\}\\s*-\\s*`), '');
             return text.replace(/\{(date|workshop|duration|seats)\}/g, (_, token) => entry[token]);
         })
         : [line]).join('\n').trim();
 };
+window.SM.multiTravelNotesPreview = item => {
+    const rows = item?.travel_rows ?? item?.details_json?.multi_travel?.rows ?? [];
+    const lines = [];
+    const formatNumber = value => {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return '';
+        return String(number).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    };
+    rows.forEach(row => {
+        if (window.SM.isWorkshopSpacing(row)) {
+            if (lines.length && lines.at(-1) !== '') lines.push('');
+            return;
+        }
+        const description = String(row?.description ?? '').trim();
+        const rawDate = String(row?.travel_date ?? row?.workshop_date ?? row?.details_json?.travel?.date ?? '').split('T')[0];
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(rawDate) ? rawDate.split('-').reverse().join('/') : '';
+        const hasHours = row?.travel_hours !== '' && row?.travel_hours != null && Number.isFinite(Number(row.travel_hours));
+        const hours = hasHours ? formatNumber(row.travel_hours) : '';
+        if (description === '' && date === '' && hours === '') return;
+        const label = [date, description, hours !== '' ? hours + ' ' + (Number(row.travel_hours) === 1 ? 'hr' : 'hrs') : '']
+            .filter(part => part !== '')
+            .join(' - ');
+        if (label !== '') lines.push('- ' + label);
+    });
+    return lines.join('\n').replace(/\n+$/, '');
+};
+function updateMultipleTravel(item, plan, inclusive) {
+    item.travel_rows ??= JSON.parse(JSON.stringify(item.details_json?.multi_travel?.rows || []));
+    const travelRows = item.travel_rows.filter(row => !window.SM.isWorkshopSpacing(row) && Number(row.travel_hours) > 0);
+    const quantity = Math.round(travelRows.reduce((sum, row) => sum + Number(row.travel_hours || 0), 0) * 100) / 100;
+    item.quantity = quantity;
+    item.details_json = { ...(item.details_json || {}), multi_travel: { rows: item.travel_rows, quantity_basis: 'hours' } };
+    if (!plan || !item.auto_pricing || !(quantity > 0)) return;
+
+    let gross = 0;
+    for (const row of travelRows) {
+        const priced = { ...row, kind: 'travel', travel_hours: Number(row.travel_hours || 0), auto_pricing: true, gst_applicable: item.gst_applicable };
+        updateWorkshopLine(priced, plan, false);
+        const amounts = window.SM.lineAmounts(priced);
+        gross += Math.round((amounts.net + amounts.tax) * 100);
+    }
+    item.tax_rate = item.gst_applicable === false ? 0 : window.SM.currentGstRate();
+    item.details_json.inclusive_unit_price = gross / 100 / quantity;
+    item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive
+        ? formatUnitPrice(gross / 100 / quantity)
+        : (gross / 100 / quantity / (1 + window.SM.lineTaxRate(item))).toFixed(2);
+    if (inclusive && plan.clean_prices) {
+        item.unit_price_inc_tax = String(gross / 100 / quantity);
+        delete item.details_json.price_rounding;
+        window.SM.roundWorkshopPrice(item, true);
+        item.unit_price_inc_tax = Number(item.unit_price_inc_tax).toFixed(2);
+    }
+}
 function updateMultipleWorkshops(item, plan, inclusive) {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
-    const quantity = Math.round(item.workshops.reduce((sum, row) => sum + Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0), 0) * 100) / 100;
+    item.workshops.forEach(row => {
+        if (row?.row_type === 'heading') window.SM.commitWorkshopSpacing(row);
+    });
+    const workshopRows = item.workshops.filter(row => !window.SM.isWorkshopSpacing(row));
+    const pricedWorkshopRows = workshopRows.filter(row => Number(row.workshop_hours) > 0 && row.workshop_seats !== '' && row.workshop_seats != null);
+    const quantity = Math.round(workshopRows.reduce((sum, row) => sum + Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0), 0) * 100) / 100;
     if (quantity > 0 && Number(item.quantity) === 1 && item.details_json?.multi_workshop && !item.details_json.multi_workshop.quantity_basis) {
         if (item.details_json.inclusive_unit_price == null) {
             const amount = window.SM.lineAmounts(inclusive ? { ...item, unit_price: Number(item.unit_price_inc_tax || 0) / (1 + window.SM.lineTaxRate(item)) } : item);
@@ -425,7 +595,7 @@ function updateMultipleWorkshops(item, plan, inclusive) {
     syncWorkshopNotes(item);
     if (!plan || !item.auto_pricing || !(quantity > 0)) return;
     let gross = 0;
-    for (const row of item.workshops) {
+    for (const row of pricedWorkshopRows) {
         const priced = { ...row, kind: 'workshop', auto_pricing: true, gst_applicable: item.gst_applicable };
         updateWorkshopLine(priced, plan, false);
         const amounts = window.SM.lineAmounts(priced);
@@ -456,8 +626,8 @@ window.SM.documentAmounts = (items, original = null) => {
 window.SM.formatUnitPrice = formatUnitPrice;
 
 
-window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
-    item, catalog, billingLocked, query: '', open: false, menuOpen: false, selected: 0, menuTop: 0, menuLeft: 0, menuWidth: 320,
+window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSpacing = false, travelRow = false) => ({
+    item, catalog, billingLocked, allowSpacing, travelRow, query: '', open: false, menuOpen: false, selected: 0, menuTop: 0, menuLeft: 0, menuWidth: 320,
     init() {
         this.item.details_json ??= {};
         this.item.details_json.workshop ??= {};
@@ -500,9 +670,12 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
     get matches() {
         const query = this.query.trim().toLowerCase();
         const description = String(this.workshopName || '').toLowerCase();
-        const date = this.item.workshop_date || this.item.details_json.workshop.date;
+        const date = this.travelRow ? this.item.travel_date : this.item.workshop_date || this.item.details_json.workshop.date;
         const score = option => (date && option.date === date ? 4 : 0) + (option.title && description.includes(option.title.toLowerCase()) ? 3 : 0);
-        return this.catalog.filter(option => !query || option.label.toLowerCase().includes(query)).sort((a, b) => score(b) - score(a)).slice(0, 12);
+        const spacing = { id: '__workshop_spacing__', title: '- (space)', label: '- (space)', spacing: true };
+        const options = this.catalog.filter(option => !query || option.label.toLowerCase().includes(query));
+        if (this.allowSpacing && (!query || spacing.label.includes(query))) options.unshift(spacing);
+        return options.sort((a, b) => (a.spacing ? -1 : b.spacing ? 1 : score(b) - score(a))).slice(0, 12);
     },
     position(element, width = 320) {
         const rect = element.getBoundingClientRect();
@@ -533,11 +706,23 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false) => ({
         this.menuOpen = false;
     },
     choose(option) {
+        if (option?.spacing) {
+            this.item.description = option.label;
+            window.SM.commitWorkshopSpacing(this.item);
+            this.query = '';
+            this.open = false;
+            this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
+            return;
+        }
         this.item.details_json.workshop.linked_workshop_id = option?.id || null;
         if (option && !this.billingLocked) {
             this.workshopName = option.title || option.label;
-            if (option.hours > 0) this.item.workshop_hours = option.hours;
-            this.item.workshop_date = option.date || '';
+            if (this.travelRow) {
+                this.item.travel_date = option.date || '';
+            } else {
+                if (option.hours > 0) this.item.workshop_hours = option.hours;
+                this.item.workshop_date = option.date || '';
+            }
         }
         if (option && this.item.details_json.workshop.allocation_basis !== 'manual') this.setSeats(this.item.details_json.workshop.allocation_basis);
         else if (!option) this.setSeats('manual');

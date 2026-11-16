@@ -123,7 +123,7 @@ class SiteListControls
             'admin.invoice.index' => [
                 'status' => ['label' => 'Status', 'type' => 'array', 'options' => array_combine(Invoice::STATUSES, array_map(fn ($status) => ucwords(str_replace('_', ' ', $status)), Invoice::STATUSES))],
                 'customer' => ['label' => 'Customer name or email', 'type' => 'text'],
-                'line_types' => ['label' => 'Contains line types', 'type' => 'array', 'options' => ['ticket' => 'Ticket', 'workshop' => 'Workshop', 'multi_workshop' => 'Multi Workshop Delivery', 'travel' => 'Travel', 'product' => 'Product', 'custom' => 'Custom / other']],
+                'line_types' => ['label' => 'Contains line types', 'type' => 'array', 'options' => ['ticket' => 'Ticket', 'workshop' => 'Workshop', 'multi_workshop' => 'Multi Workshop Delivery', 'travel' => 'Travel', 'multi_travel' => 'Multi Travel Fee', 'product' => 'Product', 'custom' => 'Custom / other']],
                 'allocation_state' => ['label' => 'Cost-centre allocation', 'type' => 'select', 'options' => ['not_allocated' => 'Not allocated', 'automatic' => 'Automatic', 'manual' => 'Manual override']],
                 'allocation_plan' => ['label' => 'Allocation plan', 'type' => 'select', 'options' => DB::table('finance_pricing_versions')->orderBy('name')->get()->mapWithKeys(fn ($plan) => [(string) $plan->id => $plan->name.($plan->is_snapshot ? ' (saved revision)' : ($plan->archived ? ' (archived)' : ''))])->all()],
                 'payment_from' => ['label' => 'Payment date — From', 'type' => 'date'],

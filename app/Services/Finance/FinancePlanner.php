@@ -764,7 +764,7 @@ class FinancePlanner
             }
         }
         $count = 0;
-        foreach (Invoice::query()->whereNotIn('id', $excludedInvoices)->whereNotNull('created_by')->whereHas('lines', fn ($query) => $query->whereIn('kind', ['workshop', 'multi_workshop', 'travel']))->whereDate('issue_date', '>=', $settings->opening_date ?? self::HISTORY_START)->lazyById(100) as $invoice) {
+        foreach (Invoice::query()->whereNotIn('id', $excludedInvoices)->whereNotNull('created_by')->whereHas('lines', fn ($query) => $query->whereIn('kind', ['workshop', 'multi_workshop', 'travel', 'multi_travel']))->whereDate('issue_date', '>=', $settings->opening_date ?? self::HISTORY_START)->lazyById(100) as $invoice) {
             app(InvoiceAllocation::class)->sync($invoice, $invoice->created_by);
         }
 

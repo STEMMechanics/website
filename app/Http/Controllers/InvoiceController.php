@@ -2596,7 +2596,7 @@ class InvoiceController extends Controller
         $quantity = (float) ($item['quantity'] ?? $item['qty'] ?? 0);
         $unitPriceExTax = (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
 
-        if (! in_array($kind, ['product', 'workshop', 'multi_workshop'], true) && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
+        if (! in_array($kind, ['product', 'workshop', 'multi_workshop', 'multi_travel'], true) && $description === '' && $notes === '' && abs($quantity) < 0.0001 && abs($unitPriceExTax) < 0.0001) {
             return null;
         }
 

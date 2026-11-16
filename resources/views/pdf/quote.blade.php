@@ -169,11 +169,13 @@
                 $lineNotes = \App\Services\Finance\InvoicePdfLines::notesForPdf($item);
                 $lineDescription = \App\Services\Finance\InvoicePdfLines::descriptionForPdf($item);
                 $isWorkshop = in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true);
+                $isTravel = in_array($item['kind'] ?? '', ['travel', 'multi_travel'], true);
+                $lineType = $isWorkshop ? 'Workshop Delivery' : ($isTravel ? 'Travel Fee' : $lineDescription);
                 @endphp
                 <tr>
                     <td>
-                        <div class="line-desc">{{ $isWorkshop ? 'Workshop Delivery' : $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
-                        @if($isWorkshop && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), 'Workshop Delivery') !== 0)
+                        <div class="line-desc">{{ $lineType }}{{ $gstApplicable ? '' : '*' }}</div>
+                        @if(($isWorkshop || $isTravel) && trim($lineDescription) !== '' && strcasecmp(trim($lineDescription), $lineType) !== 0)
                         <div class="line-note">{{ $lineDescription }}</div>
                         @endif
                         @if($lineNotes !== '')

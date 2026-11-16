@@ -77,6 +77,7 @@ class InvoiceAllocationWorkspace
         foreach ($invoice->lines as $line) {
             if ($line->kind === 'multi_workshop') {
                 foreach ($line->details_json['multi_workshop']['rows'] ?? [] as $row) {
+                    if (in_array(($row['row_type'] ?? 'workshop'), ['spacing', 'heading'], true)) continue;
                     if (empty($row['details_json']['workshop']['linked_workshop_id'])) $items[] = $row['description'];
                 }
             } elseif ($parts->lineKey($line, $invoice) === 'invoice') {

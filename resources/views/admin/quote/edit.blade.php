@@ -171,7 +171,7 @@
                 defaultLineItem(kind = 'custom') {
                     return {
                         kind,
-                        auto_pricing: true, legacy_workshop: false, travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {},
+                        auto_pricing: true, legacy_workshop: false, travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {},
                         source_id: '',
                         source_variant_id: 0,
                         description: this.defaultDescriptionForKind(kind),
@@ -253,7 +253,7 @@
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => ['product', 'workshop', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },

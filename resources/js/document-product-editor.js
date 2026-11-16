@@ -68,7 +68,7 @@ window.SM.lineItemsEditor = (isLocked = false) => {
             document.getElementById('finance-price-rounding')?.close();
         },
         quantityIsCalculated(item) {
-            return item.kind === 'multi_workshop' || (item.kind === 'workshop' && !!item.workshop_hours && !!item.workshop_seats);
+            return ['multi_workshop', 'multi_travel'].includes(item.kind) || (item.kind === 'workshop' && !!item.workshop_hours && !!item.workshop_seats);
         },
         lineItemKey(item) {
             if (!itemKeys.has(item)) itemKeys.set(item, ++nextItemKey);
@@ -86,7 +86,9 @@ window.SM.lineItemsEditor = (isLocked = false) => {
             this.serializeLineItems();
         },
         mobileWorkshopRows(item) {
-            return item?.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [];
+            if (item?.kind === 'multi_workshop') return (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []).filter(row => !SM.isWorkshopSpacing(row));
+            if (item?.kind === 'multi_travel') return (item.travel_rows ?? item.details_json?.multi_travel?.rows ?? []).filter(row => !SM.isWorkshopSpacing(row));
+            return [];
         },
         mobileWorkshopSummary(item) {
             return this.mobileWorkshopRows(item).map(row => String(row.description || '').trim()).filter(Boolean).join(', ');
@@ -112,6 +114,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         { value: 'product', label: 'Store Product', icon: 'fa-box' },
         { value: 'shipping', label: 'Shipping', icon: 'fa-truck' },
         { value: 'multi_workshop', label: 'Multi Workshop Delivery', icon: 'fa-layer-group' },
+        { value: 'multi_travel', label: 'Multi Travel Fee', icon: 'fa-route' },
         { value: 'workshop', label: 'Workshop Delivery', icon: 'fa-chalkboard-user' },
         { value: 'travel', label: 'Travel Fee', icon: 'fa-route' },
         ...(includeTicket ? [{ value: 'ticket', label: 'Ticket', icon: 'fa-ticket' }] : []),
@@ -121,7 +124,7 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         return {
             shipping: 'Shipping',
             workshop: 'Charged per hour, per seat', multi_workshop: 'Charged per hour, per seat',
-            travel: 'Travel Fee',
+            travel: 'Travel Fee', multi_travel: 'Travel Fee',
         }[kind] ?? '';
     },
     findProduct(productId) {
@@ -357,11 +360,22 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
             return;
         }
 
+        const wasKind = item.kind;
+        const seedTravelRows = kind === 'multi_travel' && wasKind !== 'multi_travel' && !item.travel_rows?.length;
         if (kind === 'workshop' && item.kind !== 'workshop') item.legacy_workshop = false;
         item.kind = kind;
         if (kind === 'multi_workshop') {
             item.auto_pricing = true;
             if (!item.workshops?.length) SM.addWorkshopRow(item);
+        }
+        if (kind === 'multi_travel') {
+            item.auto_pricing = true;
+            if (seedTravelRows) {
+                const workshopItem = this.lineItems.slice(0, index).reverse().find(line => line.kind === 'multi_workshop');
+                if (!SM.copyWorkshopRowsToTravel(item, workshopItem)) SM.addTravelRow(item);
+            } else if (!item.travel_rows?.length) {
+                SM.addTravelRow(item);
+            }
         }
         if (kind === 'travel') SM.hydrateTravelLine(item);
         SM.updateWorkshopLine(item);
