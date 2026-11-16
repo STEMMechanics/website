@@ -698,7 +698,7 @@ class QuoteController extends Controller
             $unitPrice = (float) ($item['unit_price'] ?? 0);
             $gstApplicable = filter_var($item['gst_applicable'] ?? true, FILTER_VALIDATE_BOOLEAN);
             $isProductLine = (string) ($item['kind'] ?? '') === 'product';
-            $isWorkshopLine = in_array((string) ($item['kind'] ?? ''), ['workshop', 'multi_workshop'], true);
+            $isWorkshopLine = in_array((string) ($item['kind'] ?? ''), ['workshop', 'multi_workshop', 'multi_travel'], true);
             $hasSelectedProduct = (int) ($item['source_id'] ?? 0) > 0
                 || (int) data_get($item, 'store_context.product_id', 0) > 0;
 

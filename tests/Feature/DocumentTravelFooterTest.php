@@ -18,6 +18,17 @@ class DocumentTravelFooterTest extends TestCase
         $this->assertSame('$40.00', DocumentTravelFooter::render('{travel_rate_ex_gst}', $quote));
     }
 
+    public function test_multi_travel_uses_the_shared_hourly_rate_without_quarter_unit_conversion(): void
+    {
+        $quote = new Quote;
+        $quote->line_items = [['kind' => 'multi_travel', 'quantity' => 4, 'unit_price' => 100, 'details_json' => [
+            'inclusive_unit_price' => 110,
+            'multi_travel' => ['quantity_basis' => 'hours', 'rows' => []],
+        ]]];
+
+        $this->assertSame('$100.00', DocumentTravelFooter::render('{travel_rate_ex_gst}', $quote));
+    }
+
     public function test_unknown_and_mixed_rates_do_not_claim_a_default_price(): void
     {
         $quote = new Quote;

@@ -25,6 +25,9 @@ class WorkshopFunding
             return $entries;
         }
         foreach ($line->details_json['multi_workshop']['rows'] ?? [] as $index => $row) {
+            if (in_array(($row['row_type'] ?? 'workshop'), ['spacing', 'heading'], true)) {
+                continue;
+            }
             $settings = $row['details_json']['workshop'] ?? [];
             if (empty($settings['linked_workshop_id'])) {
                 continue;

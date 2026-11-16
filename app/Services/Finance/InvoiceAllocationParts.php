@@ -38,6 +38,9 @@ class InvoiceAllocationParts
         if ($line->kind !== 'multi_workshop') return [$this->lineKey($line, $invoice) => $net];
         $weights = [];
         foreach ($line->details_json['multi_workshop']['rows'] ?? [] as $row) {
+            if (in_array(($row['row_type'] ?? 'workshop'), ['spacing', 'heading'], true)) {
+                continue;
+            }
             $id = $row['details_json']['workshop']['linked_workshop_id'] ?? null;
             $key = $id ? $this->key($id) : 'invoice';
             $weights[$key] = ($weights[$key] ?? 0) + (int) round((float) $row['workshop_hours'] * (int) $row['workshop_seats'] * 100);

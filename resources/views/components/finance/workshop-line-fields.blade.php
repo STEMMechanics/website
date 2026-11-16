@@ -1,13 +1,14 @@
-@props(['inclusive' => false, 'invoiceLayout' => false])
+@props(['inclusive' => false, 'invoiceLayout' => false, 'isLocked' => false])
 @php
     $plan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString());
     $supplyCategories = \Illuminate\Support\Facades\DB::table('finance_categories')->whereIn('kind', ['cost', 'owner'])->pluck('name', 'id');
     $supplyRules = collect(json_decode($plan->rules, true))->filter(fn ($rule) => ($rule['suppliable'] ?? false) || $rule['basis'] === 'venue_hour')->unique('category_id');
     $planPricing = array_merge(json_decode($plan->prices, true), ['rules' => json_decode($plan->rules, true), 'clean_prices' => true]);
 @endphp
-<div class="col-span-full space-y-3" x-data="{ planPricing: @js($planPricing), priceInclusive: @js($inclusive) }" x-init="if (item.kind === 'travel') SM.hydrateTravelLine(item); SM.registerLinePlan(item, planPricing, priceInclusive); if (item.kind === 'multi_workshop') SM.updateWorkshopLine(item)">
-    <x-finance.multi-workshop-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" :invoice-layout="$invoiceLayout" />
-    <div x-show="item.kind !== 'multi_workshop'" class="flex flex-wrap items-end gap-3">
+<div class="col-span-full space-y-3" x-data="{ planPricing: @js($planPricing), priceInclusive: @js($inclusive) }" x-init="if (item.kind === 'travel') SM.hydrateTravelLine(item); if (item.kind === 'multi_travel') SM.hydrateMultiTravelLine(item); SM.registerLinePlan(item, planPricing, priceInclusive); if (['multi_workshop', 'multi_travel'].includes(item.kind)) SM.updateWorkshopLine(item)">
+    <x-finance.multi-workshop-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" :invoice-layout="$invoiceLayout" :is-locked="$isLocked" />
+    <x-finance.multi-travel-fields :supply-rules="$supplyRules" :supply-categories="$supplyCategories" :invoice-layout="$invoiceLayout" :is-locked="$isLocked" />
+    <div x-show="!['multi_workshop', 'multi_travel'].includes(item.kind)" class="flex flex-wrap items-end gap-3">
         <label x-show="item.kind === 'workshop'" class="w-24 text-sm">Hours
             <x-ui.input-control class="mt-1 h-11" type="number" min="0.01" max="24" step="0.01" x-model="item.workshop_hours" x-bind:required="item.kind === 'workshop' &amp;&amp; (!item.legacy_workshop || !!item.workshop_seats)" x-on:input="SM.updateWorkshopLine(item, planPricing, priceInclusive); serializeLineItems()" />
         </label>

@@ -19,7 +19,7 @@
     <x-ui.table variant="listing" class="{{ $lineItemsWrapperClass }}" table-class="{{ $lineItemsTableClass }}">
         <thead><tr><th>Description</th><th class="w-28 text-center whitespace-nowrap">HRS / QTY</th><th class="w-36 text-center whitespace-nowrap">Unit price (inc GST)</th><th class="w-16 text-center">GST</th><th class="w-28 text-center whitespace-nowrap">Total (inc GST)</th><th class="{{ $isLocked ? 'w-16' : 'w-44' }} text-center">Actions</th></tr></thead>
         <template x-for="(item, index) in lineItems" :key="lineItemKey(item)">
-            <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; item.kind === 'workshop') }" class="[&>tr>td]:bg-white!">
+            <tbody x-on:workshop-line-changed.stop="SM.updateWorkshopLine(item); serializeLineItems()" x-data="{ expanded: item.kind === 'product' || ({{ $isLocked ? 'false' : 'true' }} &amp;&amp; ['workshop', 'multi_workshop', 'multi_travel'].includes(item.kind)) }" class="[&>tr>td]:bg-white!">
                 <tr>
                     <td data-label="Description" data-mobile-wide class="min-w-64">
                         <div class="flex items-center gap-2">
@@ -44,7 +44,7 @@
                     </td>
                 </tr>
                 <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
-                    <x-finance.line-item-details :invoice-layout="$invoiceLayout" class="ml-10" />
+                    <x-finance.line-item-details :invoice-layout="$invoiceLayout" :is-locked="$isLocked" class="ml-10" />
                 </td></tr>
             </tbody>
         </template>
@@ -68,10 +68,10 @@
                         <div><dt>GST</dt><dd x-text="item.gst_applicable ? 'Included' : 'Not applied'"></dd></div>
                         <div><dt>Total (inc GST)</dt><dd>$<span x-text="normalizeMoney(SM.lineAmounts(item).gross)"></span></dd></div>
                     </dl>
-                    <template x-if="item.kind === 'multi_workshop'">
+                    <template x-if="['multi_workshop', 'multi_travel'].includes(item.kind)">
                         <div class="sm-invoice-mobile-workshop-summary">
                             <div class="flex items-center gap-2 font-semibold text-slate-800">
-                                <i class="fa-solid fa-layer-group text-sky-600" aria-hidden="true"></i>
+                                <i class="fa-solid text-sky-600" x-bind:class="item.kind === 'multi_travel' ? 'fa-route' : 'fa-layer-group'" aria-hidden="true"></i>
                                 <span x-text="mobileWorkshopRows(item).length + (mobileWorkshopRows(item).length === 1 ? ' workshop' : ' workshops')"></span>
                             </div>
                             <p class="mt-1 break-words text-sm text-slate-600" x-show="mobileWorkshopSummary(item)" x-text="mobileWorkshopSummary(item)"></p>
@@ -124,7 +124,7 @@
                         </div>
                     </div>
                     <div class="mt-5 border-t border-slate-200 pt-5">
-                        <x-finance.line-item-details :invoice-layout="true" />
+                        <x-finance.line-item-details :invoice-layout="true" :is-locked="$isLocked" />
                     </div>
                 </div>
             </template>

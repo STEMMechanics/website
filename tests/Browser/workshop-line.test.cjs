@@ -130,6 +130,69 @@ test('grouped workshops keep their plan unit rate as seats change or rows are re
     assert.equal(sm.lineAmounts(item).gross, 206.25);
 });
 
+test('grouped travel rows total their hours and share one travel rate', () => {
+    const sm = context.window.SM;
+    const plan = { clean_prices: false, travel_rounding_step: 0, rules: [
+        { category_id: 3, basis: 'travel', rate_cents: 1000 },
+    ] };
+    const item = { kind: 'multi_travel', auto_pricing: true, gst_applicable: true, travel_rows: [
+        { description: 'Morning', travel_date: '2026-09-01', travel_hours: 0.5, supplied_categories: {} },
+        { description: 'space' },
+        { description: 'Afternoon', travel_date: '2026-10-01', travel_hours: 1.25, supplied_categories: {} },
+    ] };
+    sm.commitWorkshopSpacing(item.travel_rows[1]);
+    update(item, plan, true);
+    assert.equal(item.quantity, 1.75);
+    assert.equal(item.unit_price_inc_tax, '44.00');
+    assert.equal(sm.lineAmounts(item).gross, 77);
+    assert.deepEqual(sm.expandWorkshopGroups([item]).map(row => [row.kind, row.travel_hours]), [['travel', 0.5], ['travel', 1.25]]);
+    assert.equal(sm.isWorkshopSpacing(item.travel_rows[1]), true);
+    assert.equal(sm.multiTravelNotesPreview(item), '- 01/09/2026 - Morning - 0.5 hrs\n\n- 01/10/2026 - Afternoon - 1.25 hrs');
+    assert.equal(sm.lineCostAllocations([item], plan.rules)[3], 7000);
+    sm.moveWorkshopRow(item, 2, -1);
+    assert.deepEqual(item.travel_rows.map(row => row.description), ['Morning', 'Afternoon', '- (space)']);
+});
+
+test('grouped workshop spacing aliases have no billable delivery data and can be reordered', () => {
+    const sm = context.window.SM;
+    const item = { kind: 'multi_workshop', workshops: [
+        { description: 'Morning', workshop_hours: 1, workshop_seats: 10 },
+        { description: 'space' },
+        { description: 'Afternoon', workshop_hours: 2, workshop_seats: 5 },
+    ] };
+    sm.commitWorkshopSpacing(item.workshops[1]);
+    update(item);
+    assert.equal(item.quantity, 20);
+    assert.equal(item.notes, '- Morning - (1 hr × 10 seats)\n\n- Afternoon - (2 hrs × 5 seats)');
+    assert.equal(sm.isWorkshopSpacing(item.workshops[1]), true);
+    assert.equal(item.workshops[1].description, '- (space)');
+    assert.deepEqual(sm.expandWorkshopGroups([item]).map(row => row.description), ['Morning', 'Afternoon']);
+    sm.moveWorkshopRow(item, 2, -1);
+    assert.deepEqual(item.workshops.map(row => row.description), ['Morning', 'Afternoon', '- (space)']);
+});
+
+test('new grouped workshop rows start empty instead of adding ten seats', () => {
+    const item = { kind: 'multi_workshop', workshops: [] };
+    context.window.SM.addWorkshopRow(item);
+    update(item);
+    assert.equal(item.workshops[0].workshop_hours, '');
+    assert.equal(item.workshops[0].workshop_seats, '');
+    assert.equal(item.quantity, 0);
+});
+
+test('spacing is offered as a workshop suggestion and clearing it restores a normal row', () => {
+    const row = { description: '' };
+    const editor = context.window.SM.workshopFundingEditor(row, [], false, true);
+    editor.init();
+    assert.equal(editor.matches[0].label, '- (space)');
+    editor.choose(editor.matches[0]);
+    assert.equal(row.description, '- (space)');
+    assert.equal(row.row_type, 'spacing');
+    row.description = '';
+    context.window.SM.commitWorkshopSpacing(row);
+    assert.equal(row.row_type, undefined);
+});
+
 test('reference pricing surplus is excluded from the rounding allocation allowance', () => {
     const sm = context.window.SM;
     const plan = { pricing_participants: 10, clean_prices: true, rounding_step: 50, rules: [

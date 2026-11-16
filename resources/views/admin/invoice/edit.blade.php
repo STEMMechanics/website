@@ -402,6 +402,7 @@
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
                             travel_hours: item.travel_hours ?? '',
                             travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
                             legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
                             details_json: item.details_json || {},
                             workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
@@ -429,6 +430,7 @@
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
                             travel_hours: item.travel_hours ?? '',
                             travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
                             details_json: item.details_json || {},
                             workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
                             workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
@@ -445,7 +447,7 @@
                             gst_applicable: item.gst_applicable !== false,
                             tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? SM.currentGstRate()),
                         }))
-                        .filter((item) => ['product', 'workshop', 'multi_workshop'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                     this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
@@ -454,7 +456,7 @@
                     if (this.isLocked) {
                         return;
                     }
-                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: SM.currentGstRate() });
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: SM.currentGstRate() });
                 },
                 removeLineItem(index) {
                     if (this.isLocked) {

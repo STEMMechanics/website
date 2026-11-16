@@ -59,3 +59,24 @@ test('clearing a product selection removes stale pricing and references', () => 
     assert.equal(e.lineItems[0].description, '');
     assert.equal(e.lineItems[0].source_type, null);
 });
+
+test('new multi-travel lines copy the preceding workshop schedule with zero travel hours', () => {
+    const e = editor();
+    e.lineItems = [
+        { kind: 'multi_workshop', workshops: [
+            { description: 'Term 1', workshop_date: '2027-02-17', workshop_hours: 1, workshop_seats: 10 },
+            { description: 'space' },
+            { description: 'Term 2', workshop_date: '2027-05-19', workshop_hours: 1, workshop_seats: 10 },
+        ] },
+        { kind: 'custom', travel_rows: [], details_json: {}, description: '', notes: '', quantity: 1 },
+    ];
+
+    e.selectItemType(1, 'multi_travel');
+
+    assert.equal(JSON.stringify(e.lineItems[1].travel_rows), JSON.stringify([
+        { description: 'Term 1', travel_date: '2027-02-17', travel_hours: 0, supplied_categories: {} },
+        { row_type: 'spacing', description: '- (space)', travel_date: '', travel_hours: 0, supplied_categories: {} },
+        { description: 'Term 2', travel_date: '2027-05-19', travel_hours: 0, supplied_categories: {} },
+    ]));
+    assert.equal(e.lineItems[1].quantity, 0);
+});

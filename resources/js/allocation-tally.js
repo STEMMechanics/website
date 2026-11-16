@@ -34,6 +34,7 @@ export function allocationTally(config) {
                 } else if (item.kind === 'multi_workshop') {
                     const weights = {};
                     for (const row of item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) {
+                        if (SM.isWorkshopSpacing(row)) continue;
                         const id = row.details_json?.workshop?.linked_workshop_id;
                         if (id === config.workshopId) found = true;
                         const key = id ? `workshop:${id}` : 'invoice';
@@ -82,7 +83,7 @@ export function allocationTally(config) {
                 if (item.kind === 'workshop' && item.details_json?.workshop?.linked_workshop_id) return sum + Math.round(window.SM.lineAmounts(item).net * 100);
                 if (item.kind !== 'multi_workshop') return sum;
                 const rows = item.workshops ?? item.details_json?.multi_workshop?.rows ?? [];
-                const units = row => Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0);
+                const units = row => SM.isWorkshopSpacing(row) ? 0 : Number(row.workshop_hours || 0) * Number(row.workshop_seats || 0);
                 const total = rows.reduce((count, row) => count + units(row), 0);
                 const manual = rows.filter(row => !row.details_json?.workshop?.linked_workshop_id).reduce((count, row) => count + units(row), 0);
                 const net = Math.round(window.SM.lineAmounts(item).net * 100);

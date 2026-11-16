@@ -14,9 +14,16 @@ class DocumentTravelFooter
         $items = $document instanceof Invoice ? $document->lines->toArray() : ($document->line_items ?? []);
         $rates = [];
         foreach ($items as $item) {
-            if (($item['kind'] ?? '') !== 'travel') continue;
+            if (! in_array(($item['kind'] ?? ''), ['travel', 'multi_travel'], true)) continue;
             $details = $item['details_json'] ?? [];
             $tax = GstRate::forLine($item);
+            if (($item['kind'] ?? '') === 'multi_travel') {
+                $rate = isset($details['inclusive_unit_price'])
+                    ? (float) $details['inclusive_unit_price'] / (1 + $tax)
+                    : (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
+                $rates[] = round($rate, 2);
+                continue;
+            }
             $rate = isset($details['inclusive_unit_price'])
                 ? (float) $details['inclusive_unit_price'] / (1 + $tax)
                 : (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);

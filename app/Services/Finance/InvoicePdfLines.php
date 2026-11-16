@@ -60,6 +60,9 @@ class InvoicePdfLines
 
     public static function notesForPdf(array $item): string
     {
+        if (($item['kind'] ?? '') === 'multi_travel') {
+            return self::multiTravelNotes($item);
+        }
         $notes = trim((string) ($item['notes'] ?? ''));
         if (in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true)
             && (($item['details_json']['workshop_notes_mode'] ?? '') === 'template' || preg_match('/\{(?:date|workshop|duration|seats)\}/', $notes))) {
@@ -82,12 +85,63 @@ class InvoicePdfLines
             }
         }
         $existing = array_map(fn (string $line): string => trim(preg_replace('/^[-*]\s+/', '', trim($line))), $noteLines);
-        $workshopNotes = collect($item['workshop_details'] ?? [])
-            ->filter(fn (array $workshop): bool => $workshop['label'] !== '' && ! in_array($workshop['label'], $existing, true))
-            ->map(fn (array $workshop): string => '- '.$workshop['label'])
-            ->implode("\n");
+        $workshopNoteLines = [];
+        foreach ($item['workshop_details'] ?? [] as $workshop) {
+            if ($workshop['spacing'] ?? false) {
+                if ($workshopNoteLines !== [] && end($workshopNoteLines) !== '') {
+                    $workshopNoteLines[] = '';
+                }
+
+                continue;
+            }
+            if ($workshop['label'] === '' || in_array($workshop['label'], $existing, true)) {
+                continue;
+            }
+            $workshopNoteLines[] = '- '.$workshop['label'];
+            if ($workshop['spacer_after'] ?? false) {
+                $workshopNoteLines[] = '';
+            }
+        }
+        $workshopNotes = implode("\n", $workshopNoteLines);
 
         return implode("\n", array_filter([$notes, $workshopNotes], fn (string $value): bool => $value !== ''));
+    }
+
+    private static function multiTravelNotes(array $item): string
+    {
+        $rows = $item['details_json']['multi_travel']['rows'] ?? $item['travel_rows'] ?? [];
+        $generated = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            if (self::isSpacingRow($row)) {
+                if ($generated !== [] && end($generated) !== '') {
+                    $generated[] = '';
+                }
+
+                continue;
+            }
+            $date = self::formatDate($row['travel_date'] ?? $row['workshop_date'] ?? data_get($row, 'details_json.travel.date'), null);
+            $description = trim((string) ($row['description'] ?? ''));
+            $hours = is_numeric($row['travel_hours'] ?? null) ? self::formatNumber((float) $row['travel_hours']) : '';
+            if ($description === '' && $hours === '') {
+                continue;
+            }
+            $label = implode(' - ', array_filter([$date, $description, $hours !== '' ? $hours.' '.((float) $row['travel_hours'] === 1.0 ? 'hr' : 'hrs') : ''], fn (string $part): bool => $part !== ''));
+            if ($label !== '') {
+                $generated[] = '- '.$label;
+            }
+        }
+
+        $generated = rtrim(implode("\n", $generated));
+        $notes = trim((string) ($item['notes'] ?? ''));
+        $withoutSpacing = static fn (string $value): string => (string) preg_replace('~\n+~', "\n", trim($value));
+        if ($notes === '' || $withoutSpacing($notes) === $withoutSpacing($generated)) {
+            return $generated;
+        }
+
+        return implode("\n", array_filter([$notes, $generated], fn (string $value): bool => $value !== ''));
     }
 
     private static function renderWorkshopText(string $template, array $workshops): string
@@ -99,7 +153,13 @@ class InvoicePdfLines
 
                 continue;
             }
-            foreach ($workshops as $workshop) {
+            foreach ($workshops as $workshopIndex => $workshop) {
+                if ($workshop['spacing'] ?? false) {
+                    if ($lines !== [] && end($lines) !== '') {
+                        $lines[] = '';
+                    }
+                    continue;
+                }
                 $text = $line;
                 foreach (['date', 'workshop'] as $optional) {
                     if (($workshop[$optional] ?? '') === '') {
@@ -110,6 +170,9 @@ class InvoicePdfLines
                     '{date}' => $workshop['date'], '{workshop}' => $workshop['workshop'],
                     '{duration}' => $workshop['duration'], '{seats}' => $workshop['seats'],
                 ]);
+                if ($workshop['spacer_after'] ?? false) {
+                    $lines[] = '';
+                }
             }
         }
 
@@ -152,6 +215,12 @@ class InvoicePdfLines
 
     private static function workshopEntry(array $settings, array $source): array
     {
+        if (self::isSpacingRow($source)) {
+            return [
+                'id' => '', 'description' => '- (space)', 'date' => null, 'hours' => null, 'seats' => null,
+                'spacing' => true,
+            ];
+        }
         $id = trim((string) ($settings['linked_workshop_id'] ?? ''));
         $description = trim((string) ($settings['name'] ?? $source['description'] ?? ''));
         if (($source['kind'] ?? '') === 'workshop' && in_array(strtolower($description), ['charged per hour, per seat', 'workshop delivery'], true)) {
@@ -167,6 +236,7 @@ class InvoicePdfLines
             'date' => $source['workshop_date'] ?? $settings['date'] ?? null,
             'hours' => $source['workshop_hours'] ?? $settings['hours'] ?? null,
             'seats' => $source['workshop_seats'] ?? $settings['seats'] ?? null,
+            'spacer_after' => (bool) ($source['spacer_after'] ?? false),
         ];
     }
 
@@ -174,6 +244,13 @@ class InvoicePdfLines
     {
         return collect(self::workshopEntries($item))
             ->map(function (array $entry) use ($workshops): array {
+                if ($entry['spacing'] ?? false) {
+                    return [
+                        'id' => '', 'title' => '- (space)', 'label' => '',
+                        'date' => '', 'workshop' => '', 'duration' => '', 'seats' => '',
+                        'spacing' => true, 'spacer_after' => false,
+                    ];
+                }
                 $workshop = $workshops->get($entry['id']);
                 $title = trim((string) ($entry['description'] !== '' ? $entry['description'] : data_get($workshop, 'title', '')));
                 $date = self::formatDate($entry['date'] ?? null, $workshop);
@@ -189,9 +266,10 @@ class InvoicePdfLines
                     'date' => $date, 'workshop' => $title,
                     'duration' => $hours !== null ? self::formatNumber($hours).' '.($hours === 1.0 ? 'hr' : 'hrs') : '',
                     'seats' => $seats !== null ? self::formatNumber($seats).' seats' : '',
+                    'spacer_after' => (bool) ($entry['spacer_after'] ?? false),
                 ];
             })
-            ->filter(fn (array $workshop): bool => $workshop['label'] !== '')
+            ->filter(fn (array $workshop): bool => ($workshop['spacing'] ?? false) || $workshop['label'] !== '')
             ->values()
             ->all();
     }
@@ -213,5 +291,14 @@ class InvoicePdfLines
     private static function formatNumber(float $value): string
     {
         return rtrim(rtrim(number_format($value, 2, '.', ''), '0'), '.');
+    }
+
+    private static function isSpacingRow(array $source): bool
+    {
+        $description = strtolower((string) preg_replace('/\s+/', ' ', trim((string) ($source['description'] ?? ''))));
+
+        return ($source['row_type'] ?? '') === 'heading'
+            || (($source['row_type'] ?? '') === 'spacing' && ($description === '' || in_array($description, ['-', 'space', 'spacing', '- spacing', '- (space)'], true)))
+            || in_array($description, ['-', 'space', 'spacing', '- spacing', '- (space)'], true);
     }
 }
