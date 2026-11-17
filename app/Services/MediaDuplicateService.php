@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -71,6 +72,24 @@ class MediaDuplicateService
         return (int) Cache::remember(self::ATTENTION_CACHE_KEY, now()->addMinutes(10), function () use ($hasher): int {
             return $this->groups()->count() + $this->similarPairs($hasher)->count();
         });
+    }
+
+    public function queueUnscannedImageHashes(): int
+    {
+        $queued = 0;
+
+        Media::query()
+            ->where('mime_type', 'like', 'image/%')
+            ->whereNull('perceptual_hash_scanned_at')
+            ->orderBy('name')
+            ->chunkById(250, function ($mediaItems) use (&$queued): void {
+                foreach ($mediaItems as $media) {
+                    dispatch(new GeneratePerceptualHash((string) $media->name))->onQueue('media');
+                    $queued++;
+                }
+            }, 'name');
+
+        return $queued;
     }
 
     public function clearAttentionCount(): void

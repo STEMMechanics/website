@@ -6,7 +6,6 @@ use App\Exceptions\FileInvalidException;
 use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
-use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
 use App\Models\MediaDownload;
 use App\Models\Token;
@@ -212,17 +211,9 @@ class MediaController extends Controller
         ]);
     }
 
-    public function admin_scan_similar(): RedirectResponse
+    public function admin_scan_similar(MediaDuplicateService $duplicates): RedirectResponse
     {
-        $queued = 0;
-        Media::query()
-            ->where('mime_type', 'like', 'image/%')
-            ->whereNull('perceptual_hash_scanned_at')
-            ->pluck('name')
-            ->each(function (string $mediaName) use (&$queued): void {
-                dispatch(new GeneratePerceptualHash($mediaName))->onQueue('media');
-                $queued++;
-            });
+        $queued = $duplicates->queueUnscannedImageHashes();
 
         return redirect()->route('admin.media.duplicates')
             ->with('message', $queued === 0 ? 'All images have already been scanned.' : $queued.' image'.($queued === 1 ? '' : 's').' queued for similarity scanning.')

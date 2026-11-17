@@ -287,6 +287,11 @@ Artisan::command('analytics:snapshot', function () {
 
 Schedule::command('queue:prune-failed --hours=168')->daily()->withoutOverlapping();
 
+Schedule::command('media:scan-similar')
+    ->dailyAt('02:30')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
+
 Artisan::command('finance:allocate', function () {
     $count = app(FinancePlanner::class)->automate();
     $this->info("Created {$count} workshop budgets; refreshed eligible invoice line allocations.");
