@@ -205,6 +205,26 @@ function initialiseLists() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialiseLists);
 else initialiseLists();
 
+document.addEventListener('sm:list-updated', event => {
+    const { root, url } = event.detail ?? {};
+    if (!root || !url) return;
+
+    const currentUrl = new URL(url, window.location.href);
+    for (const link of document.querySelectorAll('[data-sync-list-query]')) {
+        if (link.dataset.syncListQuery !== root.dataset.dynamicList) continue;
+
+        const queryParams = (link.dataset.syncQueryParams ?? '').split(/\s+/).filter(Boolean);
+        if (queryParams.length === 0) continue;
+
+        const linkUrl = new URL(link.href, currentUrl.href);
+        for (const name of queryParams) {
+            if (currentUrl.searchParams.has(name)) linkUrl.searchParams.set(name, currentUrl.searchParams.get(name));
+            else linkUrl.searchParams.delete(name);
+        }
+        link.href = linkUrl.href;
+    }
+});
+
 document.addEventListener('click', event => {
     if (event.defaultPrevented || (event.button ?? 0) !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
