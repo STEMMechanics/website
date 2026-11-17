@@ -70,7 +70,7 @@
     </div>
     <div class="footer note">
         <p>Customer prices include GST. P/P = per person; P/W = per workshop. Rates use {{ $participants }} pricing participants; school/library assumes venue supplied. Travel regions use the reference sheet's billable 15-minute units.</p>
-        <p>Generated from the default allocation plan. Internal estimates only.</p>
+        <p>Generated from the {{ $version->name }} allocation plan. Internal estimates only.</p>
     </div>
 </body>
 </html>

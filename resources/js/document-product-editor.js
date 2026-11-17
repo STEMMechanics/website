@@ -1,14 +1,24 @@
 window.SM = window.SM || {};
 
-window.SM.lineItemsEditor = (isLocked = false) => {
+window.SM.lineItemsEditor = (isLocked = false, pricingPlans = [], selectedPricingVersionId = null, workshopCatalog = [], locationCatalog = [], multiWorkshopDefaults = { hours: 1, seats: 10 }) => {
     const itemKeys = new WeakMap();
     let nextItemKey = 0;
 
     return {
+        pricingPlans,
+        workshopCatalog,
+        locationCatalog,
+        multiWorkshopDefaults,
+        selectedPricingVersionId: selectedPricingVersionId === null || selectedPricingVersionId === ''
+            ? null
+            : Number(selectedPricingVersionId),
         mobileLineItemIndex: null,
         roundingItem: null,
         roundingProposed: 0,
         roundingRequested: 0,
+        get selectedPricingPlan() {
+            return this.pricingPlans.find(plan => Number(plan.id) === Number(this.selectedPricingVersionId)) || null;
+        },
         priceRoundingInfo(item) { return window.SM.priceRoundingForLine(item); },
         priceRoundingTitle(item) {
             const quote = this.priceRoundingInfo(item);
@@ -90,20 +100,76 @@ window.SM.lineItemsEditor = (isLocked = false) => {
             if (item?.kind === 'multi_travel') return (item.travel_rows ?? item.details_json?.multi_travel?.rows ?? []).filter(row => !SM.isWorkshopSpacing(row));
             return [];
         },
+        mobileWorkshopRowsLabel(item) {
+            const rows = this.mobileWorkshopRows(item);
+            const label = item?.kind === 'multi_travel' ? 'Location' : 'Workshop';
+            return `${rows.length} ${label}${rows.length === 1 ? '' : 's'}`;
+        },
         mobileWorkshopSummary(item) {
             return this.mobileWorkshopRows(item).map(row => String(row.description || '').trim()).filter(Boolean).join(', ');
         },
         openMobileLineItem(index) {
             this.mobileLineItemIndex = index;
             this.$nextTick(() => {
-                const dialog = this.$refs.mobileLineItemDialog;
+                const dialog = this.$refs?.mobileLineItemDialog || document.querySelector('.sm-invoice-line-item-dialog');
                 if (dialog && !dialog.open) dialog.showModal();
             });
         },
         closeMobileLineItem() {
-            const dialog = this.$refs.mobileLineItemDialog;
+            const dialog = this.$refs?.mobileLineItemDialog || document.querySelector('.sm-invoice-line-item-dialog[open]');
             if (dialog?.open) dialog.close();
             this.mobileLineItemIndex = null;
+        },
+        async requestLineItemRemovalConfirmation(title, content) {
+            const dialog = this.$refs?.mobileLineItemDialog || document.querySelector('.sm-invoice-line-item-dialog[open]');
+            const reopenDialog = Boolean(dialog?.open);
+            const editingIndex = this.mobileLineItemIndex;
+            if (reopenDialog) this.closeMobileLineItem();
+
+            let confirmed = false;
+            try {
+                const result = await window.SM.confirm(title, content, 'Remove');
+                confirmed = Boolean(result?.isConfirmed);
+            } finally {
+                if (reopenDialog && !confirmed) this.openMobileLineItem(editingIndex);
+            }
+
+            return confirmed;
+        },
+        async confirmRemoveLineItem(index) {
+            if (isLocked || !Number.isInteger(index) || index < 0 || index >= this.lineItems.length
+                || !window.SM || typeof window.SM.confirm !== 'function') return false;
+
+            const confirmed = await this.requestLineItemRemovalConfirmation(
+                'Remove line item?',
+                'Are you sure you want to remove this line item? This cannot be undone.'
+            );
+            if (!confirmed) return false;
+
+            if (this.mobileLineItemIndex === index) this.closeMobileLineItem();
+            this.lineItems.splice(index, 1);
+            if (this.mobileLineItemIndex !== null && this.mobileLineItemIndex > index) this.mobileLineItemIndex -= 1;
+            this.serializeLineItems();
+            return true;
+        },
+        async confirmRemoveLineItemRow(item, collectionName, rowIndex) {
+            const rows = item?.[collectionName];
+            if (isLocked || !Array.isArray(rows) || !Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length
+                || !['workshops', 'travel_rows'].includes(collectionName)
+                || !window.SM || typeof window.SM.confirm !== 'function') return false;
+
+            const isTravel = collectionName === 'travel_rows';
+            const label = isTravel ? 'travel location' : 'workshop';
+            const confirmed = await this.requestLineItemRemovalConfirmation(
+                `Remove ${label}?`,
+                `Are you sure you want to remove this ${label} from the line item?`
+            );
+            if (!confirmed) return false;
+
+            rows.splice(rowIndex, 1);
+            window.SM.updateWorkshopLine(item);
+            this.serializeLineItems();
+            return true;
         },
     };
 };
@@ -366,18 +432,29 @@ window.SM.productLineEditor = (catalogProducts = [], includeTicket = false) => (
         item.kind = kind;
         if (kind === 'multi_workshop') {
             item.auto_pricing = true;
-            if (!item.workshops?.length) SM.addWorkshopRow(item);
+            if (!item.workshops?.length) SM.addWorkshopRow(item, this.multiWorkshopDefaults);
         }
         if (kind === 'multi_travel') {
             item.auto_pricing = true;
             if (seedTravelRows) {
                 const workshopItem = this.lineItems.slice(0, index).reverse().find(line => line.kind === 'multi_workshop');
-                if (!SM.copyWorkshopRowsToTravel(item, workshopItem)) SM.addTravelRow(item);
+                if (!SM.copyWorkshopRowsToTravel(item, workshopItem, this.workshopCatalog, this.locationCatalog)) SM.addTravelRow(item);
             } else if (!item.travel_rows?.length) {
                 SM.addTravelRow(item);
             }
         }
-        if (kind === 'travel') SM.hydrateTravelLine(item);
+        if (kind === 'travel') {
+            if (wasKind !== 'travel') {
+                item.travel_hours = '';
+                item.travel_hours_defaulted = false;
+                item.travel_hours_user_changed = false;
+                item.quantity = 0;
+                delete item.travel_units;
+                delete item.location_id;
+                if (item.details_json) delete item.details_json.travel;
+            }
+            SM.hydrateTravelLine(item);
+        }
         SM.updateWorkshopLine(item);
         this.applyKind(index);
         SM.updateWorkshopLine(item);

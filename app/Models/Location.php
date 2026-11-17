@@ -12,12 +12,13 @@ class Location extends Model
     use HasFactory, UUID;
 
     protected $fillable = [
-        'name', 'address', 'suburb', 'state', 'postcode', 'latitude', 'longitude', 'address_url', 'url',
+        'name', 'address', 'suburb', 'state', 'postcode', 'latitude', 'longitude', 'default_travel_hours', 'address_url', 'url',
     ];
 
     protected $casts = [
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
+        'default_travel_hours' => 'decimal:2',
     ];
 
     public function isOnline(): bool

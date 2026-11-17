@@ -42,6 +42,7 @@
                     $valueRawEncoded = base64_encode($isSecret ? '' : $valueRaw);
                     $defaultValueEncoded = base64_encode($isSecret ? '' : $defaultValue);
                     $inputType = \App\Models\SiteOption::inputType((string) $siteOption->name);
+                    $inputConstraints = \App\Models\SiteOption::inputConstraints((string) $siteOption->name);
                     @endphp
                     <tr
                         id="site-option-row-{{ $siteOption->id }}"
@@ -50,6 +51,10 @@
                         data-option-value-base64="{{ $valueRawEncoded }}"
                         data-option-default-base64="{{ $defaultValueEncoded }}"
                         data-option-input-type="{{ $inputType }}"
+                        data-option-min="{{ $inputConstraints['min'] ?? '' }}"
+                        data-option-max="{{ $inputConstraints['max'] ?? '' }}"
+                        data-option-step="{{ $inputConstraints['step'] ?? '' }}"
+                        data-option-info="{{ $defaultDescription }}"
                         data-option-is-secret="{{ $isSecret ? '1' : '0' }}"
                         data-option-has-value="{{ $valueRaw !== '' ? '1' : '0' }}"
                     >
@@ -115,6 +120,7 @@
                         </x-ui.button>
                     </div>
                     <div class="p-5">
+                        <p id="site-option-modal-info" class="mb-4 hidden whitespace-pre-line text-sm leading-relaxed text-gray-600"></p>
                         <label for="site-option-modal-value" class="mb-2 block text-sm font-medium text-gray-700">Value</label>
                         <x-ui.textarea-control
                             id="site-option-modal-value"
@@ -183,6 +189,7 @@
 
         const modal = document.getElementById('site-option-modal');
         const modalName = document.getElementById('site-option-modal-name');
+        const modalInfo = document.getElementById('site-option-modal-info');
         const modalValue = document.getElementById('site-option-modal-value');
         const modalNumber = document.getElementById('site-option-modal-number');
         const modalBoolean = document.getElementById('site-option-modal-boolean');
@@ -290,22 +297,31 @@
 
         const openModal = (id) => {
             const row = rowForId(id);
-            if (!row || !modal || !modalName || !modalValue || !modalNumber || !modalBoolean || !modalSecret || !modalSecretHelp || !modalMediaField || !modalMedia) {
+            if (!row || !modal || !modalName || !modalInfo || !modalValue || !modalNumber || !modalBoolean || !modalSecret || !modalSecretHelp || !modalMediaField || !modalMedia) {
                 return;
             }
 
             currentOptionId = id;
             modalName.textContent = String(row.dataset.optionName || '');
+            modalInfo.textContent = String(row.dataset.optionInfo || '').trim();
+            modalInfo.classList.toggle('hidden', modalInfo.textContent === '');
             const inputType = String(row.dataset.optionInputType || 'textarea');
             const decodedValue = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
             modalValue.value = decodedValue;
             modalNumber.type = inputType === 'date' ? 'date' : (inputType === 'time' ? 'time' : 'number');
             modalNumber.removeAttribute('min');
             modalNumber.removeAttribute('max');
-            modalNumber.step = inputType === 'time'
+            modalNumber.removeAttribute('step');
+            if (row.dataset.optionMin !== '') {
+                modalNumber.min = row.dataset.optionMin;
+            }
+            if (row.dataset.optionMax !== '') {
+                modalNumber.max = row.dataset.optionMax;
+            }
+            modalNumber.step = row.dataset.optionStep || (inputType === 'time'
                 ? '60'
-                : (['finance.cash-buffer', 'finance.owner-hourly-rate'].includes(row.dataset.optionName) ? '0.01' : '1');
-            if (inputType === 'number' && row.dataset.optionName === 'newsletter.send-day') {
+                : (['finance.cash-buffer', 'finance.owner-hourly-rate'].includes(row.dataset.optionName) ? '0.01' : '1'));
+            if (inputType === 'number' && row.dataset.optionName === 'newsletter.send-day' && row.dataset.optionMin === '') {
                 modalNumber.min = '0';
                 modalNumber.max = '6';
             }
@@ -355,7 +371,7 @@
         };
 
         const closeModal = () => {
-            if (!modal || !modalValue || !modalNumber || !modalBoolean || !modalSecret || !modalSecretHelp || !modalMediaField || !modalMedia) {
+            if (!modal || !modalInfo || !modalValue || !modalNumber || !modalBoolean || !modalSecret || !modalSecretHelp || !modalMediaField || !modalMedia) {
                 return;
             }
 
@@ -363,6 +379,8 @@
             modal.classList.add('hidden');
             modal.classList.remove('flex');
             modal.setAttribute('aria-hidden', 'true');
+            modalInfo.textContent = '';
+            modalInfo.classList.add('hidden');
             modalValue.value = '';
             modalNumber.value = '';
             modalBoolean.value = '1';
@@ -527,9 +545,15 @@
         if (modalCancel) {
             modalCancel.addEventListener('click', closeModal);
         }
+        let modalBackdropPointerDown = false;
         if (modal) {
+            modal.addEventListener('pointerdown', (event) => {
+                modalBackdropPointerDown = event.target === modal;
+            });
             modal.addEventListener('click', (event) => {
-                if (event.target === modal) {
+                const clickedBackdrop = event.target === modal && modalBackdropPointerDown;
+                modalBackdropPointerDown = false;
+                if (clickedBackdrop) {
                     closeModal();
                 }
             });

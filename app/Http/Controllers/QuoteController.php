@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\Finance\DocumentProductCatalog;
 use App\Services\Finance\LinePricing;
+use App\Services\Finance\PricingVersion;
 use App\Services\Finance\WorkshopLine;
 use App\Services\QuoteWorkflowService;
 use App\Services\SiteListControls;
@@ -488,6 +489,7 @@ class QuoteController extends Controller
         return $request->validate([
             'quote_number' => ['required', 'string', 'max:100', Rule::unique('quotes')->ignore($quote?->id)],
             'user_id' => ['nullable', 'exists:users,id'],
+            'pricing_version_id' => ['nullable', 'integer', 'exists:finance_pricing_versions,id'],
             'status' => ['required', Rule::in(Quote::STATUSES)],
             'quote_date' => ['required', 'date'],
             'valid_until' => ['nullable', 'date', 'after_or_equal:quote_date'],
@@ -504,6 +506,13 @@ class QuoteController extends Controller
 
     private function normalizeValidatedQuoteData(Request $request, array $validated, ?Quote $quote = null, array $lineItems = []): array
     {
+        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $quote?->pricing_version_id ?? PricingVersion::forDate(today()->toDateString())->id);
+        PricingVersion::assertSelectable(
+            (int) $validated['pricing_version_id'],
+            $quote?->pricing_version_id ? (int) $quote->pricing_version_id : null,
+            'pricing_version_id',
+        );
+
         $contextPayload = is_array($quote?->context_payload) ? $quote->context_payload : [];
         $acceptance = is_array($contextPayload['acceptance'] ?? null) ? $contextPayload['acceptance'] : [];
         $acceptance['creates_order'] = $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems);
@@ -660,8 +669,12 @@ class QuoteController extends Controller
 
     private function quoteEditorData(?Quote $quote = null): array
     {
+        $retainedVersionId = $quote?->pricing_version_id ? (int) $quote->pricing_version_id : null;
+
         return [
             'catalogProducts' => $this->quoteEditorProducts($quote),
+            'pricingPlans' => PricingVersion::editorOptions($retainedVersionId),
+            'selectedPricingVersionId' => $retainedVersionId ?? (int) PricingVersion::forDate(today()->toDateString())->id,
         ];
     }
 

@@ -51,6 +51,7 @@ class LocationController extends Controller
             'postcode' => 'nullable|string|max:12',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'default_travel_hours' => 'nullable|numeric|between:0,2500|multiple_of:0.25',
             'url' => 'nullable|url',
             'address_url' => 'nullable|url',
         ], [
@@ -67,6 +68,7 @@ class LocationController extends Controller
                     'id' => (string) $location->id,
                     'name' => (string) $location->name,
                     'address' => (string) ($location->address ?? ''),
+                    'default_travel_hours' => $location->default_travel_hours,
                 ],
             ]);
         }
@@ -99,6 +101,7 @@ class LocationController extends Controller
             'postcode' => 'nullable|string|max:12',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'default_travel_hours' => 'nullable|numeric|between:0,2500|multiple_of:0.25',
             'url' => 'nullable|url',
             'address_url' => 'nullable|url',
         ]);
@@ -144,7 +147,7 @@ class LocationController extends Controller
 
     private function normalizedLocationData(array $validated): array
     {
-        foreach (['name', 'address', 'suburb', 'state', 'postcode', 'url', 'address_url'] as $field) {
+        foreach (['name', 'address', 'suburb', 'state', 'postcode', 'url', 'address_url', 'default_travel_hours'] as $field) {
             $validated[$field] = trim((string) ($validated[$field] ?? '')) ?: null;
         }
 

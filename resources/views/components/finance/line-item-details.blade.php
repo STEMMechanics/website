@@ -1,4 +1,4 @@
-@props(['invoiceLayout' => false, 'isLocked' => false])
+@props(['invoiceLayout' => false, 'isLocked' => false, 'pricingPlans' => []])
 @php
     $workshopCatalog = app(\App\Support\RequestMemo::class)->remember('workshop-funding-catalog', fn () => app(\App\Services\Finance\WorkshopFunding::class)->catalog());
 @endphp
@@ -8,7 +8,7 @@
     <div class="mb-3" x-show="item.kind === 'product'"><x-ui.input label="Description" type="text" x-model="item.description" readonly aria-readonly="true" /></div>
     <div class="mb-3" x-show="item.kind !== 'product'"><x-ui.input label="Description" type="text" x-model="item.description" x-on:input="serializeLineItems()" /></div>
     <div class="mb-3" x-show="item.kind === 'workshop'"><label class="mb-1 block text-sm">Workshop</label><x-finance.workshop-funding-fields /></div>
-    <x-finance.workshop-line-fields :inclusive="true" :invoice-layout="$invoiceLayout" :is-locked="$isLocked" />
+    <x-finance.workshop-line-fields :inclusive="true" :invoice-layout="$invoiceLayout" :is-locked="$isLocked" :pricing-plans="$pricingPlans" />
     <div x-show="item.kind === 'workshop'" class="mt-3 max-w-xs"><x-ui.input label="Workshop date" type="date" x-model="item.workshop_date" x-on:change="serializeLineItems()" /></div>
     <div class="mt-4 flex items-center justify-between">
         <label class="block text-sm" x-text="['workshop', 'multi_workshop'].includes(item.kind) ? 'Workshop text' : item.kind === 'multi_travel' ? 'Travel text' : 'Line item notes'">Line item notes</label>

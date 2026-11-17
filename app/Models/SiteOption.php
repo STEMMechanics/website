@@ -18,7 +18,7 @@ class SiteOption extends Model
     use HasFactory;
 
     /**
-     * @return array<string, array{value: string, description: string, input_type?: string}>
+     * @return array<string, array{value: string, description: string, input_type?: string, min?: string, max?: string, step?: string}>
      */
     public static function defaultDefinitions(): array
     {
@@ -37,6 +37,22 @@ class SiteOption extends Model
                 'value' => '0.00',
                 'description' => 'Minimum business cash buffer in dollars. Retained when calculating available drawings, after GST, protected cost-centre funds and pending drawings. Set 0 for no extra buffer.',
                 'input_type' => 'number',
+            ],
+            'finance.document.multi-workshop-default-hours' => [
+                'value' => '1',
+                'description' => 'Default hours for each new row in a multi-workshop quote or invoice. Changing this does not alter rows already entered.',
+                'input_type' => 'number',
+                'min' => '0.01',
+                'max' => '24',
+                'step' => '0.01',
+            ],
+            'finance.document.multi-workshop-default-seats' => [
+                'value' => '10',
+                'description' => 'Default seats for each new row in a multi-workshop quote or invoice. Changing this does not alter rows already entered.',
+                'input_type' => 'number',
+                'min' => '0',
+                'max' => '10000',
+                'step' => '1',
             ],
             HomeHero::OPTION => [
                 'value' => json_encode(HomeHero::defaults(), JSON_UNESCAPED_SLASHES),
@@ -441,6 +457,18 @@ class SiteOption extends Model
     public static function inputType(string $name): string
     {
         return static::defaultDefinitions()[$name]['input_type'] ?? 'textarea';
+    }
+
+    /** @return array{min?: string, max?: string, step?: string} */
+    public static function inputConstraints(string $name): array
+    {
+        $definition = static::defaultDefinitions()[$name] ?? [];
+
+        return array_filter([
+            'min' => isset($definition['min']) ? (string) $definition['min'] : null,
+            'max' => isset($definition['max']) ? (string) $definition['max'] : null,
+            'step' => isset($definition['step']) ? (string) $definition['step'] : null,
+        ], fn (?string $value): bool => $value !== null);
     }
 
     public static function isSecret(string $name): bool

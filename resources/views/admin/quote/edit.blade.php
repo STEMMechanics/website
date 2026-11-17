@@ -27,13 +27,13 @@
 
     <x-container class="mt-4">
         @isset($quote)
-            <div class="sm-quote-toolbar mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                <x-ui.button type="button" class="w-full sm:w-auto" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" class="w-full sm:w-auto" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
+            <div class="sm-quote-toolbar mb-4 flex flex-wrap items-center justify-end gap-2">
+                <x-ui.button type="button" size="icon-small" color="secondary" aria-label="Open PDF" title="Open PDF" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></x-ui.button>
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
-                    <x-ui.button type="submit" class="w-full sm:w-auto" x-data x-on:click.prevent="
+                    <x-ui.button type="submit" size="icon-small" color="secondary" aria-label="Email Quote" title="Email Quote" x-data x-on:click.prevent="
                         open = true;
-                    ">Email Quote</x-ui.button>
+                    "><i class="fa-regular fa-envelope" aria-hidden="true"></i></x-ui.button>
 
                     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="open = false">
                         <div class="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg" role="dialog" aria-modal="true" aria-label="Email Quote">
@@ -88,9 +88,9 @@
                         </div>
                     </div>
                 </form>
-                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}" class="w-full sm:w-auto">
+                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
                     @csrf
-                    <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Duplicate Quote</x-ui.button>
+                    <x-ui.button type="submit" size="icon-small" color="secondary" aria-label="Duplicate Quote" title="Duplicate Quote"><i class="fa-solid fa-copy" aria-hidden="true"></i></x-ui.button>
                 </form>
                 <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}" class="w-full sm:w-auto">
                     @csrf
@@ -257,10 +257,6 @@
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },
-                removeLineItem(index) {
-                    this.lineItems.splice(index, 1);
-                    this.serializeLineItems();
-                },
                 normalizeMoney(field) {
                     const value = parseFloat(field || 0);
                     return Number.isFinite(value) ? value.toFixed(2) : '0.00';
@@ -353,63 +349,41 @@
             />
 
             @if($editing)
-                <details class="sm-disclosure mb-3" @if($linkedInvoices->isNotEmpty()) open @endif>
-                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                        <span class="text-sm font-medium">Linked Invoices</span>
-                        <span class="text-xs text-gray-500">{{ $linkedInvoices->count() }} linked</span>
-                        <i class="fa-solid fa-chevron-down text-xs text-gray-500" aria-hidden="true"></i>
-                    </summary>
-                    @if($linkedInvoices->isEmpty())
-                        <div class="mt-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600">
-                            No invoices linked yet. Create a new invoice from this quote, or link an existing invoice from the invoice edit page.
-                        </div>
-                    @else
-                        <div class="mt-1 rounded-lg border border-gray-300 bg-white">
-                            @foreach($linkedInvoices as $linkedInvoice)
-                                <a
-                                    href="{{ route('admin.invoice.edit', $linkedInvoice) }}"
-                                    class="flex items-center justify-between px-3 py-3 text-sm text-gray-900 transition hover:bg-gray-50 {{ $loop->last ? '' : 'border-b border-gray-200' }}"
-                                >
-                                    <span>
-                                        <span class="font-medium">{{ $linkedInvoice->invoice_number }}</span>
-                                        <span class="text-gray-500">· {{ $linkedInvoice->issue_date?->format('M j, Y') ?? 'No issue date' }}</span>
-                                    </span>
-                                    <span class="text-gray-500">{{ money($linkedInvoice->total_amount) }}</span>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
-                    <div class="text-xs text-gray-500 ml-2 mt-1">Each invoice can link to one quote. A quote can link to multiple invoices for staged or progress billing.</div>
-                </details>
+                <x-finance.linked-records
+                    class="mb-3"
+                    title="Linked Invoices"
+                    :records="$linkedInvoices"
+                    empty-message="No invoices linked yet. Create a new invoice from this quote, or link an existing invoice from the invoice edit page."
+                    help-text="Each invoice can link to one quote. A quote can link to multiple invoices for staged or progress billing."
+                >
+                    @foreach($linkedInvoices as $linkedInvoice)
+                        <a href="{{ route('admin.invoice.edit', $linkedInvoice) }}" class="flex min-h-14 items-center justify-between gap-4 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-50">
+                            <span class="min-w-0">
+                                <span class="block truncate font-semibold">{{ $linkedInvoice->invoice_number }}</span>
+                                <span class="block text-xs text-gray-500">{{ $linkedInvoice->issue_date?->format('M j, Y') ?? 'No issue date' }}</span>
+                            </span>
+                            <span class="shrink-0 text-right font-medium tabular-nums text-gray-700">{{ money($linkedInvoice->total_amount) }}</span>
+                        </a>
+                    @endforeach
+                </x-finance.linked-records>
 
-                <details class="sm-disclosure mb-4" @if(($quote->storeOrders ?? collect())->isNotEmpty()) open @endif>
-                    <summary class="flex min-h-11 cursor-pointer items-center justify-between gap-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-                        <span class="text-sm font-medium">Linked Orders</span>
-                        <span class="text-xs text-gray-500">{{ ($quote->storeOrders ?? collect())->count() }} linked</span>
-                        <i class="fa-solid fa-chevron-down text-xs text-gray-500" aria-hidden="true"></i>
-                    </summary>
-                    @if(($quote->storeOrders ?? collect())->isEmpty())
-                        <div class="mt-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600">
-                            No store orders linked yet.
-                        </div>
-                    @else
-                        <div class="mt-1 rounded-lg border border-gray-300 bg-white">
-                            @foreach($quote->storeOrders as $linkedOrder)
-                                <a
-                                    href="{{ route('admin.shop.order.edit', $linkedOrder) }}"
-                                    class="flex items-center justify-between px-3 py-3 text-sm text-gray-900 transition hover:bg-gray-50 {{ $loop->last ? '' : 'border-b border-gray-200' }}"
-                                >
-                                    <span>
-                                        <span class="font-medium">{{ $linkedOrder->order_number }}</span>
-                                        <span class="text-gray-500">· {{ $linkedOrder->statusLabel() }}</span>
-                                    </span>
-                                    <span class="text-gray-500">{{ money($linkedOrder->total_amount) }}</span>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
-                    <div class="text-xs text-gray-500 ml-2 mt-1">Store orders created from this quote are linked here.</div>
-                </details>
+                <x-finance.linked-records
+                    class="mb-4"
+                    title="Linked Orders"
+                    :records="$quote->storeOrders ?? collect()"
+                    empty-message="No store orders linked yet."
+                    help-text="Store orders created from this quote are linked here."
+                >
+                    @foreach($quote->storeOrders ?? collect() as $linkedOrder)
+                        <a href="{{ route('admin.shop.order.edit', $linkedOrder) }}" class="flex min-h-14 items-center justify-between gap-4 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-50">
+                            <span class="min-w-0">
+                                <span class="block truncate font-semibold">{{ $linkedOrder->order_number }}</span>
+                                <span class="block text-xs text-gray-500">{{ $linkedOrder->statusLabel() }}</span>
+                            </span>
+                            <span class="shrink-0 text-right font-medium tabular-nums text-gray-700">{{ money($linkedOrder->total_amount) }}</span>
+                        </a>
+                    @endforeach
+                </x-finance.linked-records>
             @endif
 
             <x-ui.select label="Status" name="status" x-model="quoteStatus">
@@ -433,8 +407,7 @@
             <x-ui.input type="textarea" label="Quote Description" name="description" value="{{ old('description', $quote->description ?? '') }}" />
 
             <div class="mb-4 rounded-lg border border-gray-300 p-4">
-                <div class="text-sm font-semibold text-gray-900">Customer Response</div>
-                <div class="mt-1 text-xs text-gray-500">These options control what happens when the customer accepts the emailed quote.</div>
+                <div class="text-sm font-semibold text-gray-900 mb-4">Customer Response</div>
 
                 <x-ui.checkbox
                     name="acceptance_emails_invoice"
@@ -454,7 +427,7 @@
                 </div>
             </div>
 
-            <x-finance.line-items-editor :mobile-editor="true" />
+            <x-finance.line-items-editor :mobile-editor="true" :pricing-plans="$pricingPlans ?? []" :selected-pricing-version-id="$selectedPricingVersionId ?? null" />
 
             <div class="grid gap-x-8 sm:grid-cols-2">
                 <div class="flex-1">
@@ -489,10 +462,14 @@
             @endisset
             <x-ui.editor-actions :sticky-mobile="true">
                 @isset($quote)
-                    <details class="sm-disclosure sm-editor-secondary-actions">
-                        <summary class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700">More <i class="fa-solid fa-chevron-up" aria-hidden="true"></i></summary>
-                        <div class="sm-editor-secondary-menu">
-                            <x-ui.button data-editor-delete type="button" color="danger-outline" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete quote</x-ui.button>
+                    <details class="sm-disclosure sm-editor-secondary-actions" x-on:click.outside="$el.open = false" x-on:keydown.escape.window="$el.open = false">
+                        <summary aria-label="More actions" title="More actions" class="inline-flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-slate-300 bg-white p-0 text-sm leading-none text-slate-600 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color">
+                            <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></span>
+                        </summary>
+                        <div class="sm-editor-secondary-menu sm-action-items">
+                            <x-ui.button type="button" variant="plain" class="sm-row-action rounded-xl" data-action-tone="danger" data-editor-delete x-data x-on:click.prevent="$el.closest('details').open = false; SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">
+                                <i class="fa-solid fa-trash" aria-hidden="true"></i><span>Delete quote</span>
+                            </x-ui.button>
                         </div>
                     </details>
                     <x-ui.button

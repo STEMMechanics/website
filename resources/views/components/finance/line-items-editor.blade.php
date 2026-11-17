@@ -1,10 +1,45 @@
-@props(['isLocked' => false, 'invoiceLayout' => false, 'mobileEditor' => false])
+@props(['isLocked' => false, 'invoiceLayout' => false, 'mobileEditor' => false, 'pricingPlans' => [], 'selectedPricingVersionId' => null])
+@php
+    $workshopCatalog = app(\App\Support\RequestMemo::class)->remember('workshop-funding-catalog', fn () => app(\App\Services\Finance\WorkshopFunding::class)->catalog());
+    $locationCatalog = app(\App\Support\RequestMemo::class)->remember('travel-location-catalog', fn () => \App\Models\Location::query()->orderBy('name')->get(['id', 'name', 'default_travel_hours'])->reject(fn ($location) => $location->isOnline())->values()->map(fn ($location) => [
+        'id' => (string) $location->id,
+        'type' => 'location',
+        'location_id' => (string) $location->id,
+        'label' => (string) $location->name,
+        'name' => (string) $location->name,
+        'default_travel_hours' => $location->default_travel_hours,
+    ])->all());
+    $multiWorkshopDefaults = [
+        'hours' => (float) \App\Models\SiteOption::value('finance.document.multi-workshop-default-hours', '1'),
+        'seats' => \App\Models\SiteOption::intValue('finance.document.multi-workshop-default-seats', 10),
+    ];
+@endphp
 @php
     $useMobileEditor = $invoiceLayout || $mobileEditor;
     $lineItemsWrapperClass = $useMobileEditor ? 'sm-invoice-line-items' : '';
     $lineItemsTableClass = $invoiceLayout ? 'sm-invoice-line-items-table min-w-[44rem] w-full' : 'min-w-[44rem] w-full';
 @endphp
-<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }})" x-init="if (!isLocked) lineItems.forEach(item => SM.initializeWorkshopText(item)); serializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()" x-on:apply-current-gst.window="applyCurrentGst()">
+<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }}, @js($pricingPlans), @js(old('pricing_version_id', $selectedPricingVersionId)), @js($workshopCatalog), @js($locationCatalog), @js($multiWorkshopDefaults))" x-init="if (!isLocked) lineItems.forEach(item => SM.initializeWorkshopText(item)); serializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()" x-on:apply-current-gst.window="applyCurrentGst()">
+    @if($pricingPlans !== [])
+        <x-ui.select
+            id="document-pricing-version"
+            name="pricing_version_id"
+            label="Pricing plan"
+            :value="old('pricing_version_id', $selectedPricingVersionId)"
+            :disabled="$isLocked"
+            class="w-full sm:w-1/2"
+            x-model.number="selectedPricingVersionId"
+            x-on:change="$nextTick(() => serializeLineItems())"
+        >
+            @if($isLocked && ! $selectedPricingVersionId)
+                <option value="" selected>Not recorded for this legacy invoice</option>
+            @endif
+            @foreach($pricingPlans as $plan)
+                <option value="{{ $plan['id'] }}" @selected((string) old('pricing_version_id', $selectedPricingVersionId) === (string) $plan['id'])>{{ $plan['name'] }}{{ $plan['is_snapshot'] ? ' (saved revision)' : ($plan['archived'] ? ' (archived)' : '') }}</option>
+            @endforeach
+        </x-ui.select>
+    @endif
+
     <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="font-bold text-lg">Line Items</h3>
     </div>
@@ -38,13 +73,13 @@
                             <x-ui.row-actions :menu="false">
                                 <x-ui.row-action label="Move up" icon="fa-arrow-up" x-on:click.prevent="moveLineItem(index, -1)" x-bind:disabled="index === 0" />
                                 <x-ui.row-action label="Move down" icon="fa-arrow-down" x-on:click.prevent="moveLineItem(index, 1)" x-bind:disabled="index === lineItems.length - 1" />
-                                <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="removeLineItem(index)" />
+                                <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="confirmRemoveLineItem(index)" />
                             </x-ui.row-actions>
                         @endif
                     </td>
                 </tr>
                 <tr x-show="expanded" x-cloak><td colspan="6" class="border-t-0! pt-0!">
-                    <x-finance.line-item-details :invoice-layout="$invoiceLayout" :is-locked="$isLocked" class="ml-10" />
+                    <x-finance.line-item-details :invoice-layout="$invoiceLayout" :is-locked="$isLocked" :pricing-plans="$pricingPlans" class="ml-10" />
                 </td></tr>
             </tbody>
         </template>
@@ -72,7 +107,7 @@
                         <div class="sm-invoice-mobile-workshop-summary">
                             <div class="flex items-center gap-2 font-semibold text-slate-800">
                                 <i class="fa-solid text-sky-600" x-bind:class="item.kind === 'multi_travel' ? 'fa-route' : 'fa-layer-group'" aria-hidden="true"></i>
-                                <span x-text="mobileWorkshopRows(item).length + (mobileWorkshopRows(item).length === 1 ? ' workshop' : ' workshops')"></span>
+                                <span x-text="mobileWorkshopRowsLabel(item)"></span>
                             </div>
                             <p class="mt-1 break-words text-sm text-slate-600" x-show="mobileWorkshopSummary(item)" x-text="mobileWorkshopSummary(item)"></p>
                         </div>
@@ -81,6 +116,7 @@
                         <x-ui.row-actions :menu="false" class="mt-3 justify-end!">
                             <x-ui.row-action label="Move up" icon="fa-arrow-up" x-on:click.prevent="moveLineItem(index, -1)" x-bind:disabled="index === 0" />
                             <x-ui.row-action label="Move down" icon="fa-arrow-down" x-on:click.prevent="moveLineItem(index, 1)" x-bind:disabled="index === lineItems.length - 1" />
+                            <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" x-on:click.prevent="confirmRemoveLineItem(index)" />
                         </x-ui.row-actions>
                     @endif
                 </article>
@@ -102,7 +138,7 @@
                     <div class="space-y-4">
                         <div>
                             <label class="mb-1 block text-sm">Item type</label>
-                            <x-finance.line-type-picker />
+                            <x-finance.line-type-picker :inside-dialog="true" />
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
@@ -124,13 +160,13 @@
                         </div>
                     </div>
                     <div class="mt-5 border-t border-slate-200 pt-5">
-                        <x-finance.line-item-details :invoice-layout="true" :is-locked="$isLocked" />
+                        <x-finance.line-item-details :invoice-layout="true" :is-locked="$isLocked" :pricing-plans="$pricingPlans" />
                     </div>
                 </div>
             </template>
             <div class="sm-invoice-line-item-dialog-footer">
                 @if(! $isLocked)
-                    <x-ui.button type="button" color="danger-outline" class="mr-auto" x-on:click="const index = mobileLineItemIndex; closeMobileLineItem(); removeLineItem(index)">Remove</x-ui.button>
+                    <x-ui.button type="button" color="danger-outline" class="mr-auto" x-on:click="confirmRemoveLineItem(mobileLineItemIndex)">Remove</x-ui.button>
                 @endif
                 <x-ui.button type="button" x-on:click="closeMobileLineItem()">{{ $isLocked ? 'Close' : 'Done' }}</x-ui.button>
             </div>

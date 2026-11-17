@@ -43,6 +43,7 @@ class Invoice extends Model
     protected $fillable = [
         'invoice_number',
         'quote_id',
+        'pricing_version_id',
         'user_id',
         'billing_name',
         'billing_email',
@@ -98,6 +99,7 @@ class Invoice extends Model
         'subtotal_amount' => 'decimal:2',
         'gst_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'pricing_version_id' => 'integer',
     ];
 
     protected static function booted(): void

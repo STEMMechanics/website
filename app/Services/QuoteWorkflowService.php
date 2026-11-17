@@ -161,6 +161,7 @@ class QuoteWorkflowService
         $invoice = new Invoice();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->quote_id = $quote->id;
+        $invoice->pricing_version_id = $quote->pricing_version_id;
         $invoice->user_id = $quote->user_id;
         $invoice->billing_name = $this->quoteRecipientName($quote);
         $invoice->billing_email = $this->quoteRecipientEmail($quote);

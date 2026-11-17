@@ -774,7 +774,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/cost-centres/contributions', [CostCentreController::class, 'contributions'])->name('admin.cost-centre.contributions');
     Route::get('/admin/cost-centres/{centre}', [CostCentreController::class, 'show'])->whereNumber('centre')->name('admin.cost-centre.show');
     Route::get('/admin/finance/workshop-costings', [WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.index');
-    Route::get('/admin/finance/workshop-costings/pdf', [WorkshopCostingController::class, 'index'])->name('admin.workshop-costing.pdf');
+    Route::get('/admin/finance/workshop-costings/pdf', [WorkshopCostingController::class, 'pdf'])->name('admin.workshop-costing.pdf');
     Route::get('/admin/finance', [FinanceController::class, 'index'])->name('admin.finance.index');
     Route::post('/admin/finance/categories', [FinanceController::class, 'category'])->name('admin.finance.category');
     Route::post('/admin/finance/pricing', [FinanceController::class, 'pricing'])->name('admin.finance.pricing');

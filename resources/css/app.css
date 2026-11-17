@@ -1928,6 +1928,8 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     max-height: min(90dvh, 60rem);
     margin: auto;
     overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     padding: 0;
     border: 1px solid #e2e8f0;
     border-radius: 1rem;
@@ -1937,13 +1939,18 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
 }
 
 .sm-invoice-line-item-dialog::backdrop { background: rgb(15 23 42 / .45); }
+html:has(.sm-invoice-line-item-dialog[open]),
+body:has(.sm-invoice-line-item-dialog[open]) { overflow: hidden; }
 .sm-invoice-line-item-dialog-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; border-bottom: 1px solid #e2e8f0; background: white; }
 .sm-invoice-line-item-dialog-content { padding: 1rem; }
 .sm-invoice-line-item-dialog-footer { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: .75rem; padding: .85rem 1rem; border-top: 1px solid #e2e8f0; background: white; }
 .sm-invoice-line-item-dialog .sm-invoice-line-details { display: flex; flex-direction: column; gap: .85rem; }
 .sm-invoice-line-item-dialog .sm-invoice-line-details > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+.sm-invoice-line-item-dialog .sm-calculated-quantity { flex-direction: row; align-items: center; justify-content: flex-start; gap: .35rem; padding-left: 0; text-align: left; white-space: nowrap; }
+.sm-invoice-line-item-dialog .sm-calculated-quantity output,
+.sm-invoice-line-item-dialog .sm-calculated-quantity span { flex-shrink: 0; white-space: nowrap; }
 
-@media (max-width: 639px) {
+@media (max-width: 1023px) {
     .sm-invoice-line-items { display: none; }
     .sm-invoice-mobile-line-items { display: grid; gap: .75rem; }
     .sm-invoice-mobile-line-item { padding: 1rem; border: 1px solid #dbe3ee; border-radius: .9rem; background: white; box-shadow: 0 1px 2px rgb(15 23 42 / .05); }
@@ -1954,7 +1961,9 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     .sm-invoice-mobile-line-item-totals dd { margin-top: .2rem; color: #0f172a; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
     .sm-invoice-mobile-workshop-summary { margin-top: 1rem; padding: .75rem; border: 1px solid #bae6fd; border-radius: .7rem; background: #f0f9ff; }
     .sm-invoice-mobile-empty { margin-top: .75rem; }
+}
 
+@media (max-width: 639px) {
     .sm-invoice-line-item-dialog {
         position: fixed;
         inset: 0 0 auto;
@@ -2012,6 +2021,68 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     .sm-list-dialog-actions { width: 23rem; max-width: calc(100vw - 2rem); }
     .sm-list-dialog-sort, .sm-list-dialog-edit { width: 30rem; }
     .sm-list-dialog.sm-list-dialog-centered { inset: 0; margin: auto; width: min(40rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: min(85dvh, 48rem); border-radius: .85rem; }
+}
+@media (min-width: 640px) and (max-width: 1023px) {
+    .sm-finance-workshops {
+        overflow: visible;
+        min-width: 0;
+        padding: .75rem;
+        border-radius: .75rem;
+        background: #f8fafc;
+    }
+    .sm-finance-workshops-table { display: block; min-width: 0 !important; }
+    .sm-finance-workshops-table > thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+    .sm-finance-workshops-table > tbody { display: grid; gap: .75rem; }
+    .sm-finance-workshops-table > tbody > tr {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .65rem .85rem;
+        padding: .75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: .85rem;
+        background: white;
+    }
+    .sm-finance-workshops-table > tbody > tr > td {
+        display: block;
+        min-width: 0;
+        padding: 0;
+        border: 0;
+        text-align: left !important;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .sm-finance-workshops-table td[data-label]::before {
+        display: block;
+        margin-bottom: .3rem;
+        color: #64748b;
+        content: attr(data-label);
+        font-size: .75rem;
+        font-weight: 400;
+    }
+    .sm-finance-workshops-table td[data-mobile-wide] { grid-column: 1 / -1; }
+    .sm-finance-workshops-table td[data-mobile-actions] {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: .75rem;
+        grid-column: 1 / -1;
+        padding-top: .75rem;
+        border-top: 1px solid #f1f5f9;
+    }
+    .sm-finance-workshops-table td[data-mobile-actions]::before { content: none; }
+    .sm-finance-workshops-table td[data-mobile-actions] .sm-row-action { width: auto; padding-inline: .7rem; gap: .4rem; }
+    .sm-finance-workshops-table td[data-mobile-actions] .sm-row-action-label { display: inline; font-size: .75rem; }
+    .sm-finance-workshops-table td[data-mobile-actions] .sm-invoice-remove-workshop { width: 2.75rem; padding-inline: 0; gap: 0; }
+    .sm-finance-workshops-table td[data-mobile-actions] .sm-invoice-remove-workshop .sm-row-action-label { display: none; }
+    .sm-finance-workshops-table tr:hover > td { background: white; }
 }
 @media (max-width: 1023px) {
     .sm-selection-cell { display: none; }
@@ -2126,6 +2197,7 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
 .sm-editor-actions > [data-editor-delete], .sm-editor-actions > :has([data-editor-delete]) { order: -1; margin-right: auto; }
 .sm-editor-actions .sm-row-action { width: auto; padding-inline: 1rem; gap: .5rem; }
 .sm-editor-actions .sm-row-action-label { display: inline; }
+.sm-editor-actions .sm-editor-secondary-menu .sm-row-action { width: 100%; white-space: nowrap; }
 
 .sm-disclosure > summary { list-style: none; }
 .sm-disclosure > summary::-webkit-details-marker { display: none; }
@@ -2148,7 +2220,6 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     .sm-editor-actions-mobile { position: sticky; bottom: 0; z-index: 20; flex-wrap: nowrap; gap: .4rem; margin-top: 1rem; padding: .75rem 0 calc(.75rem + env(safe-area-inset-bottom)); border-top: 1px solid #e2e8f0; background: white; }
     .sm-editor-actions-mobile > [data-ui-button] { min-width: 0; min-height: 2.75rem; padding-inline: .6rem; font-size: .8rem; white-space: normal; }
     .sm-editor-actions-mobile > .sm-editor-secondary-actions { margin-right: auto; flex-shrink: 0; }
-    .sm-editor-actions-mobile > .sm-editor-secondary-actions > summary { padding-inline: .6rem; font-size: .8rem; }
     .sm-editor-actions-mobile > label { min-width: 0; flex: 1; }
     .sm-editor-actions-mobile > label span { font-size: .8rem; }
     .sm-payment-invoice-picker { white-space: normal; }
@@ -2234,6 +2305,8 @@ html:has(dialog[data-expense-batch][open]), body:has(dialog[data-expense-batch][
     .sm-mobile-cards td[data-mobile-actions] .sm-row-actions { justify-content: flex-start; flex-wrap: wrap; }
     .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action { width: auto; padding-inline: .7rem; gap: .4rem; }
     .sm-mobile-cards td[data-mobile-actions] > .sm-row-actions > .sm-row-action .sm-row-action-label { display: inline; font-size: .75rem; }
+    .sm-mobile-cards td[data-mobile-actions] .sm-cost-centre-plan-actions .sm-row-action { width: 2.75rem; padding-inline: 0; gap: 0; }
+    .sm-mobile-cards td[data-mobile-actions] .sm-cost-centre-plan-actions .sm-row-action-label { display: none; }
     .sm-product-cards .sm-data-table tbody tr,
     .sm-order-cards .sm-data-table tbody tr { position: relative; gap: .65rem 1rem; }
     .sm-product-cards .sm-data-table thead,

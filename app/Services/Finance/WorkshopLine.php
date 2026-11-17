@@ -15,10 +15,26 @@ class WorkshopLine
             return self::normalizeMultipleTravel($item);
         }
         if (($item['kind'] ?? '') === 'travel' && isset($item['travel_hours']) && $item['travel_hours'] !== '') {
-            $data = Validator::make($item, ['travel_hours' => 'required|numeric|min:0|max:2500|multiple_of:0.25', 'supplied_categories' => 'sometimes|array', 'supplied_categories.*' => 'boolean'])->validate();
+            $data = Validator::make($item, [
+                'travel_hours' => 'required|numeric|min:0|max:2500|multiple_of:0.25',
+                'location_id' => 'nullable|uuid',
+                'travel_hours_defaulted' => 'sometimes|boolean',
+                'travel_hours_user_changed' => 'sometimes|boolean',
+                'supplied_categories' => 'sometimes|array',
+                'supplied_categories.*' => 'boolean',
+            ])->validate();
             $item['details_json'] = is_array($item['details_json'] ?? null) ? $item['details_json'] : [];
             $item['quantity'] = (float) $data['travel_hours'];
-            $item['details_json']['travel'] = ['billable_units' => (int) round($item['quantity'] * 4), 'quantity_basis' => 'hours', 'supplied_categories' => $data['supplied_categories'] ?? $item['details_json']['travel']['supplied_categories'] ?? []];
+            $travelDetails = is_array($item['details_json']['travel'] ?? null) ? $item['details_json']['travel'] : [];
+            $hoursUserChanged = (bool) ($data['travel_hours_user_changed'] ?? $travelDetails['hours_user_changed'] ?? false);
+            $item['details_json']['travel'] = array_merge($travelDetails, [
+                'billable_units' => (int) round($item['quantity'] * 4),
+                'quantity_basis' => 'hours',
+                'location_id' => $data['location_id'] ?? $travelDetails['location_id'] ?? null,
+                'hours_defaulted' => $hoursUserChanged ? false : (bool) ($data['travel_hours_defaulted'] ?? $travelDetails['hours_defaulted'] ?? false),
+                'hours_user_changed' => $hoursUserChanged,
+                'supplied_categories' => $data['supplied_categories'] ?? $travelDetails['supplied_categories'] ?? [],
+            ]);
             return $item;
         }
         if (($item['kind'] ?? '') === 'travel' && isset($item['travel_units']) && $item['travel_units'] !== '') {
@@ -107,14 +123,21 @@ class WorkshopLine
                 'row.description' => 'required|string|max:500',
                 'row.workshop_hours' => 'required|numeric|min:0.01|max:24',
                 'row.workshop_seats' => 'required|integer|min:0|max:10000',
+                'row.location_id' => 'nullable|uuid|exists:locations,id',
                 'row.spacer_after' => 'sometimes|boolean',
             ])->validate();
             $row['kind'] = 'workshop';
             $row = self::normalize($row);
             $workshop = $row['details_json']['workshop'];
+            $locationId = $row['location_id'] ?? null;
+            $workshopSettings = WorkshopFunding::settings($workshop);
+            if ($locationId) {
+                $workshopSettings['location_id'] = $locationId;
+            }
             $normalized[] = [
-                'details_json' => ['workshop' => WorkshopFunding::settings($workshop)],
+                'details_json' => ['workshop' => $workshopSettings],
                 'description' => trim($row['description']),
+                'location_id' => $locationId,
                 'workshop_date' => $workshop['date'],
                 'workshop_hours' => $workshop['hours'],
                 'workshop_seats' => $workshop['seats'],
@@ -190,6 +213,10 @@ class WorkshopLine
                 'row.description' => 'required|string|max:500',
                 'row.travel_date' => 'nullable|date_format:Y-m-d',
                 'row.travel_hours' => 'required|numeric|min:0|max:2500|multiple_of:0.25',
+                'row.location_id' => 'nullable|uuid',
+                'row.travel_hours_defaulted' => 'sometimes|boolean',
+                'row.travel_hours_user_changed' => 'sometimes|boolean',
+                'row.details_json.workshop.linked_workshop_id' => 'nullable|uuid',
                 'row.supplied_categories' => 'array|max:100',
                 'row.supplied_categories.*' => 'boolean',
             ])->validate();
@@ -197,19 +224,35 @@ class WorkshopLine
             $date = $row['travel_date'] ?? $row['workshop_date'] ?? $rowDetails['date'] ?? null;
             Validator::make(['date' => $date], ['date' => 'nullable|date_format:Y-m-d'])->validate();
             $hours = round((float) $row['travel_hours'], 2);
+            $locationId = $row['location_id'] ?? $rowDetails['location_id'] ?? null;
+            $linkedWorkshopId = $row['details_json']['workshop']['linked_workshop_id'] ?? null;
+            $hoursDefaulted = (bool) ($row['travel_hours_defaulted'] ?? $rowDetails['hours_defaulted'] ?? false);
+            $hoursUserChanged = (bool) ($row['travel_hours_user_changed'] ?? $rowDetails['hours_user_changed'] ?? false);
+            if ($hoursUserChanged) {
+                $hoursDefaulted = false;
+            }
             $suppliedCategories = array_map(
                 fn ($value): bool => (bool) $value,
                 $row['supplied_categories'] ?? $rowDetails['supplied_categories'] ?? []
             );
             $normalized[] = [
-                'details_json' => ['travel' => [
-                    'billable_units' => (int) round($hours * 4),
-                    'quantity_basis' => 'hours',
-                    'supplied_categories' => $suppliedCategories,
-                ]],
+                'details_json' => array_filter([
+                    'travel' => [
+                        'billable_units' => (int) round($hours * 4),
+                        'quantity_basis' => 'hours',
+                        'location_id' => $locationId,
+                        'hours_defaulted' => $hoursDefaulted,
+                        'hours_user_changed' => $hoursUserChanged,
+                        'supplied_categories' => $suppliedCategories,
+                    ],
+                    'workshop' => $linkedWorkshopId ? ['linked_workshop_id' => $linkedWorkshopId] : null,
+                ]),
                 'description' => trim((string) $row['description']),
                 'travel_date' => $date ?: null,
                 'travel_hours' => $hours,
+                'location_id' => $locationId,
+                'travel_hours_defaulted' => $hoursDefaulted,
+                'travel_hours_user_changed' => $hoursUserChanged,
                 'supplied_categories' => $suppliedCategories,
             ];
             $dateLabel = $date ? \Illuminate\Support\Carbon::parse($date)->format('d/m/Y').' - ' : '';
