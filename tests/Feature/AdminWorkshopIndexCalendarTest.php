@@ -149,6 +149,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertSee('title="Calendar PDF"', false);
         $response->assertSee('title="Pick Lists PDF"', false);
         $response->assertSee('title="Materials Summary PDF"', false);
+        $this->assertSame(3, substr_count($response->getContent(), 'data-sync-list-query="admin-workshop-index" data-sync-query-params="month"'));
         $response->assertSee('Choose workshop scope');
         $response->assertSee('All monthly workshops');
         $response->assertSee('Upcoming workshops');
