@@ -458,13 +458,6 @@
                     }
                     this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: SM.currentGstRate() });
                 },
-                removeLineItem(index) {
-                    if (this.isLocked) {
-                        return;
-                    }
-                    this.lineItems.splice(index, 1);
-                    this.serializeLineItems();
-                },
                 setDueDateDefault(force = false) {
                     if (this.isLocked) {
                         return;
@@ -804,27 +797,23 @@
 
             <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', isset($invoice) ? ($invoice->purchase_order_number ?? '') : '') }}" />
             @if(isset($invoice) && ($invoice->storeOrders ?? collect())->isNotEmpty())
-                <div class="mb-4 rounded-lg border border-gray-300 p-4">
-                    <div class="flex items-center justify-between">
-                        <label class="block text-sm pl-1">Linked Orders</label>
-                        <span class="text-xs text-gray-500">{{ $invoice->storeOrders->count() }} linked</span>
-                    </div>
-                    <div class="mt-1 rounded-lg border border-gray-300 bg-white">
-                        @foreach($invoice->storeOrders as $linkedOrder)
-                            <a
-                                href="{{ route('admin.shop.order.edit', $linkedOrder) }}"
-                                class="flex items-center justify-between px-3 py-3 text-sm text-gray-900 transition hover:bg-gray-50 {{ $loop->last ? '' : 'border-b border-gray-200' }}"
-                            >
-                                <span>
-                                    <span class="font-medium">{{ $linkedOrder->order_number }}</span>
-                                    <span class="text-gray-500">· {{ $linkedOrder->statusLabel() }}</span>
-                                </span>
-                                <span class="text-gray-500">{{ money($linkedOrder->total_amount) }}</span>
-                            </a>
-                        @endforeach
-                    </div>
-                    <div class="text-xs text-gray-500 ml-2 mt-1">Open the linked store order to review fulfilment and tracking.</div>
-                </div>
+                <x-finance.linked-records
+                    class="mb-4"
+                    title="Linked Orders"
+                    :records="$invoice->storeOrders"
+                    empty-message="No store orders linked yet."
+                    help-text="Open the linked store order to review fulfilment and tracking."
+                >
+                    @foreach($invoice->storeOrders as $linkedOrder)
+                        <a href="{{ route('admin.shop.order.edit', $linkedOrder) }}" class="flex min-h-14 items-center justify-between gap-4 px-3 py-2.5 text-sm text-gray-900 transition hover:bg-gray-50">
+                            <span class="min-w-0">
+                                <span class="block truncate font-semibold">{{ $linkedOrder->order_number }}</span>
+                                <span class="block text-xs text-gray-500">{{ $linkedOrder->statusLabel() }}</span>
+                            </span>
+                            <span class="shrink-0 text-right font-medium tabular-nums text-gray-700">{{ money($linkedOrder->total_amount) }}</span>
+                        </a>
+                    @endforeach
+                </x-finance.linked-records>
             @endif
             <div
                 class="mb-4"
@@ -944,7 +933,7 @@
                 </div>
             </div>
 
-            <x-finance.line-items-editor :is-locked="$isLocked" :invoice-layout="true" />
+            <x-finance.line-items-editor :is-locked="$isLocked" :invoice-layout="true" :pricing-plans="$pricingPlans ?? []" :selected-pricing-version-id="$selectedPricingVersionId ?? null" />
             @unless($isLocked)
                 <p class="mb-4 text-xs text-slate-500" x-show="lineItems.some(item => item.kind === 'product')" x-cloak>Saving reserves stock for selected store products, including draft invoices. Changing quantities adjusts the reservation; deleting a draft or cancelling the invoice releases it.</p>
             @endunless

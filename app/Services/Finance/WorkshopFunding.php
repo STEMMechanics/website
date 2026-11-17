@@ -201,6 +201,10 @@ class WorkshopFunding
                 'label' => $workshop->title.' · '.($workshop->starts_at?->format('d M Y') ?? 'Date TBC').' · '.$workshop->getLocationName(),
                 'title' => $workshop->title,
                 'date' => $workshop->starts_at?->format('Y-m-d'),
+                'location_id' => $workshop->location && ! $workshop->location->isOnline() ? (string) $workshop->location_id : null,
+                'default_travel_hours' => ($workshop->location && ! $workshop->location->isOnline())
+                    ? $workshop->location->default_travel_hours
+                    : null,
                 'hours' => $workshop->teachingHours(),
                 'capacity' => $workshop->max_tickets,
                 'tickets' => $workshop->getAttribute('registered_ticket_count'),

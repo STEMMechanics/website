@@ -22,7 +22,7 @@ class WorkshopCostingTest extends TestCase
         $this->actingAs($user);
     }
 
-    public function test_links_open_a_single_page_pdf_inline_for_admins_without_creating_allocations(): void
+    public function test_costing_selector_and_pdf_are_admin_only_and_do_not_create_allocations(): void
     {
         $this->actingAs(User::factory()->create());
         foreach (['index', 'pdf'] as $action) {
@@ -30,14 +30,17 @@ class WorkshopCostingTest extends TestCase
         }
         $this->admin();
         $budgets = DB::table('finance_budgets')->count();
-        foreach (['index', 'pdf'] as $action) {
-            $pdf = $this->get(route('admin.workshop-costing.'.$action));
-            $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
-            $this->assertStringContainsString('inline;', $pdf->headers->get('content-disposition'));
-            $this->assertStringStartsWith('%PDF-', $pdf->getContent());
-            $reader = new Fpdi;
-            $this->assertSame(1, $reader->setSourceFile(StreamReader::createByString($pdf->getContent())));
-        }
+        $this->get(route('admin.workshop-costing.index'))
+            ->assertOk()
+            ->assertSee('View workshop costings')
+            ->assertSee('Choose which pricing plan to use for this reference sheet.');
+
+        $pdf = $this->get(route('admin.workshop-costing.pdf'));
+        $pdf->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringContainsString('inline;', $pdf->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF-', $pdf->getContent());
+        $reader = new Fpdi;
+        $this->assertSame(1, $reader->setSourceFile(StreamReader::createByString($pdf->getContent())));
         $this->assertSame($budgets, DB::table('finance_budgets')->count());
     }
 

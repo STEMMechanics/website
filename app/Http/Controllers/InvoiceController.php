@@ -30,6 +30,7 @@ use App\Services\Finance\InvoiceAllocationWorkspace;
 use App\Services\Finance\InvoiceInventory;
 use App\Services\Finance\InvoicePdfLines;
 use App\Services\Finance\LinePricing;
+use App\Services\Finance\PricingVersion;
 use App\Services\Finance\WorkshopAllocation;
 use App\Services\Finance\WorkshopFunding;
 use App\Services\Finance\WorkshopLine;
@@ -147,6 +148,8 @@ class InvoiceController extends Controller
 
     public function create()
     {
+        $defaultPricingVersionId = (int) PricingVersion::forDate(today()->toDateString())->id;
+
         return view('admin.invoice.edit', [
             'invoice' => null,
             'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
@@ -154,6 +157,8 @@ class InvoiceController extends Controller
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
             'catalogProducts' => app(DocumentProductCatalog::class)->products(),
+            'pricingPlans' => PricingVersion::editorOptions(),
+            'selectedPricingVersionId' => $defaultPricingVersionId,
         ]);
     }
 
@@ -243,6 +248,8 @@ class InvoiceController extends Controller
             'storeOrders.items.trackingEntries',
         );
 
+        $retainedVersionId = $invoice->pricing_version_id ? (int) $invoice->pricing_version_id : null;
+
         return view('admin.invoice.edit', [
             'invoice' => $invoice,
             'users' => User::query()->with('primaryOrganisation')->orderBy('firstname')->orderBy('surname')->get(),
@@ -250,6 +257,8 @@ class InvoiceController extends Controller
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
             'catalogProducts' => app(DocumentProductCatalog::class)->products($this->invoiceLineItemsForPayload($invoice)),
             'invoiceEmailDefaultPayload' => $this->invoiceEmailPayload($invoice),
+            'pricingPlans' => PricingVersion::editorOptions($retainedVersionId),
+            'selectedPricingVersionId' => $retainedVersionId ?? ($invoice->canEditContents() ? (int) PricingVersion::forDate(today()->toDateString())->id : null),
         ]);
     }
 
@@ -2181,6 +2190,7 @@ class InvoiceController extends Controller
             'invoice_number' => ['required', 'string', 'max:100', Rule::unique('invoices')->ignore($invoice?->id)],
             'user_id' => ['nullable', 'exists:users,id'],
             'issue_now' => ['nullable', 'boolean'],
+            'pricing_version_id' => ['nullable', 'integer', 'exists:finance_pricing_versions,id'],
             'scheduled_email' => ['nullable', 'boolean'],
             'send_scheduled_now' => ['nullable', 'boolean'],
             'email_template_pending' => ['nullable', 'boolean'],
@@ -2209,6 +2219,14 @@ class InvoiceController extends Controller
                 ]);
             }
         }
+
+        $existingPricingVersionId = $invoice?->pricing_version_id;
+        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $existingPricingVersionId ?? PricingVersion::forDate(today()->toDateString())->id);
+        PricingVersion::assertSelectable(
+            (int) $validated['pricing_version_id'],
+            $existingPricingVersionId ? (int) $existingPricingVersionId : null,
+            'pricing_version_id',
+        );
 
         return $validated;
     }

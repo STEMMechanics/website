@@ -13,15 +13,14 @@
             <div class="mb-4">
                 <x-ui.input label="Address" name="address" value="{{ $location->address ?? '' }}" />
             </div>
-            <x-ui.grid class="gap-4 sm:grid-cols-3">
-                <x-ui.input label="Suburb" name="suburb" value="{{ $location->suburb ?? '' }}" />
-                <x-ui.input label="State" name="state" value="{{ $location->state ?? '' }}" />
-                <x-ui.input label="Postcode" name="postcode" value="{{ $location->postcode ?? '' }}" />
+            <x-ui.grid class="mb-4 gap-4 sm:grid-cols-3">
+                <x-ui.input class="mb-0" label="Suburb" name="suburb" value="{{ $location->suburb ?? '' }}" />
+                <x-ui.input class="mb-0" label="State" name="state" value="{{ $location->state ?? '' }}" />
+                <x-ui.input class="mb-0" label="Postcode" name="postcode" value="{{ $location->postcode ?? '' }}" />
             </x-ui.grid>
-            <x-ui.grid class="gap-4 sm:grid-cols-2">
-                <x-ui.input label="Latitude" name="latitude" type="number" step="0.0000001" value="{{ $location->latitude ?? '' }}" />
-                <x-ui.input label="Longitude" name="longitude" type="number" step="0.0000001" value="{{ $location->longitude ?? '' }}" />
-            </x-ui.grid>
+            <div class="w-full sm:w-1/2">
+                <x-ui.input label="Default travel hours" name="default_travel_hours" type="number" min="0" max="2500" step="0.25" value="{{ $location->default_travel_hours ?? 0 }}" />
+            </div>
             <div class="mb-4">
                 <x-ui.input label="Address URL" name="address_url" value="{{ $location->address_url ?? '' }}" />
             </div>

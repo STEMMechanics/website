@@ -21,13 +21,17 @@ export function updateWorkshopLine(item, plan = null, inclusive = null) {
         updateMultipleTravel(item, plan, inclusive);
         return;
     }
-    if (item.kind === 'travel' && item.travel_hours !== '' && item.travel_hours != null) {
+    if (item.kind === 'travel' && item.travel_hours === '') {
+        item.travel_units = '';
+        item.quantity = 0;
+        item.details_json = { ...(item.details_json || {}), travel: { ...(item.details_json?.travel || {}), billable_units: 0, quantity_basis: 'hours', supplied_categories: { ...(item.supplied_categories || {}) } } };
+    } else if (item.kind === 'travel' && item.travel_hours !== '' && item.travel_hours != null) {
         item.travel_units = Number(item.travel_hours) * 4;
         item.quantity = Number(item.travel_hours);
-        item.details_json = { ...(item.details_json || {}), travel: { billable_units: item.travel_units, quantity_basis: 'hours', supplied_categories: { ...(item.supplied_categories || {}) } } };
+        item.details_json = { ...(item.details_json || {}), travel: { ...(item.details_json?.travel || {}), billable_units: item.travel_units, quantity_basis: 'hours', supplied_categories: { ...(item.supplied_categories || {}) } } };
     } else if (item.kind === 'travel' && item.travel_units !== '' && item.travel_units != null) {
         item.quantity = Number(item.travel_units);
-        item.details_json = { ...(item.details_json || {}), travel: { billable_units: Number(item.travel_units), supplied_categories: { ...(item.supplied_categories || {}) } } };
+        item.details_json = { ...(item.details_json || {}), travel: { ...(item.details_json?.travel || {}), billable_units: Number(item.travel_units), supplied_categories: { ...(item.supplied_categories || {}) } } };
     }
     if (item.kind === 'travel') applyPlanPrice(item, plan, inclusive);
     if (item.kind !== 'workshop') return;
@@ -138,6 +142,28 @@ window.SM.updateWorkshopLine = updateWorkshopLine;
 window.SM.suppliedCategoryMap = supplied => Object.fromEntries(Object.entries(supplied || {}).filter(([, value]) => value != null));
 
 window.SM.registerLinePlan = (item, plan, inclusive) => pricingPlans.set(item, { plan, inclusive });
+window.SM.initializePricingSupplies = (item, plan) => {
+    if (!item || !plan) return;
+    const rules = (plan.rules || []).filter(rule => rule.suppliable || rule.basis === 'venue_hour');
+    const initialize = (target, travel = false) => {
+        target.supplied_categories = window.SM.suppliedCategoryMap(target.supplied_categories);
+        const venueSupplied = target.venue_supplied ?? target.details_json?.workshop?.venue_supplied ?? true;
+        for (const rule of rules) {
+            if (travel !== (rule.basis === 'travel')) continue;
+            const id = String(rule.category_id);
+            target.supplied_categories[id] ??= !travel && ((rule.venue_default || rule.basis === 'venue_hour') && !!venueSupplied);
+        }
+    };
+    if (item.kind === 'multi_workshop') {
+        item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
+        item.workshops.forEach(row => initialize(row));
+    } else if (item.kind === 'multi_travel') {
+        item.travel_rows ??= JSON.parse(JSON.stringify(item.details_json?.multi_travel?.rows || []));
+        item.travel_rows.forEach(row => initialize(row, true));
+    } else {
+        initialize(item, item.kind === 'travel');
+    }
+};
 window.SM.refreshLineQuantity = item => {
     const automatic = item.auto_pricing;
     item.auto_pricing = false;
@@ -286,8 +312,12 @@ window.SM.ticketCostBreakdown = (plan, start, end, maxTickets, capAtPricingAtten
 
 window.SM.hydrateTravelLine = item => {
     if (item.kind !== 'travel') return item;
+    const details = item.details_json?.travel || {};
+    item.location_id ??= details.location_id ?? null;
+    item.travel_hours_defaulted ??= !!details.hours_defaulted;
+    item.travel_hours_user_changed ??= !!details.hours_user_changed;
     if (item.travel_hours !== '' && item.travel_hours != null) return item;
-    const saved = item.details_json?.travel;
+    const saved = details;
     if (saved?.quantity_basis === 'hours') item.travel_hours = Number(item.quantity);
     else if (saved?.billable_units != null) {
         item.travel_hours = Number(saved.billable_units) / 4;
@@ -332,20 +362,34 @@ window.SM.expandWorkshopGroups = items => items.flatMap(item => {
     }
     return [item];
 });
-window.SM.addWorkshopRow = item => {
+window.SM.addWorkshopRow = (item, defaults = {}) => {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
-    item.workshops.push({ description: '', workshop_date: '', workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {} });
+    const hours = Number(defaults.hours ?? 1);
+    const seats = Number(defaults.seats ?? 10);
+    item.workshops.push({
+        description: '',
+        workshop_date: '',
+        workshop_hours: Number.isFinite(hours) && hours > 0 ? hours : 1,
+        workshop_seats: Number.isInteger(seats) && seats >= 0 ? seats : 10,
+        venue_supplied: true,
+        supplied_categories: {},
+    });
 };
 window.SM.hydrateMultiTravelLine = item => {
     if (item?.kind !== 'multi_travel') return item;
     item.travel_rows ??= JSON.parse(JSON.stringify(item.details_json?.multi_travel?.rows || []));
+    item.travel_rows.forEach(row => {
+        row.location_id ??= row.details_json?.travel?.location_id ?? null;
+        row.travel_hours_defaulted ??= !!row.details_json?.travel?.hours_defaulted;
+        row.travel_hours_user_changed ??= !!row.details_json?.travel?.hours_user_changed;
+    });
     return item;
 };
 window.SM.addTravelRow = item => {
     window.SM.hydrateMultiTravelLine(item);
-    item.travel_rows.push({ description: '', travel_date: '', travel_hours: '', supplied_categories: {} });
+    item.travel_rows.push({ description: '', travel_date: '', travel_hours: '', location_id: null, travel_hours_defaulted: false, travel_hours_user_changed: false, supplied_categories: {} });
 };
-window.SM.copyWorkshopRowsToTravel = (item, workshopItem) => {
+window.SM.copyWorkshopRowsToTravel = (item, workshopItem, workshopCatalog = [], locationCatalog = []) => {
     if (!item || !workshopItem) return false;
     const sourceRows = Array.isArray(workshopItem.workshops) && workshopItem.workshops.length
         ? workshopItem.workshops
@@ -369,10 +413,27 @@ window.SM.copyWorkshopRowsToTravel = (item, workshopItem) => {
             if (window.SM.isWorkshopSpacing(row) || spacingAliases.has(description)) {
                 return { row_type: 'spacing', description: '- (space)', travel_date: '', travel_hours: 0, supplied_categories: {} };
             }
+            const linkedWorkshopId = row.details_json?.workshop?.linked_workshop_id;
+            const linkedWorkshop = workshopCatalog.find(option => option.id === linkedWorkshopId);
+            const rowLocationId = row.location_id ?? row.details_json?.workshop?.location_id ?? null;
+            const rowDescription = String(row.description ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+            const exactLocationMatches = locationCatalog.filter(option => String(option.name ?? option.label ?? '').trim().replace(/\s+/g, ' ').toLowerCase() === rowDescription);
+            const location = linkedWorkshop ? null : locationCatalog.find(option => String(option.location_id ?? option.id) === String(rowLocationId))
+                ?? (exactLocationMatches.length === 1 ? exactLocationMatches[0] : null);
+            const locationId = linkedWorkshop ? linkedWorkshop.location_id : location?.location_id ?? rowLocationId;
+            const defaultHours = linkedWorkshop ? linkedWorkshop.default_travel_hours : location?.default_travel_hours;
+            const hasTravelDefault = defaultHours !== null && defaultHours !== undefined && defaultHours !== '' && Number.isFinite(Number(defaultHours));
             return {
                 description: String(row.description ?? '').trim(),
                 travel_date: row.workshop_date || row.details_json?.workshop?.date || '',
-                travel_hours: 0,
+                travel_hours: hasTravelDefault ? Number(defaultHours) : 0,
+                location_id: locationId,
+                travel_hours_defaulted: hasTravelDefault,
+                travel_hours_user_changed: false,
+                details_json: {
+                    ...(linkedWorkshopId ? { workshop: { linked_workshop_id: linkedWorkshopId } } : {}),
+                    ...(locationId ? { travel: { location_id: locationId } } : {}),
+                },
                 supplied_categories: {},
             };
         });
@@ -546,11 +607,25 @@ window.SM.multiTravelNotesPreview = item => {
 };
 function updateMultipleTravel(item, plan, inclusive) {
     item.travel_rows ??= JSON.parse(JSON.stringify(item.details_json?.multi_travel?.rows || []));
+    if (plan) window.SM.initializePricingSupplies(item, plan);
     const travelRows = item.travel_rows.filter(row => !window.SM.isWorkshopSpacing(row) && Number(row.travel_hours) > 0);
     const quantity = Math.round(travelRows.reduce((sum, row) => sum + Number(row.travel_hours || 0), 0) * 100) / 100;
     item.quantity = quantity;
     item.details_json = { ...(item.details_json || {}), multi_travel: { rows: item.travel_rows, quantity_basis: 'hours' } };
-    if (!plan || !item.auto_pricing || !(quantity > 0)) return;
+    if (!plan || !item.auto_pricing) return;
+    if (!(quantity > 0)) {
+        const sampleRow = item.travel_rows.find(row => !window.SM.isWorkshopSpacing(row)) ?? { supplied_categories: {} };
+        const priced = { ...sampleRow, kind: 'travel', travel_hours: 1, auto_pricing: true, gst_applicable: item.gst_applicable };
+        updateWorkshopLine(priced, plan, inclusive);
+        item.tax_rate = window.SM.lineTaxRate(priced);
+        const unitGross = Number(priced.unit_price_inc_tax ?? priced.details_json?.inclusive_unit_price
+            ?? Number(priced.unit_price_ex_tax ?? priced.unit_price ?? 0) * (1 + item.tax_rate));
+        item.details_json = { ...(item.details_json || {}), inclusive_unit_price: unitGross };
+        item[inclusive ? 'unit_price_inc_tax' : 'unit_price'] = inclusive
+            ? formatUnitPrice(unitGross)
+            : (unitGross / (1 + item.tax_rate)).toFixed(2);
+        return;
+    }
 
     let gross = 0;
     for (const row of travelRows) {
@@ -573,6 +648,7 @@ function updateMultipleTravel(item, plan, inclusive) {
 }
 function updateMultipleWorkshops(item, plan, inclusive) {
     item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
+    if (plan) window.SM.initializePricingSupplies(item, plan);
     item.workshops.forEach(row => {
         if (row?.row_type === 'heading') window.SM.commitWorkshopSpacing(row);
     });
@@ -626,8 +702,8 @@ window.SM.documentAmounts = (items, original = null) => {
 window.SM.formatUnitPrice = formatUnitPrice;
 
 
-window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSpacing = false, travelRow = false) => ({
-    item, catalog, billingLocked, allowSpacing, travelRow, query: '', open: false, menuOpen: false, selected: 0, menuTop: 0, menuLeft: 0, menuWidth: 320,
+window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSpacing = false, travelRow = false, locations = [], allowLocations = false) => ({
+    item, catalog, locations: Array.isArray(locations) ? locations : Object.values(locations || {}), billingLocked, allowSpacing, travelRow, allowLocations, query: '', open: false, menuOpen: false, selected: 0, menuTop: 0, menuBottom: 0, menuAbove: false, menuListMaxHeight: 192, menuLeft: 0, menuWidth: 320,
     init() {
         this.item.details_json ??= {};
         this.item.details_json.workshop ??= {};
@@ -635,6 +711,11 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
         this.item.details_json.workshop.allocation_seats ??= this.item.workshop_seats ?? this.item.details_json.workshop.seats ?? null;
     },
     get linkedWorkshop() { return this.catalog.find(option => option.id === this.item.details_json.workshop.linked_workshop_id); },
+    get linkedLocation() {
+        const locationId = this.item.location_id ?? this.item.details_json?.travel?.location_id ?? this.item.details_json?.workshop?.location_id;
+        return this.locations.find(option => String(option.location_id ?? option.id) === String(locationId));
+    },
+    get linkedOption() { return this.linkedWorkshop || this.linkedLocation; },
     get usesWorkshopName() { return this.item.kind === 'workshop' && Object.hasOwn(this.item.details_json.workshop, 'name'); },
     get workshopName() { return this.usesWorkshopName ? this.item.details_json.workshop.name : this.item.description; },
     set workshopName(value) {
@@ -644,7 +725,25 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
     get descriptionValue() { return this.billingLocked && this.open ? this.query : this.workshopName; },
     set descriptionValue(value) {
         this.query = value;
-        if (!this.billingLocked) this.workshopName = value;
+        if (!this.billingLocked) {
+            const previousDescription = this.item.description;
+            if (this.allowLocations && !this.travelRow) {
+                this.item.description = value;
+                if (this.usesWorkshopName) this.item.details_json.workshop.name = value;
+            } else {
+                this.workshopName = value;
+            }
+            if (this.travelRow && this.item.location_id && value !== previousDescription) {
+                this.item.location_id = null;
+                this.item.details_json.travel ??= {};
+                this.item.details_json.travel.location_id = null;
+                this.item.details_json.workshop.linked_workshop_id = null;
+            } else if (this.allowLocations && this.item.location_id && value !== previousDescription) {
+                this.item.location_id = null;
+                this.item.details_json.workshop.location_id = null;
+                this.item.details_json.workshop.linked_workshop_id = null;
+            }
+        }
     },
     get seatValue() {
         const basis = this.item.details_json.workshop.allocation_basis;
@@ -673,21 +772,33 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
         const date = this.travelRow ? this.item.travel_date : this.item.workshop_date || this.item.details_json.workshop.date;
         const score = option => (date && option.date === date ? 4 : 0) + (option.title && description.includes(option.title.toLowerCase()) ? 3 : 0);
         const spacing = { id: '__workshop_spacing__', title: '- (space)', label: '- (space)', spacing: true };
-        const options = this.catalog.filter(option => !query || option.label.toLowerCase().includes(query));
+        const catalog = this.travelRow || this.allowLocations ? [...this.catalog, ...this.locations] : this.catalog;
+        const options = catalog.filter(option => !query || [option.label, option.title].some(value => String(value || '').toLowerCase().includes(query)));
         if (this.allowSpacing && (!query || spacing.label.includes(query))) options.unshift(spacing);
         return options.sort((a, b) => (a.spacing ? -1 : b.spacing ? 1 : score(b) - score(a))).slice(0, 12);
     },
     position(element, width = 320) {
         const rect = element.getBoundingClientRect();
         this.menuWidth = Math.min(width, window.innerWidth - 16);
-        this.menuTop = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 320));
+        const viewportTop = window.visualViewport?.offsetTop ?? 0;
+        const viewportBottom = viewportTop + (window.visualViewport?.height ?? window.innerHeight);
+        const gap = 4;
+        const edge = 8;
+        const footerHeight = this.linkedOption ? 40 : 0;
+        const spaceAbove = Math.max(0, rect.top - viewportTop - gap - edge);
+        const spaceBelow = Math.max(0, viewportBottom - rect.bottom - gap - edge);
+        this.menuAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+        const availableHeight = this.menuAbove ? spaceAbove : spaceBelow;
+        this.menuListMaxHeight = Math.max(0, Math.min(192, availableHeight - 16 - footerHeight));
+        this.menuTop = rect.bottom + gap;
+        this.menuBottom = Math.max(0, (window.visualViewport?.height ?? window.innerHeight) - (rect.top - viewportTop) + gap);
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
     },
     editDescription(element) {
         this.query = element.value || '';
         this.selected = 0;
         this.position(element, Math.max(320, element.offsetWidth));
-        this.open = !!this.query.trim();
+        this.open = !!this.query.trim() && this.matches.length > 0;
     },
     browse(element) {
         this.position(element);
@@ -705,6 +816,34 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
         this.item.details_json.workshop.allocation_basis = basis;
         this.menuOpen = false;
     },
+    applyTravelHoursDefault(value) {
+        const row = this.item;
+        const travel = row.details_json.travel ??= {};
+        const defaulted = !!(row.travel_hours_defaulted ?? travel.hours_defaulted);
+        const changed = !!(row.travel_hours_user_changed ?? travel.hours_user_changed);
+        const hours = row.travel_hours;
+        const hasValue = hours !== '' && hours != null && Number.isFinite(Number(hours)) && Number(hours) !== 0;
+        if (changed || (!defaulted && hasValue)) return;
+
+        const numericDefault = value !== '' && value != null && Number.isFinite(Number(value)) ? Number(value) : null;
+        if (numericDefault !== null) {
+            row.travel_hours = numericDefault;
+            row.travel_hours_defaulted = true;
+        } else {
+            if (defaulted) {
+                row.travel_hours = '';
+                row.travel_units = '';
+                row.quantity = 0;
+                travel.billable_units = 0;
+                travel.quantity_basis = 'hours';
+            }
+            row.travel_hours_defaulted = false;
+        }
+        row.travel_hours_user_changed = false;
+        travel.hours_defaulted = row.travel_hours_defaulted;
+        travel.hours_user_changed = false;
+        travel.location_id = row.location_id || null;
+    },
     choose(option) {
         if (option?.spacing) {
             this.item.description = option.label;
@@ -714,18 +853,53 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
             this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
             return;
         }
+        if (option?.type === 'location' && (this.travelRow || this.allowLocations)) {
+            if (this.billingLocked) {
+                this.open = false;
+                return;
+            }
+            this.item.details_json.workshop.linked_workshop_id = null;
+            this.item.location_id = option.location_id || option.id || null;
+            if (this.allowLocations && !this.travelRow) {
+                this.item.description = option.name || option.label;
+                if (this.usesWorkshopName) this.item.details_json.workshop.name = option.name || option.label;
+            } else {
+                this.workshopName = option.name || option.label;
+            }
+            if (this.travelRow) {
+                this.applyTravelHoursDefault(option.default_travel_hours);
+            } else {
+                this.item.details_json.workshop.location_id = this.item.location_id;
+            }
+            this.open = false;
+            this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
+            return;
+        }
         this.item.details_json.workshop.linked_workshop_id = option?.id || null;
         if (option && !this.billingLocked) {
             this.workshopName = option.title || option.label;
+            if (this.travelRow || this.allowLocations) this.item.location_id = option.location_id || null;
+            if (this.allowLocations) this.item.details_json.workshop.location_id = this.item.location_id;
             if (this.travelRow) {
                 this.item.travel_date = option.date || '';
+                this.item.location_id = option.location_id || null;
+                this.applyTravelHoursDefault(option.default_travel_hours);
             } else {
                 if (option.hours > 0) this.item.workshop_hours = option.hours;
                 this.item.workshop_date = option.date || '';
             }
         }
-        if (option && this.item.details_json.workshop.allocation_basis !== 'manual') this.setSeats(this.item.details_json.workshop.allocation_basis);
-        else if (!option) this.setSeats('manual');
+        if (option && !this.travelRow && this.item.details_json.workshop.allocation_basis !== 'manual') this.setSeats(this.item.details_json.workshop.allocation_basis);
+        else if (!option && !this.travelRow) this.setSeats('manual');
+        if (!option && this.travelRow) {
+            this.item.location_id = null;
+            this.item.details_json.travel ??= {};
+            this.item.details_json.travel.location_id = null;
+        }
+        if (!option && this.allowLocations) {
+            this.item.location_id = null;
+            this.item.details_json.workshop.location_id = null;
+        }
         this.open = false;
         this.$nextTick?.(() => this.$refs?.workshopDescription?.focus());
     },

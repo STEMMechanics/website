@@ -37,6 +37,7 @@ class Quote extends Model
     protected $fillable = [
         'quote_number',
         'user_id',
+        'pricing_version_id',
         'status',
         'context_type',
         'quote_date',
@@ -63,6 +64,7 @@ class Quote extends Model
         'subtotal_amount' => 'decimal:2',
         'gst_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'pricing_version_id' => 'integer',
     ];
 
     public function getLineItemsAttribute(mixed $value): array

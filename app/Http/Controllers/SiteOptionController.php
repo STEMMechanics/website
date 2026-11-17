@@ -85,6 +85,8 @@ class SiteOptionController extends Controller
             'finance.fortnight-start',
             'finance.cash-buffer',
             'finance.owner-hourly-rate',
+            'finance.document.multi-workshop-default-hours',
+            'finance.document.multi-workshop-default-seats',
             'media.variant-quality',
             'media.editor-quality',
             'media.flyer-quality',
@@ -282,6 +284,12 @@ class SiteOptionController extends Controller
 
         if ($optionName === 'finance.owner-hourly-rate') {
             $rules['value'] = ['required', 'numeric', 'min:0', 'max:10000', 'decimal:0,2'];
+        }
+        if ($optionName === 'finance.document.multi-workshop-default-hours') {
+            $rules['value'] = ['required', 'numeric', 'min:0.01', 'max:24', 'decimal:0,2'];
+        }
+        if ($optionName === 'finance.document.multi-workshop-default-seats') {
+            $rules['value'] = ['required', 'integer', 'min:0', 'max:10000'];
         }
         if ($optionName === NewsletterWorkshopSelectionService::SEND_DAY_OPTION) {
             $rules['value'] = ['required', 'integer', 'min:0', 'max:6'];

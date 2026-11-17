@@ -1,16 +1,16 @@
-@props(['supplyRules', 'supplyCategories', 'invoiceLayout' => false, 'isLocked' => false])
+@props(['supplyRules', 'invoiceLayout' => false, 'isLocked' => false])
 @php
-    $workshopsWrapperClass = $invoiceLayout ? 'sm-invoice-workshops' : '';
-    $workshopsTableClass = $invoiceLayout ? 'sm-invoice-workshops-table w-full min-w-[40rem]' : 'w-full min-w-[40rem]';
+    $workshopsWrapperClass = 'sm-finance-workshops'.($invoiceLayout ? ' sm-invoice-workshops' : '');
+    $workshopsTableClass = 'sm-finance-workshops-table'.($invoiceLayout ? ' sm-invoice-workshops-table' : '').' w-full min-w-[40rem]';
 @endphp
 <div x-show="item.kind === 'multi_workshop'" class="space-y-3" x-init="item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []))">
     <x-ui.table variant="listing" class="{{ $workshopsWrapperClass }}" table-class="{{ $workshopsTableClass }}">
-        <thead><tr><th>Workshop</th><th class="w-40">Date</th><th class="w-24 text-center">Hours</th><th class="w-32 text-center">Seats</th><th>Supplied</th><th class="w-28 text-center">Actions</th></tr></thead>
+        <thead><tr><th>Workshop</th><th class="w-40">Date</th><th class="w-24 text-center">Hours</th><th class="w-32 text-center">Seats</th><th x-cloak x-show="hasSuppliedCategories('workshop')">Supplied</th><th class="w-28 text-center">Actions</th></tr></thead>
         <tbody>
             <template x-for="(row, rowIndex) in item.workshops" :key="lineItemKey(row)">
                 <tr>
                     <td data-label="Workshop" data-mobile-wide class="min-w-64" x-bind:class="SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''" x-on:change="SM.commitWorkshopSpacing(row); SM.updateWorkshopLine(item); serializeLineItems()">
-                        <x-finance.workshop-funding-fields model="row" :allow-spacing="true" />
+                        <x-finance.workshop-funding-fields model="row" :allow-spacing="true" :allow-locations="true" />
                     </td>
                     <td data-label="Date" x-bind:class="SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''">
                         <div x-show="!SM.isWorkshopSpacing(row)"><x-ui.input-control aria-label="Workshop date" type="date" x-model="row.workshop_date" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" /></div>
@@ -21,11 +21,11 @@
                     <td data-label="Seats" x-bind:class="SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''">
                         <div x-show="!SM.isWorkshopSpacing(row)"><x-finance.workshop-seats-field model="row" /></div>
                     </td>
-                    <td data-label="Supplied" data-mobile-wide class="space-y-2" x-bind:class="SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''">
+                    <td x-cloak x-show="hasSuppliedCategories('workshop')" data-label="Supplied" data-mobile-wide class="space-y-2" x-bind:class="SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''">
                         <div x-show="!SM.isWorkshopSpacing(row)">
-                            @foreach($supplyRules->where('basis', '!=', 'travel') as $rule)
-                                <div x-init="row.supplied_categories = SM.suppliedCategoryMap(row.supplied_categories); row.supplied_categories['{{ $rule['category_id'] }}'] ??= {{ ($rule['venue_default'] ?? false) || $rule['basis'] === 'venue_hour' ? '!!row.venue_supplied' : 'false' }}">
-                                    <x-ui.checkbox :small="true" :noWrapper="true" :label="$supplyCategories[$rule['category_id']] ?? 'Cost centre'" x-model="row.supplied_categories['{{ $rule['category_id'] }}']" x-bind:disabled="isLocked" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" />
+                            @foreach($supplyRules as $rule)
+                                <div x-show="hasPlanCategory(@js($rule['category_id']), 'workshop')">
+                                    <x-ui.checkbox :small="true" :noWrapper="true" :label="($rule['category_name'] ?? 'Cost centre').' supplied'" x-model="row.supplied_categories['{{ $rule['category_id'] }}']" x-bind:disabled="isLocked" x-on:change="SM.updateWorkshopLine(item); serializeLineItems()" />
                                 </div>
                             @endforeach
                         </div>
@@ -35,7 +35,7 @@
                             <x-ui.row-actions :menu="false">
                                 <x-ui.row-action label="Move up" icon="fa-arrow-up" x-bind:disabled="rowIndex === 0" x-on:click.prevent="SM.moveWorkshopRow(item, rowIndex, -1); serializeLineItems();" />
                                 <x-ui.row-action label="Move down" icon="fa-arrow-down" x-bind:disabled="rowIndex === item.workshops.length - 1" x-on:click.prevent="SM.moveWorkshopRow(item, rowIndex, 1); serializeLineItems();" />
-                                <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" class="sm-invoice-remove-workshop" x-on:click.prevent="item.workshops.splice(rowIndex, 1); SM.updateWorkshopLine(item); serializeLineItems();" />
+                                <x-ui.row-action label="Remove" icon="fa-trash" tone="danger" class="sm-invoice-remove-workshop" x-on:click.prevent="confirmRemoveLineItemRow(item, 'workshops', rowIndex)" />
                             </x-ui.row-actions>
                         @endif
                     </td>
@@ -45,7 +45,7 @@
     </x-ui.table>
     @if(! $isLocked)
         <div class="flex justify-end gap-2">
-            <x-ui.row-action label="Add workshop" icon="fa-plus" tone="primary" x-on:click="SM.addWorkshopRow(item); SM.updateWorkshopLine(item); serializeLineItems();" />
+            <x-ui.row-action label="Add workshop" icon="fa-plus" tone="primary" x-on:click="SM.addWorkshopRow(item, multiWorkshopDefaults); SM.updateWorkshopLine(item); serializeLineItems();" />
         </div>
     @endif
 </div>

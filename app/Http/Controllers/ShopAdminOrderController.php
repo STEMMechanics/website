@@ -564,6 +564,7 @@ class ShopAdminOrderController extends Controller
         $invoice = new Invoice;
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->quote_id = $quote->id;
+        $invoice->pricing_version_id = $quote->pricing_version_id;
         $invoice->user_id = $quote->user_id;
         $invoice->status = Invoice::STATUS_ISSUED;
         $invoice->issue_date = Carbon::now()->startOfDay();

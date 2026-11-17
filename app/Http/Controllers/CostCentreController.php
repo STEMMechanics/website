@@ -98,7 +98,10 @@ class CostCentreController extends Controller
             ->orderBy(($data['sort'] ?? 'name') === 'date' ? 'created_at' : 'name', $data['direction'] ?? 'desc')
             ->orderBy('id')->paginate(\App\Support\ListPageSize::resolve(25))->withQueryString();
         $usedVersionIds = DB::table('finance_budgets')->pluck('pricing_version_id')
-            ->merge(DB::table('workshops')->whereNotNull('pricing_version_id')->pluck('pricing_version_id'))->unique()->all();
+            ->merge(DB::table('workshops')->whereNotNull('pricing_version_id')->pluck('pricing_version_id'))
+            ->merge(DB::table('quotes')->whereNotNull('pricing_version_id')->pluck('pricing_version_id'))
+            ->merge(DB::table('invoices')->whereNotNull('pricing_version_id')->pluck('pricing_version_id'))
+            ->unique()->all();
         return view('admin.cost-centre.versions', compact('categories', 'versions', 'defaultVersionId', 'templateVersion', 'planner', 'usedVersionIds'));
     }
 
@@ -126,8 +129,10 @@ class CostCentreController extends Controller
                 throw ValidationException::withMessages(['version_id' => 'Set another allocation plan as default before deleting this plan.']);
             }
             if (DB::table('finance_budgets')->where('pricing_version_id', $version)->exists()
-                || DB::table('workshops')->where('pricing_version_id', $version)->exists()) {
-                throw ValidationException::withMessages(['version_id' => 'This allocation plan is used by a workshop or saved allocation and cannot be deleted.']);
+                || DB::table('workshops')->where('pricing_version_id', $version)->exists()
+                || DB::table('quotes')->where('pricing_version_id', $version)->exists()
+                || DB::table('invoices')->where('pricing_version_id', $version)->exists()) {
+                throw ValidationException::withMessages(['version_id' => 'This allocation plan is used by a workshop, saved allocation, quote, or invoice and cannot be deleted.']);
             }
             DB::table('finance_pricing_versions')->where('id', $version)->delete();
         });
