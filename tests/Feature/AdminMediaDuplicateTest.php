@@ -220,7 +220,8 @@ class AdminMediaDuplicateTest extends TestCase
             ->get(route('admin.media.duplicates'))
             ->assertOk()
             ->assertSeeText('98.4% visually similar')
-            ->assertSeeText('Image selected to keep')
+            ->assertSeeText('Select to keep')
+            ->assertSeeText('Choose an image to keep, then select the source for any differing metadata.')
             ->assertSeeText('The filename selection determines which physical image remains.')
             ->assertSeeText('Similar One')
             ->assertSeeText('Similar Two');
