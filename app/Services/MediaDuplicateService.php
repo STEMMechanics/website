@@ -15,6 +15,8 @@ class MediaDuplicateService
 {
     public const ATTENTION_CACHE_KEY = 'media:duplicate-attention-count';
 
+    public const SIMILAR_PAIRS_CACHE_KEY = 'media:similar-image-pairs';
+
     public const MERGEABLE_METADATA_FIELDS = [
         'title',
         'user_id',
@@ -95,6 +97,16 @@ class MediaDuplicateService
     public function clearAttentionCount(): void
     {
         Cache::forget(self::ATTENTION_CACHE_KEY);
+        Cache::forget(self::SIMILAR_PAIRS_CACHE_KEY);
+    }
+
+    public function refreshSimilarPairs(ImagePerceptualHash $hasher): int
+    {
+        $pairs = $this->calculateSimilarPairs($hasher);
+        Cache::put(self::SIMILAR_PAIRS_CACHE_KEY, $pairs, now()->addHours(36));
+        Cache::forget(self::ATTENTION_CACHE_KEY);
+
+        return $pairs->where('ignored', false)->count();
     }
 
     /**
@@ -195,6 +207,16 @@ class MediaDuplicateService
      */
     public function similarPairs(ImagePerceptualHash $hasher, bool $ignoredOnly = false): Collection
     {
+        $pairs = Cache::remember(self::SIMILAR_PAIRS_CACHE_KEY, now()->addHours(36), fn (): Collection => $this->calculateSimilarPairs($hasher));
+
+        return $pairs->filter(fn (array $pair): bool => $pair['ignored'] === $ignoredOnly)->values();
+    }
+
+    /**
+     * @return Collection<int, array{first: Media, second: Media, distance: int, similarity: float, ignored: bool}>
+     */
+    private function calculateSimilarPairs(ImagePerceptualHash $hasher): Collection
+    {
         $media = Media::query()
             ->with('user')
             ->whereNotNull('perceptual_hash')
@@ -223,9 +245,6 @@ class MediaDuplicateService
 
                 [$nameA, $nameB] = $this->normalizedPair((string) $first->name, (string) $second->name);
                 $ignored = $ignoredPairs->has($nameA.'|'.$nameB);
-                if ($ignored !== $ignoredOnly) {
-                    continue;
-                }
 
                 $pairs->push([
                     'first' => $first,

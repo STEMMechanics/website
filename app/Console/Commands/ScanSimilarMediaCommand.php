@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\ImagePerceptualHash;
 use App\Services\MediaDuplicateService;
 use Illuminate\Console\Command;
 
@@ -9,14 +10,13 @@ class ScanSimilarMediaCommand extends Command
 {
     protected $signature = 'media:scan-similar';
 
-    protected $description = 'Queue perceptual-hash generation for unscanned images';
+    protected $description = 'Queue unscanned image hashes and refresh similar-image matches';
 
-    public function handle(MediaDuplicateService $duplicates): int
+    public function handle(MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): int
     {
         $queued = $duplicates->queueUnscannedImageHashes();
-        $this->info($queued === 0
-            ? 'All images have already been scanned.'
-            : 'Queued '.$queued.' image'.($queued === 1 ? '' : 's').' for similarity scanning.');
+        $matches = $duplicates->refreshSimilarPairs($hasher);
+        $this->info('Queued '.$queued.' unscanned image'.($queued === 1 ? '' : 's').'; refreshed '.$matches.' possible similar-image pair'.($matches === 1 ? '' : 's').'.');
 
         return self::SUCCESS;
     }
