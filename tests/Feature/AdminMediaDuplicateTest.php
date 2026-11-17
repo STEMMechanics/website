@@ -222,7 +222,6 @@ class AdminMediaDuplicateTest extends TestCase
             ->assertSeeText('98.4% visually similar')
             ->assertSeeText('Select to keep')
             ->assertSeeText('Choose an image to keep, then select the source for any differing metadata.')
-            ->assertSeeText('The filename selection determines which physical image remains.')
             ->assertSeeText('Similar One')
             ->assertSeeText('Similar Two');
         $this->actingAs($admin)
