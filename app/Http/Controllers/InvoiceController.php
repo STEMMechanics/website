@@ -2220,10 +2220,11 @@ class InvoiceController extends Controller
             }
         }
 
-        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $invoice?->pricing_version_id ?? PricingVersion::forDate(today()->toDateString())->id);
+        $existingPricingVersionId = $invoice?->pricing_version_id;
+        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $existingPricingVersionId ?? PricingVersion::forDate(today()->toDateString())->id);
         PricingVersion::assertSelectable(
             (int) $validated['pricing_version_id'],
-            $invoice?->pricing_version_id ? (int) $invoice->pricing_version_id : null,
+            $existingPricingVersionId ? (int) $existingPricingVersionId : null,
             'pricing_version_id',
         );
 

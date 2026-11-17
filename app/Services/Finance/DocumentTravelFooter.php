@@ -36,8 +36,7 @@ class DocumentTravelFooter
                 $rate = isset($details['inclusive_unit_price'])
                     ? (float) $details['inclusive_unit_price'] / (1 + $tax)
                     : (float) ($item['unit_price_ex_tax'] ?? $item['unit_price'] ?? 0);
-                $quantityBasis = $details['multi_travel']['quantity_basis'] ?? '';
-                $rate = round($rate / ($quantityBasis === 'hours' ? 4 : 1), 2);
+                $rate = round($rate, 2);
                 if ($rate > 0) {
                     $rates[] = $rate;
                 } else {

@@ -506,10 +506,11 @@ class QuoteController extends Controller
 
     private function normalizeValidatedQuoteData(Request $request, array $validated, ?Quote $quote = null, array $lineItems = []): array
     {
-        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $quote?->pricing_version_id ?? PricingVersion::forDate(today()->toDateString())->id);
+        $existingPricingVersionId = $quote?->pricing_version_id;
+        $validated['pricing_version_id'] = (int) ($validated['pricing_version_id'] ?? $existingPricingVersionId ?? PricingVersion::forDate(today()->toDateString())->id);
         PricingVersion::assertSelectable(
             (int) $validated['pricing_version_id'],
-            $quote?->pricing_version_id ? (int) $quote->pricing_version_id : null,
+            $existingPricingVersionId ? (int) $existingPricingVersionId : null,
             'pricing_version_id',
         );
 
