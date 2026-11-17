@@ -5,6 +5,7 @@ const vm = require('node:vm');
 
 function setup() {
     const listeners = {}, history = [], redirects = [], alerts = [];
+    let syncedLinks = [];
     const content = { nodes: ['original'], replaceChildren(...nodes) { this.nodes = nodes; }, focus() {}, scrollIntoView() {} };
     const status = { textContent: '' };
     const root = { dataset: { dynamicList: 'products' }, contains: () => false, setAttribute(key, value) { this[key] = value; }, querySelector: key => key === '[data-list-status]' ? status : content, querySelectorAll: () => [] };
@@ -16,14 +17,14 @@ function setup() {
         CustomEvent: class { constructor(type, options) { this.type = type; this.detail = options.detail; } },
         requestAnimationFrame: callback => callback(),
         DOMParser: class { parseFromString() { return nextPage; } },
-        document: { readyState: 'complete', activeElement: null, title: 'Before', querySelector: () => root, querySelectorAll: () => [root], addEventListener: (name, callback) => { listeners[name] = callback; }, dispatchEvent() {} },
+        document: { readyState: 'complete', activeElement: null, title: 'Before', querySelector: () => root, querySelectorAll: selector => selector === '[data-sync-list-query]' ? syncedLinks : [root], addEventListener: (name, callback) => { listeners[name] = callback; }, dispatchEvent: event => listeners[event.type]?.(event) },
         window: { location: { href: 'https://example.test/products', assign: url => redirects.push(url) }, history: { state: {}, replaceState(state, _, url) { history.push(['replace', url]); this.state = state; }, pushState(state, _, url) { history.push(['push', url]); this.state = state; } }, addEventListener: (name, callback) => { listeners[name] = callback; }, SM: { alert: (...args) => alerts.push(args) } },
         fetch: async url => ({ ok: true, url, headers: { get: () => 'text/html' }, text: async () => '<html></html>' }),
     };
     const code = fs.readFileSync('resources/js/dynamic-lists.js', 'utf8').replaceAll('export ', '');
     vm.runInNewContext(`${code}\nwindow.api = { loadList, canLoadList, listUrl, pendingFilters, previewListControls };`, context);
     history.length = 0;
-    return { ...context.window.api, context, root, content, status, history, redirects, alerts, listeners, page: value => { nextPage = value; } };
+    return { ...context.window.api, context, root, content, status, history, redirects, alerts, listeners, page: value => { nextPage = value; }, syncedLinks: value => { syncedLinks = value; } };
 }
 
 test('list navigation only accepts the same origin and path', () => {
@@ -48,6 +49,19 @@ test('successful loading replaces the list and adds a history entry', async () =
     assert.equal(app.root['aria-busy'], 'false');
     assert.equal(app.status.textContent, 'Results updated.');
     assert.equal(app.context.document.title, 'Products');
+});
+
+test('list updates keep linked toolbar actions in sync with the current query', async () => {
+    const app = setup();
+    const links = ['calendar', 'pick-lists', 'materials'].map(action => ({
+        dataset: { syncListQuery: 'products', syncQueryParams: 'month' },
+        href: `https://example.test/products/${action}?month=2026-11`,
+    }));
+    app.syncedLinks(links);
+
+    await app.loadList(app.root, new URL('https://example.test/products?view=month&month=2026-12'));
+
+    assert.deepEqual(links.map(link => new URL(link.href).searchParams.get('month')), ['2026-12', '2026-12', '2026-12']);
 });
 
 test('a superseded request cannot replace newer results', async () => {

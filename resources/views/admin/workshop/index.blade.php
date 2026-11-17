@@ -14,6 +14,8 @@
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthCalendarPdfRoute }}"
+                                    data-sync-list-query="admin-workshop-index"
+                                    data-sync-query-params="month"
                                     target="_blank"
                                     class="w-8.5 shrink-0 px-0!"
                                     title="Calendar PDF"
@@ -23,6 +25,8 @@
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthPickListsPdfRoute }}"
+                                    data-sync-list-query="admin-workshop-index"
+                                    data-sync-query-params="month"
                                     target="_blank"
                                     class="w-8.5 shrink-0 px-0!"
                                     title="Pick Lists PDF"
@@ -32,6 +36,8 @@
                             </x-ui.button>
 <x-ui.button color="mast"
                                     href="{{ $monthMaterialsPdfRoute }}"
+                                    data-sync-list-query="admin-workshop-index"
+                                    data-sync-query-params="month"
                                     target="_blank"
                                     class="w-8.5 shrink-0 px-0!"
                                     title="Materials Summary PDF"
