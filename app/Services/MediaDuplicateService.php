@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -13,6 +14,10 @@ use InvalidArgumentException;
 class MediaDuplicateService
 {
     public const ATTENTION_CACHE_KEY = 'media:duplicate-attention-count';
+
+    public const SIMILAR_PAIRS_CACHE_KEY = 'media:similar-image-pairs:v2';
+
+    private const LEGACY_SIMILAR_PAIRS_CACHE_KEY = 'media:similar-image-pairs';
 
     public const MERGEABLE_METADATA_FIELDS = [
         'title',
@@ -44,24 +49,33 @@ class MediaDuplicateService
             ->orderByDesc(DB::raw('COUNT(*)'))
             ->get();
 
-        return $groups->map(function (object $group): array {
+        if ($groups->isEmpty()) {
+            return collect();
+        }
+
+        /** @var Collection<string, EloquentCollection<int, Media>> $mediaByGroup */
+        $mediaByGroup = Media::query()
+            ->with('user')
+            ->withCount('workshops')
+            ->whereIn('hash', $groups->pluck('hash')->unique()->all())
+            ->oldest()
+            ->get()
+            ->groupBy(function (Media $media): string {
+                $storageDisk = $media->getRawOriginal('storage_disk');
+
+                return (string) $media->hash.'|'.($storageDisk === null ? 'media' : (string) $storageDisk);
+            });
+
+        return $groups->map(function (object $group) use ($mediaByGroup): array {
             $hash = (string) ($group->hash ?? '');
             $storageDisk = (string) ($group->normalized_storage_disk ?? 'media');
+            /** @var EloquentCollection<int, Media> $media */
+            $media = $mediaByGroup->get($hash.'|'.$storageDisk, new EloquentCollection());
 
             return [
                 'hash' => $hash,
                 'storage_disk' => $storageDisk,
-                'media' => Media::query()
-                    ->with('user')
-                    ->where('hash', $hash)
-                    ->where(function ($query) use ($storageDisk): void {
-                        $query->where('storage_disk', $storageDisk);
-                        if ($storageDisk === 'media') {
-                            $query->orWhereNull('storage_disk');
-                        }
-                    })
-                    ->oldest()
-                    ->get(),
+                'media' => $media,
             ];
         })->filter(fn (array $group): bool => $group['media']->count() > 1)->values();
     }
@@ -69,13 +83,48 @@ class MediaDuplicateService
     public function attentionCount(ImagePerceptualHash $hasher): int
     {
         return (int) Cache::remember(self::ATTENTION_CACHE_KEY, now()->addMinutes(10), function () use ($hasher): int {
-            return $this->groups()->count() + $this->similarPairs($hasher)->count();
+            $matches = array_filter(
+                $this->cachedSimilarPairData($hasher),
+                fn (array $pair): bool => ! (bool) ($pair['ignored'] ?? false),
+            );
+
+            return $this->groups()->count() + count($matches);
         });
+    }
+
+    public function queueUnscannedImageHashes(): int
+    {
+        $queued = 0;
+
+        Media::query()
+            ->where('mime_type', 'like', 'image/%')
+            ->whereNull('perceptual_hash_scanned_at')
+            ->orderBy('name')
+            ->chunkById(250, function ($mediaItems) use (&$queued): void {
+                foreach ($mediaItems as $media) {
+                    dispatch(new GeneratePerceptualHash((string) $media->name))->onQueue('media');
+                    $queued++;
+                }
+            }, 'name');
+
+        return $queued;
     }
 
     public function clearAttentionCount(): void
     {
         Cache::forget(self::ATTENTION_CACHE_KEY);
+        Cache::forget(self::SIMILAR_PAIRS_CACHE_KEY);
+        Cache::forget(self::LEGACY_SIMILAR_PAIRS_CACHE_KEY);
+    }
+
+    public function refreshSimilarPairs(ImagePerceptualHash $hasher): int
+    {
+        $pairs = $this->calculateSimilarPairs($hasher);
+        $cachedPairs = $this->cacheableSimilarPairs($pairs);
+        Cache::put(self::SIMILAR_PAIRS_CACHE_KEY, $cachedPairs, now()->addHours(36));
+        Cache::forget(self::ATTENTION_CACHE_KEY);
+
+        return $pairs->where('ignored', false)->count();
     }
 
     /**
@@ -102,7 +151,7 @@ class MediaDuplicateService
     {
         $distance = $hasher->distance((string) $keeper->perceptual_hash, (string) $duplicate->perceptual_hash);
         if ($distance > self::SIMILARITY_DISTANCE_THRESHOLD || (string) $keeper->hash === (string) $duplicate->hash) {
-            throw new InvalidArgumentException('These media items are not a current similar-image suggestion.');
+            throw new InvalidArgumentException('These media items are not a current similar-image match.');
         }
 
         $this->mergeRecords($keeper, collect([$duplicate]), false, $metadataSources);
@@ -176,8 +225,73 @@ class MediaDuplicateService
      */
     public function similarPairs(ImagePerceptualHash $hasher, bool $ignoredOnly = false): Collection
     {
+        $selectedPairs = collect($this->cachedSimilarPairData($hasher))
+            ->filter(fn ($pair): bool => is_array($pair)
+                && is_string($pair['first_name'] ?? null)
+                && is_string($pair['second_name'] ?? null)
+                && (bool) ($pair['ignored'] ?? false) === $ignoredOnly)
+            ->values();
+        $mediaNames = $selectedPairs
+            ->flatMap(fn (array $pair): array => [$pair['first_name'], $pair['second_name']])
+            ->unique()
+            ->values();
+        if ($mediaNames->isEmpty()) {
+            return collect();
+        }
+
+        $mediaByName = collect();
+        foreach ($mediaNames->chunk(500) as $nameChunk) {
+            $mediaByName = $mediaByName->merge(
+                Media::query()->with('user')->whereIn('name', $nameChunk)->get(),
+            );
+        }
+        $mediaByName = $mediaByName->keyBy(fn (Media $media): string => (string) $media->name);
+
+        return $selectedPairs->map(function (array $pair) use ($mediaByName): ?array {
+            $first = $mediaByName->get($pair['first_name']);
+            $second = $mediaByName->get($pair['second_name']);
+            if (! $first instanceof Media || ! $second instanceof Media) {
+                return null;
+            }
+
+            return [
+                'first' => $first,
+                'second' => $second,
+                'distance' => (int) $pair['distance'],
+                'similarity' => (float) $pair['similarity'],
+                'ignored' => (bool) $pair['ignored'],
+            ];
+        })->filter()->values();
+    }
+
+    /**
+     * @return array<int, array{first_name: string, second_name: string, distance: int, similarity: float, ignored: bool}>
+     */
+    private function cachedSimilarPairData(ImagePerceptualHash $hasher): array
+    {
+        Cache::forget(self::LEGACY_SIMILAR_PAIRS_CACHE_KEY);
+        $pairs = Cache::remember(
+            self::SIMILAR_PAIRS_CACHE_KEY,
+            now()->addHours(36),
+            fn (): array => $this->cacheableSimilarPairs($this->calculateSimilarPairs($hasher)),
+        );
+        if (! is_array($pairs)) {
+            $pairs = $this->cacheableSimilarPairs($this->calculateSimilarPairs($hasher));
+            Cache::put(self::SIMILAR_PAIRS_CACHE_KEY, $pairs, now()->addHours(36));
+        }
+
+        return array_values(array_filter($pairs, fn ($pair): bool => is_array($pair)
+            && is_string($pair['first_name'] ?? null)
+            && is_string($pair['second_name'] ?? null)
+            && isset($pair['distance'], $pair['similarity'])));
+    }
+
+    /**
+     * @return Collection<int, array{first: Media, second: Media, distance: int, similarity: float, ignored: bool}>
+     */
+    private function calculateSimilarPairs(ImagePerceptualHash $hasher): Collection
+    {
         $media = Media::query()
-            ->with('user')
             ->whereNotNull('perceptual_hash')
             ->where('perceptual_hash', '!=', '')
             ->where('mime_type', 'like', 'image/%')
@@ -204,9 +318,6 @@ class MediaDuplicateService
 
                 [$nameA, $nameB] = $this->normalizedPair((string) $first->name, (string) $second->name);
                 $ignored = $ignoredPairs->has($nameA.'|'.$nameB);
-                if ($ignored !== $ignoredOnly) {
-                    continue;
-                }
 
                 $pairs->push([
                     'first' => $first,
@@ -221,6 +332,21 @@ class MediaDuplicateService
         return $pairs->sortBy('distance')->values();
     }
 
+    /**
+     * @param  Collection<int, array{first: Media, second: Media, distance: int, similarity: float, ignored: bool}>  $pairs
+     * @return array<int, array{first_name: string, second_name: string, distance: int, similarity: float, ignored: bool}>
+     */
+    private function cacheableSimilarPairs(Collection $pairs): array
+    {
+        return $pairs->map(fn (array $pair): array => [
+            'first_name' => (string) $pair['first']->name,
+            'second_name' => (string) $pair['second']->name,
+            'distance' => (int) $pair['distance'],
+            'similarity' => (float) $pair['similarity'],
+            'ignored' => (bool) $pair['ignored'],
+        ])->all();
+    }
+
     public function ignoreSimilarPair(Media $first, Media $second, ImagePerceptualHash $hasher): void
     {
         [$nameA, $nameB] = $this->normalizedPair((string) $first->name, (string) $second->name);
@@ -229,7 +355,7 @@ class MediaDuplicateService
         }
         if ((string) $first->hash === (string) $second->hash
             || $hasher->distance((string) $first->perceptual_hash, (string) $second->perceptual_hash) > self::SIMILARITY_DISTANCE_THRESHOLD) {
-            throw new InvalidArgumentException('These media items are not a current similar-image suggestion.');
+            throw new InvalidArgumentException('These media items are not a current similar-image match.');
         }
 
         DB::table('media_similarity_ignores')->insertOrIgnore([
@@ -238,7 +364,7 @@ class MediaDuplicateService
             'created_at' => now(),
             'updated_at' => now(),
         ]);
-        $this->clearAttentionCount();
+        $this->updateCachedSimilarPairIgnoreStates([['first' => $nameA, 'second' => $nameB]], true);
     }
 
     public function restoreSimilarPair(Media $first, Media $second): void
@@ -248,7 +374,36 @@ class MediaDuplicateService
             ->where('media_name_a', $nameA)
             ->where('media_name_b', $nameB)
             ->delete();
-        $this->clearAttentionCount();
+        $this->updateCachedSimilarPairIgnoreStates([['first' => $nameA, 'second' => $nameB]], false);
+    }
+
+    /**
+     * @param  array<int, array{first: string, second: string}>  $pairs
+     */
+    private function updateCachedSimilarPairIgnoreStates(array $pairs, bool $ignored): void
+    {
+        $ignoreKeys = [];
+        foreach ($pairs as $pair) {
+            [$nameA, $nameB] = $this->normalizedPair($pair['first'], $pair['second']);
+            $ignoreKeys[$nameA.'|'.$nameB] = true;
+        }
+
+        $cachedPairs = Cache::get(self::SIMILAR_PAIRS_CACHE_KEY);
+        if (is_array($cachedPairs)) {
+            foreach ($cachedPairs as &$pair) {
+                if (! is_array($pair) || ! is_string($pair['first_name'] ?? null) || ! is_string($pair['second_name'] ?? null)) {
+                    continue;
+                }
+                [$nameA, $nameB] = $this->normalizedPair($pair['first_name'], $pair['second_name']);
+                if (isset($ignoreKeys[$nameA.'|'.$nameB])) {
+                    $pair['ignored'] = $ignored;
+                }
+            }
+            unset($pair);
+            Cache::put(self::SIMILAR_PAIRS_CACHE_KEY, $cachedPairs, now()->addHours(36));
+        }
+
+        Cache::forget(self::ATTENTION_CACHE_KEY);
     }
 
     /**

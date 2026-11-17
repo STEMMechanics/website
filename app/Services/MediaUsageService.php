@@ -63,6 +63,101 @@ class MediaUsageService
     }
 
     /**
+     * @param  array<int, string>  $mediaNames
+     * @return array<string, int>
+     */
+    public function usageCountsFor(array $mediaNames): array
+    {
+        $mediaNames = array_values(array_unique(array_filter(array_map('trim', $mediaNames), fn (string $name): bool => $name !== '')));
+        $counts = array_fill_keys($mediaNames, 0);
+        if ($mediaNames === []) {
+            return $counts;
+        }
+
+        $heroImage = HomeHero::content()['image'];
+        if (isset($counts[$heroImage])) {
+            $counts[$heroImage]++;
+        }
+        $sidebarImage = ShopShippingSettings::sidebarNoticeImageName();
+        if (isset($counts[$sidebarImage])) {
+            $counts[$sidebarImage]++;
+        }
+
+        foreach ([
+            ['workshops', 'hero_media_name'],
+            ['posts', 'hero_media_name'],
+            ['custom_pages', 'hero_media_name'],
+            ['products', 'hero_media_name'],
+            ['store_order_item_downloads', 'media_name'],
+        ] as [$table, $column]) {
+            $this->countColumnUsages($counts, $mediaNames, $table, $column);
+        }
+
+        foreach ([['workshops', 'content'], ['posts', 'content'], ['custom_pages', 'content']] as [$table, $column]) {
+            $this->countContentUsages($counts, $mediaNames, $table, $column);
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @param  array<int, string>  $mediaNames
+     */
+    private function countColumnUsages(array &$counts, array $mediaNames, string $table, string $column): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        foreach (array_chunk($mediaNames, 500) as $nameChunk) {
+            foreach (DB::table($table)
+                ->select($column)
+                ->selectRaw('COUNT(*) as usage_count')
+                ->whereIn($column, $nameChunk)
+                ->groupBy($column)
+                ->get() as $row) {
+                $mediaName = (string) $row->{$column};
+                if (array_key_exists($mediaName, $counts)) {
+                    $counts[$mediaName] += (int) $row->usage_count;
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @param  array<int, string>  $mediaNames
+     */
+    private function countContentUsages(array &$counts, array $mediaNames, string $table, string $column): void
+    {
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        foreach (array_chunk($mediaNames, 40) as $nameChunk) {
+            DB::table($table)
+                ->select($column)
+                ->where(function ($query) use ($column, $nameChunk): void {
+                    foreach ($nameChunk as $mediaName) {
+                        $query->orWhere($column, 'like', '%'.$mediaName.'%');
+                    }
+                })
+                ->orderBy('id')
+                ->chunk(500, function ($rows) use (&$counts, $nameChunk, $column): void {
+                    foreach ($rows as $row) {
+                        $content = (string) ($row->{$column} ?? '');
+                        foreach ($nameChunk as $mediaName) {
+                            if (str_contains($content, $mediaName)) {
+                                $counts[$mediaName]++;
+                            }
+                        }
+                    }
+                });
+        }
+    }
+
+    /**
      * @param  array<int, array{type: string, label: string, detail: string, url: string|null, public: bool}>  $usages
      */
     private function collectDirectUsageDetails(array &$usages, string $mediaName): void

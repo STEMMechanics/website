@@ -114,7 +114,7 @@ class ShopCouponController extends Controller
 
         $products = $query
             ->orderBy('title')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return response()->json([
@@ -160,7 +160,7 @@ class ShopCouponController extends Controller
         $workshops = $query
             ->orderByDesc('starts_at')
             ->orderBy('title')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return response()->json([

@@ -23,7 +23,7 @@ class LocationController extends Controller
             $query->orWhere('address', 'like', '%'.$request->search.'%');
         }
 
-        $locations = $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))->onEachSide(1);
+        $locations = $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1);
 
         return view('admin.location.index', [
             'locations' => $locations,

@@ -16,6 +16,6 @@ class ListPageSize
             return $default;
         }
 
-        return in_array((int) $value, [$default, 10, 12, 20, 25, 30, 50, 100], true) ? (int) $value : $default;
+        return in_array((int) $value, [$default, 10, 20, 25, 30, 50, 100], true) ? (int) $value : $default;
     }
 }

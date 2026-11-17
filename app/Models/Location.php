@@ -28,10 +28,10 @@ class Location extends Model
 
     public function formattedAddress(): string
     {
-        $address = trim((string) $this->address);
-        $suburb = trim((string) $this->suburb);
-        $state = trim((string) $this->state);
-        $postcode = trim((string) $this->postcode);
+        $address = $this->decodeAddressValue($this->address);
+        $suburb = $this->decodeAddressValue($this->suburb);
+        $state = $this->decodeAddressValue($this->state);
+        $postcode = $this->decodeAddressValue($this->postcode);
         $parts = $address !== '' ? [$address] : [];
 
         if ($suburb !== '' && ! $this->containsAddressValue($address, $suburb)) {
@@ -49,17 +49,22 @@ class Location extends Model
         return implode(', ', $parts);
     }
 
+    private function decodeAddressValue(mixed $value): string
+    {
+        return trim(html_entity_decode((string) $value, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    }
+
     public function suburbIsContainedInNameOrAddress(): bool
     {
-        $suburb = trim((string) $this->suburb);
+        $suburb = $this->decodeAddressValue($this->suburb);
         if ($suburb === '') {
             return false;
         }
 
         return $this->containsAddressValue(
             implode(' ', array_filter([
-                trim((string) $this->name),
-                trim((string) $this->address),
+                trim(html_entity_decode((string) $this->name, ENT_QUOTES | ENT_HTML5, 'UTF-8')),
+                $this->decodeAddressValue($this->address),
             ])),
             $suburb,
         );

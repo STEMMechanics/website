@@ -8,8 +8,11 @@ use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Services\ImagePerceptualHash;
+use App\Services\MediaDuplicateService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -217,8 +220,8 @@ class AdminMediaDuplicateTest extends TestCase
             ->get(route('admin.media.duplicates'))
             ->assertOk()
             ->assertSeeText('98.4% visually similar')
-            ->assertSeeText('Image selected to keep')
-            ->assertSeeText('The filename selection determines which physical image remains.')
+            ->assertSeeText('Select to keep')
+            ->assertSeeText('Choose an image to keep, then select the source for any differing metadata.')
             ->assertSeeText('Similar One')
             ->assertSeeText('Similar Two');
         $this->actingAs($admin)
@@ -263,6 +266,38 @@ class AdminMediaDuplicateTest extends TestCase
             ->assertRedirect(route('admin.media.duplicates'));
 
         Queue::assertPushed(GeneratePerceptualHash::class, fn (GeneratePerceptualHash $job): bool => $job->mediaName === $media->name);
+    }
+
+    public function test_scheduled_similarity_scan_queues_unscanned_images_and_refreshes_pair_cache(): void
+    {
+        Queue::fake();
+        $admin = $this->createAdmin();
+        $unscanned = $this->createMedia('scheduled-unscanned.png', 'Unscanned Image', $admin, str_repeat('a', 64));
+        $first = $this->createMedia('scheduled-first.png', 'First Scanned Image', $admin, str_repeat('b', 64));
+        $second = $this->createMedia('scheduled-second.png', 'Second Scanned Image', $admin, str_repeat('c', 64));
+        $first->update(['perceptual_hash' => '1234567890abcdef', 'perceptual_hash_scanned_at' => now()]);
+        $second->update(['perceptual_hash' => '1234567890abcdee', 'perceptual_hash_scanned_at' => now()]);
+
+        $this->artisan('media:scan-similar')
+            ->expectsOutput('Queued 1 unscanned image; refreshed 1 possible similar-image pair.')
+            ->assertSuccessful();
+
+        Queue::assertPushed(GeneratePerceptualHash::class, fn (GeneratePerceptualHash $job): bool => $job->mediaName === $unscanned->name);
+        Queue::assertNotPushed(GeneratePerceptualHash::class, fn (GeneratePerceptualHash $job): bool => $job->mediaName === $first->name || $job->mediaName === $second->name);
+        $this->assertCount(1, app(MediaDuplicateService::class)->similarPairs(app(ImagePerceptualHash::class)));
+
+        $third = $this->createMedia('scheduled-third.png', 'Third Scanned Image', $admin, str_repeat('d', 64));
+        $third->update(['perceptual_hash' => '1234567890abcdef', 'perceptual_hash_scanned_at' => now()]);
+        $this->assertCount(3, app(MediaDuplicateService::class)->similarPairs(app(ImagePerceptualHash::class)));
+    }
+
+    public function test_similarity_scan_runs_daily_in_the_application_timezone(): void
+    {
+        $event = collect(Schedule::events())->first(fn ($event): bool => str_contains($event->command, 'media:scan-similar'));
+
+        $this->assertNotNull($event);
+        $this->assertSame('30 2 * * *', $event->expression);
+        $this->assertSame(config('app.timezone'), $event->timezone);
     }
 
     public function test_confirmed_similar_image_can_be_merged_into_selected_keeper(): void

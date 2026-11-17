@@ -6,7 +6,6 @@ use App\Exceptions\FileInvalidException;
 use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
-use App\Jobs\Media\GeneratePerceptualHash;
 use App\Models\Media;
 use App\Models\MediaDownload;
 use App\Models\Token;
@@ -149,10 +148,39 @@ class MediaController extends Controller
 
     public function admin_duplicates(Request $request, MediaDuplicateService $duplicates, MediaUsageService $usageService, ImagePerceptualHash $hasher)
     {
-        $groups = $duplicates->groups()->map(function (array $group) use ($usageService): array {
-            $group['media']->each(function (Media $media) use ($usageService): void {
-                $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
+        $groups = $duplicates->groups();
+        $showIgnored = $request->boolean('show_ignored');
+        $similarPairs = $duplicates->similarPairs($hasher, $showIgnored);
+        $mediaItems = $groups->flatMap(fn (array $group) => $group['media'])
+            ->merge($similarPairs->flatMap(fn (array $pair) => [$pair['first'], $pair['second']]))
+            ->unique(fn (Media $media): string => (string) $media->name)
+            ->values();
+        $mediaNames = $mediaItems->map(fn (Media $media): string => (string) $media->name)->all();
+        $usageCounts = $usageService->usageCountsFor($mediaNames);
+        $workshopCounts = collect();
+        foreach (array_chunk($mediaNames, 500) as $nameChunk) {
+            $workshopCounts = $workshopCounts->union(
+                Media::query()->withCount('workshops')->whereIn('name', $nameChunk)->pluck('workshops_count', 'name'),
+            );
+        }
+
+        $setUsageCount = function (Media $media) use ($usageCounts, $workshopCounts): void {
+            $name = (string) $media->name;
+            $media->setAttribute('usage_count', ($usageCounts[$name] ?? 0) + (int) ($workshopCounts[$name] ?? 0));
+        };
+        $mediaItems->each($setUsageCount);
+        $groups->each(fn (array $group) => $group['media']->each($setUsageCount));
+        $similarPairs->each(function (array $pair) use ($setUsageCount): void {
+            $setUsageCount($pair['first']);
+            $setUsageCount($pair['second']);
+        });
+        $similarPairs->flatMap(fn (array $pair) => [$pair['first'], $pair['second']])
+            ->unique(fn (Media $media): string => (string) $media->name)
+            ->each(function (Media $media): void {
+                $media->setAttribute('original_dimensions', $this->imageDimensions($media->path(), (string) $media->mime_type));
             });
+
+        $groups = $groups->map(function (array $group): array {
             $group['media'] = $group['media']->sort(function (Media $first, Media $second): int {
                 $usageComparison = (int) $second->getAttribute('usage_count') <=> (int) $first->getAttribute('usage_count');
 
@@ -163,14 +191,6 @@ class MediaController extends Controller
 
             return $group;
         });
-
-        $showIgnored = $request->boolean('show_ignored');
-        $similarPairs = $duplicates->similarPairs($hasher, $showIgnored);
-        $similarPairs->flatMap(fn (array $pair) => [$pair['first'], $pair['second']])
-            ->unique(fn (Media $media) => (string) $media->name)
-            ->each(function (Media $media) use ($usageService): void {
-                $media->setAttribute('usage_count', count($usageService->usagesFor((string) $media->name)) + $media->workshops()->count());
-            });
 
         return view('admin.media.duplicates', [
             'duplicateGroups' => $groups,
@@ -212,17 +232,9 @@ class MediaController extends Controller
         ]);
     }
 
-    public function admin_scan_similar(): RedirectResponse
+    public function admin_scan_similar(MediaDuplicateService $duplicates): RedirectResponse
     {
-        $queued = 0;
-        Media::query()
-            ->where('mime_type', 'like', 'image/%')
-            ->whereNull('perceptual_hash_scanned_at')
-            ->pluck('name')
-            ->each(function (string $mediaName) use (&$queued): void {
-                dispatch(new GeneratePerceptualHash($mediaName))->onQueue('media');
-                $queued++;
-            });
+        $queued = $duplicates->queueUnscannedImageHashes();
 
         return redirect()->route('admin.media.duplicates')
             ->with('message', $queued === 0 ? 'All images have already been scanned.' : $queued.' image'.($queued === 1 ? '' : 's').' queued for similarity scanning.')
@@ -230,7 +242,7 @@ class MediaController extends Controller
             ->with('message-type', 'success');
     }
 
-    public function admin_merge_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse
+    public function admin_merge_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse|JsonResponse
     {
         [$keeper, $duplicate] = $this->validatedSimilarityPair($request);
         $metadataSources = $request->validate([
@@ -241,7 +253,15 @@ class MediaController extends Controller
         try {
             $duplicates->mergeSimilar($keeper, $duplicate, $hasher, $metadataSources);
         } catch (InvalidArgumentException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
+
             return redirect()->back()->withErrors(['media' => $exception->getMessage()]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
         }
 
         return redirect()->route('admin.media.duplicates')
@@ -287,17 +307,25 @@ class MediaController extends Controller
             ->with('message-type', 'success');
     }
 
-    public function admin_ignore_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse
+    public function admin_ignore_similar(Request $request, MediaDuplicateService $duplicates, ImagePerceptualHash $hasher): RedirectResponse|JsonResponse
     {
         [$first, $second] = $this->validatedSimilarityPair($request);
         try {
             $duplicates->ignoreSimilarPair($first, $second, $hasher);
         } catch (InvalidArgumentException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
+
             return redirect()->back()->withErrors(['media' => $exception->getMessage()]);
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['success' => true]);
+        }
+
         return redirect()->route('admin.media.duplicates')
-            ->with('message', 'This similar-image suggestion will be ignored.')
+            ->with('message', 'This similar-image match will be ignored.')
             ->with('message-title', 'Match ignored')
             ->with('message-type', 'success');
     }
@@ -308,7 +336,7 @@ class MediaController extends Controller
         $duplicates->restoreSimilarPair($first, $second);
 
         return redirect()->route('admin.media.duplicates', ['show_ignored' => 1])
-            ->with('message', 'The similar-image suggestion has been restored.')
+            ->with('message', 'The similar-image match has been restored.')
             ->with('message-title', 'Match restored')
             ->with('message-type', 'success');
     }

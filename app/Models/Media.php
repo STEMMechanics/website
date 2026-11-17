@@ -123,8 +123,16 @@ class Media extends Model
     {
         parent::boot();
 
-        static::saved(fn () => Cache::forget('media:duplicate-attention-count'));
-        static::deleted(fn () => Cache::forget('media:duplicate-attention-count'));
+        static::saved(function (): void {
+            Cache::forget('media:duplicate-attention-count');
+            Cache::forget('media:similar-image-pairs');
+            Cache::forget('media:similar-image-pairs:v2');
+        });
+        static::deleted(function (): void {
+            Cache::forget('media:duplicate-attention-count');
+            Cache::forget('media:similar-image-pairs');
+            Cache::forget('media:similar-image-pairs:v2');
+        });
 
         static::deleting(function($media) {
             $hash = $media->hash;
