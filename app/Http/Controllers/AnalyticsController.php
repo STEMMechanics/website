@@ -75,7 +75,7 @@ class AnalyticsController extends Controller
             ->groupBy(DB::raw("DATE_FORMAT(analytics_events.created_at, '%Y-%m-%d %H:00:00')"))
             ->orderByDesc('hour_bucket')
             ->pipe(fn ($query) => (new SiteListControls('analytics_hour'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(12, 'hour_page'), ['*'], 'hour_page')
+            ->paginate(ListPageSize::resolve(25, 'hour_page'), ['*'], 'hour_page')
             ->onEachSide(1);
 
         $topPages = (clone $pageQuery)

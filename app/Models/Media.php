@@ -126,10 +126,12 @@ class Media extends Model
         static::saved(function (): void {
             Cache::forget('media:duplicate-attention-count');
             Cache::forget('media:similar-image-pairs');
+            Cache::forget('media:similar-image-pairs:v2');
         });
         static::deleted(function (): void {
             Cache::forget('media:duplicate-attention-count');
             Cache::forget('media:similar-image-pairs');
+            Cache::forget('media:similar-image-pairs:v2');
         });
 
         static::deleting(function($media) {

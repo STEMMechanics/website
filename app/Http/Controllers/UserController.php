@@ -60,7 +60,7 @@ class UserController extends Controller
             ->withCount('media')
             ->withSum('media', 'size')
             ->orderBy('created_at', 'desc')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         $users->getCollection()->transform(function (User $listedUser): User {

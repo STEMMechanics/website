@@ -173,7 +173,7 @@ class WorkshopController extends Controller
 
         $workshops = $workshopQuery
             ->orderBy('starts_at', 'desc')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(12))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
         $workshopAttentionById = $view === 'list'
             ? app(WorkshopActionAttention::class)->forWorkshops($workshops->getCollection())
