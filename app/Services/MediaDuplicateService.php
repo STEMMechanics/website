@@ -53,6 +53,7 @@ class MediaDuplicateService
             return collect();
         }
 
+        /** @var Collection<string, EloquentCollection<int, Media>> $mediaByGroup */
         $mediaByGroup = Media::query()
             ->with('user')
             ->withCount('workshops')
@@ -68,7 +69,8 @@ class MediaDuplicateService
         return $groups->map(function (object $group) use ($mediaByGroup): array {
             $hash = (string) ($group->hash ?? '');
             $storageDisk = (string) ($group->normalized_storage_disk ?? 'media');
-            $media = $mediaByGroup->get($hash.'|'.$storageDisk, collect());
+            /** @var EloquentCollection<int, Media> $media */
+            $media = $mediaByGroup->get($hash.'|'.$storageDisk, new EloquentCollection());
 
             return [
                 'hash' => $hash,
