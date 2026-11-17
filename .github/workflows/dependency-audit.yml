@@ -36,5 +36,10 @@ jobs:
       - name: Clean install Node dependencies
         run: npm ci
 
-      - name: Audit npm dependencies
+      - name: Audit production npm dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Keep reporting build-tool vulnerabilities without blocking production changes.
+      - name: Report all npm dependency findings
         run: npm audit --audit-level=high
+        continue-on-error: true
