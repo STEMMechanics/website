@@ -190,7 +190,7 @@
         </div>
     @endforeach
 
-    <div class="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3">
+    <div class="flex flex-col gap-2 px-3">
         @if($canMerge)
             <button
                 type="button"
