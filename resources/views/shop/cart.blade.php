@@ -12,7 +12,7 @@
 
     <x-container
         class="py-8"
-        x-data="shopCartPage(window.shopCartPageConfig || {})"
+        x-data="$SM.shopCartPage()"
     >
         @include('workshop.tickets.partials.cart-bookings')
         <div x-show="cartState.is_empty" x-cloak class="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center">
@@ -54,7 +54,7 @@
                                         type="button"
                                         class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                         x-bind:disabled="busyLineKey === line.key"
-                                        x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
+                                        x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
                                     >-</x-ui.button>
                                     <x-ui.input-control
                                         type="text"
@@ -69,8 +69,8 @@
                                     <x-ui.button variant="plain"
                                         type="button"
                                         class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                        x-bind:disabled="busyLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                        x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
+                                        x-bind:disabled="busyLineKey === line.key || $SM.number(line.quantity || 0) >= $SM.number(line.max_quantity || 99)"
+                                        x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
                                     >+</x-ui.button>
                                 </div>
                             </div>
@@ -105,7 +105,7 @@
                     <div x-show="!cartState.summary.can_checkout" class="mt-2">Checkout is blocked until boxed shipping is priced manually.</div>
                 </div>
 
-                <div x-show="Array.isArray(cartState.summary.shipping_methods) && cartState.summary.shipping_methods.length > 0" x-cloak class="space-y-4">
+                <div x-show="$SM.isArray(cartState.summary.shipping_methods) && cartState.summary.shipping_methods.length > 0" x-cloak class="space-y-4">
                     <div>
                         <div class="text-sm font-semibold text-gray-900 mb-2">Delivery</div>
                         <p class="text-sm text-gray-600">Choose how this order should be delivered. Pickup is free. Split shipments add a second shipping charge unless you hold everything and consolidate it.</p>
@@ -151,7 +151,7 @@
 
                         <div class="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-950" x-show="splitShipmentLabel()" x-cloak>
                             <div class="font-semibold text-sky-900" x-text="splitShipmentLabel()"></div>
-                            <div class="mt-1" x-show="!cartState.summary.shipping_quote.consolidate_shipments && !cartState.summary.shipping_quote.is_pickup && Number(cartState.summary.shipping_quote.second_shipment_charge_amount || 0) > 0">
+                            <div class="mt-1" x-show="!cartState.summary.shipping_quote.consolidate_shipments && !cartState.summary.shipping_quote.is_pickup && $SM.number(cartState.summary.shipping_quote.second_shipment_charge_amount || 0) > 0">
                                 The later shipment currently adds
                                 <span class="font-semibold text-sky-950" x-text="formatMoney(cartState.summary.shipping_quote.second_shipment_charge_amount || 0)"></span>
                                 in extra shipping.
@@ -174,7 +174,7 @@
                     </form>
                 </div>
 
-                <div x-show="Array.isArray(cartState.summary.shipping_quote.shipments) && cartState.summary.shipping_quote.shipments.length > 0" x-cloak class="space-y-3">
+                <div x-show="$SM.isArray(cartState.summary.shipping_quote.shipments) && cartState.summary.shipping_quote.shipments.length > 0" x-cloak class="space-y-3">
                     <div>
                         <div class="text-sm font-semibold text-gray-900">Expected delivery</div>
                         <p x-show="cartState.summary.shipping_quote.split_shipments && !cartState.summary.shipping_quote.consolidate_shipments" class="mt-1 text-sm text-gray-600">
@@ -192,7 +192,7 @@
                                 <div x-show="!shipment.delivery_estimate_label && shipment.title_primary" x-cloak class="mt-1 max-w-sm text-xs text-gray-500" x-text="shipment.title_primary"></div>
                             </div>
 
-                            <template x-if="Array.isArray(shipment.items) && shipment.items.length > 0">
+                            <template x-if="$SM.isArray(shipment.items) && shipment.items.length > 0">
                                 <ul class="mt-3 list-disc space-y-2 border-t border-gray-200 pl-5 pt-3">
                                     <template x-for="item in shipment.items" :key="('' + (shipment.key) + '-' + (item.display_title) + '-' + (item.quantity) + '')">
                                         <li class="text-xs text-gray-600">
@@ -245,14 +245,14 @@
 
                 <div class="space-y-3 text-sm text-gray-700">
                     <div class="flex items-center justify-between gap-4">
-                        <span x-text="('Items (' + (Number(cartState.summary.item_count || 0)) + ')')"></span>
+                        <span x-text="('Items (' + ($SM.number(cartState.summary.item_count || 0)) + ')')"></span>
                         <span x-text="formatMoney(cartState.summary.subtotal)"></span>
                     </div>
                     <div class="flex items-center justify-between gap-4">
                         <span>Shipping</span>
-                        <span x-text="cartState.summary.can_checkout ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'Manual quote'"></span>
+                        <span x-text="cartState.summary.can_checkout ? ($SM.number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'Manual quote'"></span>
                     </div>
-                    <div x-show="Number(cartState.summary.discount || 0) > 0" class="flex items-center justify-between gap-4 text-emerald-700">
+                    <div x-show="$SM.number(cartState.summary.discount || 0) > 0" class="flex items-center justify-between gap-4 text-emerald-700">
                         <span x-text="cartState.summary.coupon_code ? ('Discount (' + (cartState.summary.coupon_code) + ')') : 'Discount'"></span>
                         <span x-text="('- ' + (formatMoney(cartState.summary.discount)) + '')"></span>
                     </div>
@@ -756,4 +756,5 @@
             },
         };
     }
+window.SM.shopCartPage = (config = {}) => shopCartPage(config);
 </script>

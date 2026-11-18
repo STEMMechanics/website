@@ -40,14 +40,198 @@
 
 <div
     class="shop-catalog-option-control"
-    x-data="{
+    x-data="smCspShopPartialsCatalogOptionControl1"
+>
+    <x-ui.button
+        type="button"
+        color="primary"
+        class="shop-product-card-action-link w-full px-5!"
+        x-bind:disabled="$SM.boolean(busyCartLineKey)"
+        @click="openDialog()"
+    >
+        Add to cart
+    </x-ui.button>
+
+    <noscript>
+        <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full px-5!">
+            View product
+        </x-ui.button>
+    </noscript>
+
+    <template x-teleport="body">
+        <div
+            x-show="dialogOpen"
+            x-cloak
+            class="fixed inset-0 z-280 flex items-end justify-center bg-slate-950/55 p-4 sm:items-start sm:pt-[12vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shop-catalog-option-dialog-title-{{ $product->id }}"
+            @click.self="closeDialog()"
+            @keydown.escape.window="$SM.callDataMethodWhen($el, dialogOpen, 'closeDialog')"
+        >
+            <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-visible rounded bg-white shadow-2xl">
+                <div class="border-b border-gray-200 px-6 py-5">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 id="shop-catalog-option-dialog-title-{{ $product->id }}" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xl font-bold text-gray-900">
+                                <span>{{ $product->title }}</span>
+                                <span class="text-gray-500 text-lg font-normal"> - {{ $chooserHeading }}</span>
+                            </h2>
+{{--                            <p class="mt-2 text-sm leading-6 text-gray-600">{{ $chooserIntro }}</p>--}}
+                        </div>
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeDialog()" aria-label="Close chooser">
+                            <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
+                        </x-ui.button>
+                    </div>
+                </div>
+
+                <div class="flex min-h-0 flex-1 flex-col">
+                    <div class="space-y-4 overflow-visible px-6 py-5">
+                        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" x-show="formError" x-cloak x-text="formError"></div>
+
+                        <div class="space-y-3">
+                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center">
+                                <div class="relative" @click.outside="closeVariantMenu()">
+                                    <x-ui.button variant="plain"
+                                        type="button"
+                                        class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                        x-on:click="toggleVariantMenu()"
+                                        x-bind:aria-expanded="variantMenuOpen ? 'true' : 'false'"
+                                    >
+                                        <span class="min-w-0 flex-1">
+                                            <span class="flex items-center gap-2 text-sm">
+                                                <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
+                                                <span class="text-gray-400">-</span>
+                                                <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                    'text-red-700': selectionButtonTone() === 'danger',
+                                                    'text-amber-700': selectionButtonTone() === 'warning',
+                                                    'text-emerald-700': selectionButtonTone() === 'success',
+                                                    'text-sky-700': selectionButtonTone() === 'neutral',
+                                                }">
+                                                    <i x-show="selectionButtonTone() === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                    <i x-show="selectionButtonTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                    <span x-text="selectionButtonMeta()"></span>
+                                                </span>
+                                            </span>
+                                        </span>
+                                        <span class="shrink-0 text-md font-semibold text-gray-900" x-text="$SM.get(selectedOption, 'price_label')"></span>
+                                        <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
+                                    </x-ui.button>
+
+                                    <div
+                                        x-show="variantMenuOpen"
+                                        x-cloak
+                                        x-transition.opacity
+                                        class="absolute left-0 right-0 top-[calc(75%)] z-30 overflow-hidden rounded border border-gray-300 bg-white shadow-2xl"
+                                    >
+                                        <div class="max-h-80 overflow-y-auto py-2">
+                                            @foreach($optionPayload as $option)
+                                                <x-ui.button variant="plain"
+                                                    type="button"
+                                                    x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
+                                                    class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
+                                                    x-bind:class="$SM.string($SM.get(selectedVariantId, '')) === $SM.string($SM.get(option, 'input_value', '')) ? 'bg-sky-50' : ''"
+                                                    x-on:click="chooseOption($SM.string({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
+                                                >
+                                                    <span class="min-w-0 flex-1">
+                                                        <span class="flex items-center gap-2 text-sm">
+                                                            <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
+                                                            <span class="text-gray-400">-</span>
+                                                            <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                                'text-red-700': option.availability_tone === 'danger',
+                                                                'text-amber-700': option.availability_tone === 'warning',
+                                                                'text-emerald-700': option.availability_tone === 'success',
+                                                                'text-sky-700': option.availability_tone === 'neutral',
+                                                            }">
+                                                                <i x-show="option.availability_tone === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                                <i x-show="option.availability_tone === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                                <span x-text="option.availability_label">{{ $option['availability_label'] }}</span>
+                                                            </span>
+                                                        </span>
+                                                    @if(!empty($option['description']))
+                                                        <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
+                                                        @endif
+                                                    </span>
+                                                    <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
+                                                </x-ui.button>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <form
+                                    method="POST"
+                                    action="{{ route('shop.cart.add', $product) }}"
+                                    class="m-0 sm:min-w-40"
+                                    @submit.prevent="handleAddToCart($event.target)"
+                                    x-show="cartQuantity() <= 0"
+                                >
+                                    @csrf
+                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                    <input type="hidden" name="product_variant_id" :value="selectedOption?.variant_id ?? ''">
+                                    <input type="hidden" name="quantity" value="1">
+                                    <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
+                                        <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                        <span x-show="!canAddSelection()" x-cloak>Sold out</span>
+                                    </x-ui.button>
+                                </form>
+
+                                <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-40 flex items-center">
+                                    <div>
+                                        <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
+                                            <x-ui.button variant="plain"
+                                                type="button"
+                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:click="changeCartQuantity(cartQuantity() - 1)"
+                                            >-</x-ui.button>
+                                            <x-ui.input-control
+                                                type="number"
+                                                min="0"
+                                                x-bind:max="cartMaxQuantity()"
+                                                x-bind:value="cartQuantity()"
+                                                class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:change="changeCartQuantity($event.target.value)" />
+                                            <x-ui.button variant="plain"
+                                                type="button"
+                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
+                                                x-on:click="changeCartQuantity(cartQuantity() + 1)"
+                                            >+</x-ui.button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        @error('product_variant_id')
+                            <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="border-t border-gray-200 px-6 py-4">
+                        <div class="flex items-center justify-end">
+                            <x-ui.button type="link" href="{{ route('shop.cart.show') }}" class="rounded-md bg-primary-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-color-dark hover:text-white">View Cart</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspShopPartialsCatalogOptionControl1', () => ({
         dialogOpen: false,
         options: @js($optionPayload),
         selectedVariantId: @js((string) data_get($optionPayload, '0.input_value', '')),
         variantMenuOpen: false,
         busyCartLineKey: null,
         formError: '',
-        productId: {{ $product->id }},
+        productId: @js($product->id),
         productTitle: @js($product->title),
         cartState: @js($cartPayload),
         get selectedOption() {
@@ -167,7 +351,7 @@
                 return;
             }
 
-            if (!$SM?.shopCart) {
+            if (!window.SM?.shopCart) {
                 form.submit();
                 return;
             }
@@ -175,7 +359,7 @@
             this.busyCartLineKey = lineKey;
 
             try {
-                await $SM.shopCart.submitAddForm(form, {
+                await window.SM.shopCart.submitAddForm(form, {
                     addedLineKey: lineKey,
                 });
             } finally {
@@ -200,13 +384,13 @@
             }
         },
         async changeCartQuantity(nextQuantity) {
-            if (!this.selectedOption || this.busyCartLineKey || !$SM?.shopCart) {
+            if (!this.selectedOption || this.busyCartLineKey || !window.SM?.shopCart) {
                 return;
             }
 
             const lineKey = this.activeLineKey();
             const maxQuantity = this.cartMaxQuantity();
-            const resolvedQuantity = $SM.toBoundedInt(nextQuantity, {
+            const resolvedQuantity = window.SM.toBoundedInt(nextQuantity, {
                 min: 0,
                 max: maxQuantity,
                 allowNull: false,
@@ -216,17 +400,17 @@
 
             try {
                 if (resolvedQuantity <= 0) {
-                    await $SM.shopCart.removeLine(lineKey, {
+                    await window.SM.shopCart.removeLine(lineKey, {
                         shippingCountry: this.cartState?.shipping_country || 'Australia',
                         showNotice: false,
                     });
-                    if (typeof $SM.alert === 'function') {
-                        $SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
+                    if (typeof window.SM.alert === 'function') {
+                        window.SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
                     }
                     return;
                 }
 
-                await $SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
+                await window.SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
                     max: maxQuantity,
                     shippingCountry: this.cartState?.shipping_country || 'Australia',
                     showNotice: false,
@@ -236,202 +420,24 @@
             }
         },
         init() {
-            if (!$SM?.shopCart) {
+            if (!window.SM?.shopCart) {
                 return;
             }
 
-            const currentState = typeof $SM.shopCart.getState === 'function'
-                ? $SM.shopCart.getState()
+            const currentState = typeof window.SM.shopCart.getState === 'function'
+                ? window.SM.shopCart.getState()
                 : null;
 
             if (currentState && typeof currentState === 'object') {
                 this.cartState = currentState;
             }
 
-            if (typeof $SM.shopCart.subscribe === 'function') {
-                $SM.shopCart.subscribe((cart) => {
+            if (typeof window.SM.shopCart.subscribe === 'function') {
+                window.SM.shopCart.subscribe((cart) => {
                     this.cartState = cart;
                 });
             }
         },
-    }"
->
-    <x-ui.button
-        type="button"
-        color="primary"
-        class="shop-product-card-action-link w-full px-5!"
-        x-bind:disabled="Boolean(busyCartLineKey)"
-        @click="openDialog()"
-    >
-        Add to cart
-    </x-ui.button>
-
-    <noscript>
-        <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full px-5!">
-            View product
-        </x-ui.button>
-    </noscript>
-
-    <template x-teleport="body">
-        <div
-            x-show="dialogOpen"
-            x-cloak
-            class="fixed inset-0 z-280 flex items-end justify-center bg-slate-950/55 p-4 sm:items-start sm:pt-[12vh]"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="shop-catalog-option-dialog-title-{{ $product->id }}"
-            @click.self="closeDialog()"
-            @keydown.escape.window="if (dialogOpen) closeDialog()"
-        >
-            <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-visible rounded bg-white shadow-2xl">
-                <div class="border-b border-gray-200 px-6 py-5">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <h2 id="shop-catalog-option-dialog-title-{{ $product->id }}" class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xl font-bold text-gray-900">
-                                <span>{{ $product->title }}</span>
-                                <span class="text-gray-500 text-lg font-normal"> - {{ $chooserHeading }}</span>
-                            </h2>
-{{--                            <p class="mt-2 text-sm leading-6 text-gray-600">{{ $chooserIntro }}</p>--}}
-                        </div>
-                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeDialog()" aria-label="Close chooser">
-                            <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
-                        </x-ui.button>
-                    </div>
-                </div>
-
-                <div class="flex min-h-0 flex-1 flex-col">
-                    <div class="space-y-4 overflow-visible px-6 py-5">
-                        <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" x-show="formError" x-cloak x-text="formError"></div>
-
-                        <div class="space-y-3">
-                            <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center">
-                                <div class="relative" @click.outside="closeVariantMenu()">
-                                    <x-ui.button variant="plain"
-                                        type="button"
-                                        class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                        x-on:click="toggleVariantMenu()"
-                                        x-bind:aria-expanded="variantMenuOpen ? 'true' : 'false'"
-                                    >
-                                        <span class="min-w-0 flex-1">
-                                            <span class="flex items-center gap-2 text-sm">
-                                                <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
-                                                <span class="text-gray-400">-</span>
-                                                <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
-                                                    'text-red-700': selectionButtonTone() === 'danger',
-                                                    'text-amber-700': selectionButtonTone() === 'warning',
-                                                    'text-emerald-700': selectionButtonTone() === 'success',
-                                                    'text-sky-700': selectionButtonTone() === 'neutral',
-                                                }">
-                                                    <i x-show="selectionButtonTone() === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
-                                                    <i x-show="selectionButtonTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
-                                                    <span x-text="selectionButtonMeta()"></span>
-                                                </span>
-                                            </span>
-                                        </span>
-                                        <span class="shrink-0 text-md font-semibold text-gray-900" x-text="selectedOption?.price_label"></span>
-                                        <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
-                                    </x-ui.button>
-
-                                    <div
-                                        x-show="variantMenuOpen"
-                                        x-cloak
-                                        x-transition.opacity
-                                        class="absolute left-0 right-0 top-[calc(75%)] z-30 overflow-hidden rounded border border-gray-300 bg-white shadow-2xl"
-                                    >
-                                        <div class="max-h-80 overflow-y-auto py-2">
-                                            @foreach($optionPayload as $option)
-                                                <x-ui.button variant="plain"
-                                                    type="button"
-                                                    x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
-                                                    class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
-                                                    x-bind:class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
-                                                    x-on:click="chooseOption(String({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
-                                                >
-                                                    <span class="min-w-0 flex-1">
-                                                        <span class="flex items-center gap-2 text-sm">
-                                                            <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
-                                                            <span class="text-gray-400">-</span>
-                                                            <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
-                                                                'text-red-700': option.availability_tone === 'danger',
-                                                                'text-amber-700': option.availability_tone === 'warning',
-                                                                'text-emerald-700': option.availability_tone === 'success',
-                                                                'text-sky-700': option.availability_tone === 'neutral',
-                                                            }">
-                                                                <i x-show="option.availability_tone === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
-                                                                <i x-show="option.availability_tone === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
-                                                                <span x-text="option.availability_label">{{ $option['availability_label'] }}</span>
-                                                            </span>
-                                                        </span>
-                                                    @if(!empty($option['description']))
-                                                        <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
-                                                        @endif
-                                                    </span>
-                                                    <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
-                                                </x-ui.button>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <form
-                                    method="POST"
-                                    action="{{ route('shop.cart.add', $product) }}"
-                                    class="m-0 sm:min-w-40"
-                                    @submit.prevent="handleAddToCart($event.target)"
-                                    x-show="cartQuantity() <= 0"
-                                >
-                                    @csrf
-                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                    <input type="hidden" name="product_variant_id" :value="selectedOption?.variant_id ?? ''">
-                                    <input type="hidden" name="quantity" value="1">
-                                    <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
-                                        <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
-                                        <span x-show="!canAddSelection()" x-cloak>Sold out</span>
-                                    </x-ui.button>
-                                </form>
-
-                                <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-40 flex items-center">
-                                    <div>
-                                        <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
-                                            <x-ui.button variant="plain"
-                                                type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
-                                                x-on:click="changeCartQuantity(cartQuantity() - 1)"
-                                            >-</x-ui.button>
-                                            <x-ui.input-control
-                                                type="number"
-                                                min="0"
-                                                x-bind:max="cartMaxQuantity()"
-                                                x-bind:value="cartQuantity()"
-                                                class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
-                                                x-on:change="changeCartQuantity($event.target.value)" />
-                                            <x-ui.button variant="plain"
-                                                type="button"
-                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                x-on:click="changeCartQuantity(cartQuantity() + 1)"
-                                            >+</x-ui.button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        @error('product_variant_id')
-                            <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $message }}</div>
-                        @enderror
-                    </div>
-
-                    <div class="border-t border-gray-200 px-6 py-4">
-                        <div class="flex items-center justify-end">
-                            <x-ui.button type="link" href="{{ route('shop.cart.show') }}" class="rounded-md bg-primary-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary-color-dark hover:text-white">View Cart</x-ui.button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </template>
-</div>
+    }));
+});
+</script>

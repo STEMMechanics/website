@@ -7,7 +7,7 @@
                 <i class="fa-solid fa-hard-drive text-2xl text-sky-700"></i>
                 <div>
                     <h2 class="text-lg font-semibold text-sky-950">Preparing backup contents</h2>
-                    <p class="mt-1 text-sm text-sky-800" x-text="run.status === 'failed' ? run.error_message : run.message"></p>
+                    <p class="mt-1 text-sm text-sky-800" x-text="run.status === 'failed' ? $SM.get(run, 'error_message') : run.message"></p>
                 </div>
             </div>
             <div x-show="!run.finished" class="mt-5 h-3 overflow-hidden rounded-full bg-white">

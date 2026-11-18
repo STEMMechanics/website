@@ -1,49 +1,7 @@
 <x-layout>
     <x-mast>{{ $pageTitle ?? 'Tickets' }}</x-mast>
 
-    <x-container x-data="{
-        cancelModalOpen: false,
-        cancelFormAction: '',
-        cancelTicketLabel: '',
-        editModalOpen: false,
-        editFormAction: '',
-        editTicketLabel: '',
-        editFirstname: '',
-        editSurname: '',
-        editAge: '',
-        editEmail: '',
-        editPhone: '',
-        openCancelModal(action, label) {
-            this.cancelFormAction = action;
-            this.cancelTicketLabel = label;
-            this.cancelModalOpen = true;
-        },
-        openEditModal(action, label, details) {
-            this.editFormAction = action;
-            this.editTicketLabel = label;
-            this.editFirstname = details.firstname || '';
-            this.editSurname = details.surname || '';
-            this.editAge = details.age ?? '';
-            this.editEmail = details.email || '';
-            this.editPhone = details.phone || '';
-            this.editModalOpen = true;
-        },
-        closeEditModal() {
-            this.editModalOpen = false;
-            this.editFormAction = '';
-            this.editTicketLabel = '';
-            this.editFirstname = '';
-            this.editSurname = '';
-            this.editAge = '';
-            this.editEmail = '';
-            this.editPhone = '';
-        },
-        closeCancelModal() {
-            this.cancelModalOpen = false;
-            this.cancelFormAction = '';
-            this.cancelTicketLabel = '';
-        }
-    }">
+    <x-container x-data="smCspTicketsList1">
         <div class="flex flex-col my-4 gap-4 md:flex-row md:justify-between">
             <p class="text-sm text-gray-600">Showing tickets for <strong>{{ $email }}</strong></p>
 
@@ -231,4 +189,52 @@
             </div>
         </div>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspTicketsList1', () => ({
+        cancelModalOpen: false,
+        cancelFormAction: '',
+        cancelTicketLabel: '',
+        editModalOpen: false,
+        editFormAction: '',
+        editTicketLabel: '',
+        editFirstname: '',
+        editSurname: '',
+        editAge: '',
+        editEmail: '',
+        editPhone: '',
+        openCancelModal(action, label) {
+            this.cancelFormAction = action;
+            this.cancelTicketLabel = label;
+            this.cancelModalOpen = true;
+        },
+        openEditModal(action, label, details) {
+            this.editFormAction = action;
+            this.editTicketLabel = label;
+            this.editFirstname = details.firstname || '';
+            this.editSurname = details.surname || '';
+            this.editAge = details.age ?? '';
+            this.editEmail = details.email || '';
+            this.editPhone = details.phone || '';
+            this.editModalOpen = true;
+        },
+        closeEditModal() {
+            this.editModalOpen = false;
+            this.editFormAction = '';
+            this.editTicketLabel = '';
+            this.editFirstname = '';
+            this.editSurname = '';
+            this.editAge = '';
+            this.editEmail = '';
+            this.editPhone = '';
+        },
+        closeCancelModal() {
+            this.cancelModalOpen = false;
+            this.cancelFormAction = '';
+            this.cancelTicketLabel = '';
+        }
+    }));
+});
+</script>
 </x-layout>

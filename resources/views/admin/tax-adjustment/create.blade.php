@@ -37,51 +37,7 @@
 
         <form method="POST"
               action="{{ route('admin.tax_adjustment.store', ['invoice' => $invoice]) }}"
-              x-data="{
-                lineMeta: @js($lineCalcMeta),
-                refundQty: {},
-                init() {
-                    this.lineMeta.forEach((row) => {
-                        this.refundQty[row.id] = Number(row.initial_qty || 0).toFixed(2);
-                    });
-                },
-                parseQty(value, max) {
-                    const parsed = parseFloat(value || 0);
-                    if (!Number.isFinite(parsed) || parsed < 0) {
-                        return 0;
-                    }
-                    return Math.min(parsed, Number(max || 0));
-                },
-                normalizeQty(lineId) {
-                    const row = this.lineMeta.find((entry) => Number(entry.id) === Number(lineId));
-                    if (!row) {
-                        this.refundQty[lineId] = '0.00';
-                        return;
-                    }
-                    this.refundQty[lineId] = this.parseQty(this.refundQty[lineId], row.remaining_qty).toFixed(2);
-                },
-                lineRefundEx(row) {
-                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_net * 100) / 100 : 0;
-                },
-                lineRefundGst(row) {
-                    return Math.round((this.lineRefundInc(row) - this.lineRefundEx(row)) * 100) / 100;
-                },
-                lineRefundInc(row) {
-                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_gross * 100) / 100 : 0;
-                },
-                totalsEx() {
-                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundEx(row), 0);
-                },
-                totalsGst() {
-                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundGst(row), 0);
-                },
-                totalsInc() {
-                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundInc(row), 0);
-                },
-                money(value) {
-                    return Number(value || 0).toFixed(2);
-                }
-              }">
+              x-data="smCspAdminTaxAdjustmentCreate1">
             @csrf
             <div class="overflow-x-auto rounded-lg border border-gray-200">
                 <x-ui.table variant="plain" table-class="w-full text-sm">
@@ -175,4 +131,54 @@
             </div>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminTaxAdjustmentCreate1', () => ({
+                lineMeta: @js($lineCalcMeta),
+                refundQty: {},
+                init() {
+                    this.lineMeta.forEach((row) => {
+                        this.refundQty[row.id] = Number(row.initial_qty || 0).toFixed(2);
+                    });
+                },
+                parseQty(value, max) {
+                    const parsed = parseFloat(value || 0);
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                        return 0;
+                    }
+                    return Math.min(parsed, Number(max || 0));
+                },
+                normalizeQty(lineId) {
+                    const row = this.lineMeta.find((entry) => Number(entry.id) === Number(lineId));
+                    if (!row) {
+                        this.refundQty[lineId] = '0.00';
+                        return;
+                    }
+                    this.refundQty[lineId] = this.parseQty(this.refundQty[lineId], row.remaining_qty).toFixed(2);
+                },
+                lineRefundEx(row) {
+                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_net * 100) / 100 : 0;
+                },
+                lineRefundGst(row) {
+                    return Math.round((this.lineRefundInc(row) - this.lineRefundEx(row)) * 100) / 100;
+                },
+                lineRefundInc(row) {
+                    return row.remaining_qty > 0 ? Math.round(this.parseQty(this.refundQty[row.id], row.remaining_qty) / row.remaining_qty * row.remaining_gross * 100) / 100 : 0;
+                },
+                totalsEx() {
+                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundEx(row), 0);
+                },
+                totalsGst() {
+                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundGst(row), 0);
+                },
+                totalsInc() {
+                    return this.lineMeta.reduce((sum, row) => sum + this.lineRefundInc(row), 0);
+                },
+                money(value) {
+                    return Number(value || 0).toFixed(2);
+                }
+              }));
+});
+</script>
 </x-layout>

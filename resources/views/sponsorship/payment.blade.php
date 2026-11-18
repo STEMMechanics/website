@@ -58,11 +58,11 @@
 
                 <div role="tabpanel" class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     <template x-for="option in availableOptions()" :key="option.value">
-                        <label class="relative flex cursor-pointer flex-col rounded-2xl border p-4 transition hover:border-primary-color" x-bind:class="{ 'border-primary-color bg-sky-50 ring-1 ring-primary-color': selectedChoice === String(option.value), 'border-gray-200 bg-white': selectedChoice !== String(option.value), 'col-span-full': option.value === 'custom' }">
+                        <label class="relative flex cursor-pointer flex-col rounded-2xl border p-4 transition hover:border-primary-color" x-bind:class="{ 'border-primary-color bg-sky-50 ring-1 ring-primary-color': selectedChoice === $SM.string(option.value), 'border-gray-200 bg-white': selectedChoice !== $SM.string(option.value), 'col-span-full': option.value === 'custom' }">
                             <input type="radio" name="sponsorship_choice" x-bind:value="option.value" x-model="selectedChoice" x-on:change="changeAmount($event)" required class="sr-only">
                             <span class="flex items-start justify-between gap-2">
                                 <span class="text-base font-semibold text-gray-900" x-text="option.label"></span>
-                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border" x-bind:class="selectedChoice === String(option.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 text-transparent'" aria-hidden="true"><i class="fa-solid fa-check text-[10px]"></i></span>
+                                <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border" x-bind:class="selectedChoice === $SM.string(option.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 text-transparent'" aria-hidden="true"><i class="fa-solid fa-check text-[10px]"></i></span>
                             </span>
                             <span class="mt-2 text-lg font-bold text-gray-900" x-text="option.priceLabel"></span>
                             <ul class="mt-4 space-y-2 text-sm leading-5 text-gray-600">

@@ -55,7 +55,7 @@
                 x-on:dragenter.prevent="galleryDropActive = true"
                 x-on:dragover.prevent="galleryDropActive = true"
                 x-on:dragleave.prevent="galleryDropActive = false"
-                x-on:drop.prevent="galleryDropActive = false; $SM.uploadGalleryFiles($event.dataTransfer.files)"
+                x-on:drop.prevent="$SM.setDataValueThenCallSM($el, 'galleryDropActive', false, 'uploadGalleryFiles', [$event.dataTransfer.files])"
             >
                 <div class="flex flex-col items-center gap-2 px-3 py-2 text-center">
                     <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400"></i>

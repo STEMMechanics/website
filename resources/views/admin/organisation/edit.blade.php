@@ -36,49 +36,7 @@
             method="POST"
             enctype="multipart/form-data"
             action="{{ $editing ? route('admin.organisation.update', $organisation) : route('admin.organisation.store') }}"
-            x-data="{
-                contacts: @js($initialContacts),
-                results: [],
-                search: '',
-                searching: false,
-                shippingSameBilling: @js((bool) $shippingSameBilling),
-                searchSequence: 0,
-                isLinked(id) {
-                    return this.contacts.some((contact) => contact.id === String(id));
-                },
-                add(contact) {
-                    if (!this.isLinked(contact.id)) this.contacts.push(contact);
-                    this.results = this.results.filter((result) => result.id !== contact.id);
-                    this.search = '';
-                },
-                remove(id) {
-                    this.contacts = this.contacts.filter((contact) => contact.id !== String(id));
-                },
-                async findContacts() {
-                    const term = this.search.trim();
-                    const sequence = ++this.searchSequence;
-                    if (term.length < 2) {
-                        this.results = [];
-                        this.searching = false;
-                        return;
-                    }
-                    this.searching = true;
-                    try {
-                        const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
-                        url.searchParams.set('search', term);
-                        const response = await fetch(url, { headers: { Accept: 'application/json' } });
-                        if (!response.ok) throw new Error('Unable to search contacts.');
-                        const data = await response.json();
-                        if (sequence === this.searchSequence) {
-                            this.results = (data.users || []).filter((contact) => !this.isLinked(contact.id));
-                        }
-                    } catch (error) {
-                        if (sequence === this.searchSequence) this.results = [];
-                    } finally {
-                        if (sequence === this.searchSequence) this.searching = false;
-                    }
-                },
-            }"
+            x-data="smCspAdminOrganisationEdit1"
         >
             @csrf
             @if($editing) @method('PUT') @endif
@@ -268,4 +226,52 @@
             </x-ui.editor-actions>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminOrganisationEdit1', () => ({
+                contacts: @js($initialContacts),
+                results: [],
+                search: '',
+                searching: false,
+                shippingSameBilling: @js((bool) $shippingSameBilling),
+                searchSequence: 0,
+                isLinked(id) {
+                    return this.contacts.some((contact) => contact.id === String(id));
+                },
+                add(contact) {
+                    if (!this.isLinked(contact.id)) this.contacts.push(contact);
+                    this.results = this.results.filter((result) => result.id !== contact.id);
+                    this.search = '';
+                },
+                remove(id) {
+                    this.contacts = this.contacts.filter((contact) => contact.id !== String(id));
+                },
+                async findContacts() {
+                    const term = this.search.trim();
+                    const sequence = ++this.searchSequence;
+                    if (term.length < 2) {
+                        this.results = [];
+                        this.searching = false;
+                        return;
+                    }
+                    this.searching = true;
+                    try {
+                        const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
+                        url.searchParams.set('search', term);
+                        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                        if (!response.ok) throw new Error('Unable to search contacts.');
+                        const data = await response.json();
+                        if (sequence === this.searchSequence) {
+                            this.results = (data.users || []).filter((contact) => !this.isLinked(contact.id));
+                        }
+                    } catch (error) {
+                        if (sequence === this.searchSequence) this.results = [];
+                    } finally {
+                        if (sequence === this.searchSequence) this.searching = false;
+                    }
+                },
+            }));
+});
+</script>
 </x-layout>

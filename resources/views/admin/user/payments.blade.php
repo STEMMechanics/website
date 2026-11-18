@@ -164,7 +164,7 @@
                                                         method="POST"
                                                         action="{{ route('admin.payment.refund.manual', $payment) }}"
                                                         class="space-y-4"
-                                                        x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();"
+                                                        x-on:submit.prevent="$SM.submitOnce($el)"
                                                     >
                                                         @csrf
                                                         <x-ui.input

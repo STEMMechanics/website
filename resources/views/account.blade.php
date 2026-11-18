@@ -26,7 +26,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             id="account-settings-form"
             class="my-8"
             x-data
-            x-on:submit.prevent="$SM.updateShippingAddress(); $el.submit()"
+            x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)"
         >
             @csrf
             <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />

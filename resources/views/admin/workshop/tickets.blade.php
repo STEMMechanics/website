@@ -29,36 +29,7 @@
         <x-ui.dynamic-list name="admin-workshop-tickets">
 
         <div
-            x-data="{
-                createTicketOpen: @js($createTicketModalOpen),
-                editModalOpen: false,
-                editFormAction: '',
-                editTicketLabel: '',
-                editFirstname: '',
-                editSurname: '',
-                editEmail: '',
-                editPhone: '',
-                openEditModal(action, label, details) {
-                    this.editFormAction = action;
-                    this.editTicketLabel = label;
-                    this.editFirstname = details.firstname || '';
-                    this.editSurname = details.surname || '';
-                    this.editEmail = details.email || '';
-                    this.editPhone = details.phone || '';
-                    this.editModalOpen = true;
-                },
-                closeEditModal() {
-                    this.editModalOpen = false;
-                    this.editFormAction = '';
-                    this.editTicketLabel = '';
-                    this.editFirstname = '';
-                    this.editSurname = '';
-                    this.editEmail = '';
-                    this.editPhone = '';
-                },
-                bulkEmailOpen: @js($bulkEmailModalOpen),
-                smsOpen: @js($smsModalOpen),
-            }"
+            x-data="smCspAdminWorkshopTickets1"
             x-on:open-create-workshop-ticket.window="createTicketOpen = true"
             data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
             x-init="$SM.initTicketCancelModal($el.dataset.cancelReason)">
@@ -613,4 +584,39 @@
 
         </x-ui.dynamic-list>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopTickets1', () => ({
+                createTicketOpen: @js($createTicketModalOpen),
+                editModalOpen: false,
+                editFormAction: '',
+                editTicketLabel: '',
+                editFirstname: '',
+                editSurname: '',
+                editEmail: '',
+                editPhone: '',
+                openEditModal(action, label, details) {
+                    this.editFormAction = action;
+                    this.editTicketLabel = label;
+                    this.editFirstname = details.firstname || '';
+                    this.editSurname = details.surname || '';
+                    this.editEmail = details.email || '';
+                    this.editPhone = details.phone || '';
+                    this.editModalOpen = true;
+                },
+                closeEditModal() {
+                    this.editModalOpen = false;
+                    this.editFormAction = '';
+                    this.editTicketLabel = '';
+                    this.editFirstname = '';
+                    this.editSurname = '';
+                    this.editEmail = '';
+                    this.editPhone = '';
+                },
+                bulkEmailOpen: @js($bulkEmailModalOpen),
+                smsOpen: @js($smsModalOpen),
+            }));
+});
+</script>
 </x-layout>

@@ -20,7 +20,7 @@
                 </div>
             @endif
             <div x-show="mode === 'upload'" x-cloak>
-                <x-ui.file-upload name="document" label="Verification file" x-bind:disabled="mode !== 'upload'" x-on:change="if (!filename) filename = $event.target.files[0]?.name || ''" info="Maximum 1 MB. Uploading replaces this file’s contents without changing its public URL." />
+                <x-ui.file-upload name="document" label="Verification file" x-bind:disabled="mode !== 'upload'" x-on:change="$SM.setFilenameFromFile($el, $event)" info="Maximum 1 MB. Uploading replaces this file’s contents without changing its public URL." />
             </div>
             <x-ui.editor-actions>
                 @if($filename)

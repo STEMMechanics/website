@@ -57,7 +57,7 @@
         @if($multiple) multiple @endif
         class="sr-only"
         x-ref="{{ $inputRef }}"
-        x-on:change="{{ $onFiles }}($event.target.files){{ $clearAfterChange ? '; $event.target.value = \'\'' : '' }}"
+        x-on:change="$SM.uploadFilesFromInput($el, '{{ $onFiles }}', {{ $clearAfterChange ? 'true' : 'false' }})"
         x-bind:disabled="{{ $disabled }}"
     >
 

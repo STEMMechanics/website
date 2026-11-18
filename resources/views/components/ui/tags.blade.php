@@ -56,7 +56,7 @@
                 x-model="draft"
                 @if($datalistId !== '') list="{{ $datalistId }}" @endif
                 x-bind:placeholder="tags.length === 0 ? @js($placeholder) : ''"
-                x-bind:style="'order: ' + (cursorIndex * 2 + 1) + '; width: ' + (tags.length === 0 ? '12rem' : Math.max(1, Math.min(20, draft.length + 1)) + 'ch')"
+                x-bind:style="'order: ' + (cursorIndex * 2 + 1) + '; width: ' + (tags.length === 0 ? '12rem' : $SM.max(1, $SM.min(20, draft.length + 1)) + 'ch')"
                 x-bind:class="tags.length ? '-mx-1' : ''"
                 class="max-w-full border-0 px-0 text-sm focus:outline-none focus:ring-0"
                 x-on:keydown.enter.prevent="add()"

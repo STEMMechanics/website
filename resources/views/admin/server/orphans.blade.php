@@ -5,20 +5,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">On-Demand Orphan Scan</h3>
-                <form method="POST" action="{{ route('admin.server.orphans.scan') }}" x-data="{ confirmedSubmit: false }" x-on:submit.prevent="
-                    if (confirmedSubmit) {
-                        confirmedSubmit = false;
-                        $el.submit();
-                        return;
-                    }
-                    if ($SM && typeof $SM.confirm === 'function') {
-                        $SM.confirm('Confirm action', 'Run orphaned file scan now?', 'Run Scan', (isConfirmed) => {
-                            if (!isConfirmed) return;
-                            confirmedSubmit = true;
-                            $el.requestSubmit();
-                        });
-                    }
-                ">
+                <form method="POST" action="{{ route('admin.server.orphans.scan') }}" x-data="{ confirmedSubmit: false }" x-on:submit.prevent="$SM.submitOrphanScan($el, $event)">
                     @csrf
                     <x-ui.button type="submit" color="dark">Run Scan</x-ui.button>
                 </form>

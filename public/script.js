@@ -1814,6 +1814,471 @@ let SM = {
 };
 
 window.SM = SM;
+Object.assign(window.SM, {
+    number: value => Number(value),
+    string: value => String(value),
+    boolean: value => Boolean(value),
+    isArray: value => Array.isArray(value),
+    objectKeys: value => Object.keys(value || {}),
+    jsonStringify: value => JSON.stringify(value),
+    numberIsFinite: value => Number.isFinite(value),
+    numberIsInteger: value => Number.isInteger(value),
+    numberParseInt: (value, radix) => Number.parseInt(value, radix),
+    numberParseFloat: value => Number.parseFloat(value),
+    parseFloat: value => parseFloat(value),
+    parseInt: (value, radix) => parseInt(value, radix),
+    abs: value => Math.abs(value),
+    max: (...values) => Math.max(...values),
+    min: (...values) => Math.min(...values),
+    combineData: (base, ...sources) => Object.assign(base || {}, ...sources),
+    get: (value, path, fallback = null) => {
+        const result = String(path).split('.').reduce((current, key) => current == null ? undefined : current[key], value);
+        return result == null ? fallback : result;
+    },
+    findById: (items, id) => (Array.isArray(items) ? items : []).find((item) => String(item?.id ?? '') === String(id ?? '')) || null,
+    querySelector: (element, selector) => element instanceof Element ? element.querySelector(selector) : null,
+    focus: (element) => { if (element && typeof element.focus === 'function') element.focus(); },
+    closestDataValue: (target, selector, key) => target instanceof Element ? target.closest(selector)?.dataset?.[key] || null : null,
+    setDataValues: (element, values) => {
+        const data = Alpine.$data(element);
+        for (const [path, value] of Object.entries(values || {})) {
+            const parts = path.split('.');
+            const key = parts.pop();
+            const target = parts.reduce((current, part) => current?.[part], data);
+            if (target && key) target[key] = value;
+        }
+    },
+    setDataValueWhen: (element, path, value, condition) => {
+        if (condition) window.SM.setDataValues(element, { [path]: value });
+    },
+    incrementDataValue: (element, path, amount) => {
+        const data = Alpine.$data(element);
+        const current = Number(window.SM.get(data, path, 0)) || 0;
+        window.SM.setDataValues(element, { [path]: current + (Number(amount) || 0) });
+    },
+    setDataValueAndCall: (element, path, value, method, args = []) => {
+        window.SM.setDataValues(element, { [path]: value });
+        return window.SM.callAlpineMethod(element, method, args);
+    },
+    setDataValueThenCallSM: (element, path, value, method, args = []) => {
+        window.SM.setDataValues(element, { [path]: value });
+        if (typeof window.SM[method] === 'function') return window.SM[method](...args);
+    },
+    callDataMethodAndDispatch: (element, method, args, eventName, detail = {}) => {
+        const result = window.SM.callAlpineMethod(element, method, args || []);
+        element.dispatchEvent(new CustomEvent(eventName, { bubbles: true, detail }));
+        return result;
+    },
+    callDataMethodAndSubmit: (element, method) => {
+        window.SM.callAlpineMethod(element, method, []);
+        if (element instanceof HTMLFormElement) HTMLFormElement.prototype.submit.call(element);
+    },
+    updateShippingAddressAndSubmit: (form) => {
+        window.SM.updateShippingAddress();
+        if (form instanceof HTMLFormElement) HTMLFormElement.prototype.submit.call(form);
+    },
+    clearSelectionIfButton: (element, event, prefix, property, value = '') => {
+        const button = event.target instanceof Element ? event.target.closest('button') : null;
+        if (button?.id.startsWith(prefix)) window.SM.setDataValues(element, { [property]: value });
+    },
+    updateDataFromEvent: (element, event, acceptedName, property, detailKey) => {
+        if (event.detail?.name === acceptedName) window.SM.setDataValues(element, { [property]: window.SM.get(event.detail, detailKey, '') || '' });
+    },
+    updateDateRange: (from, to, start, end) => {
+        if (from) from.value = start;
+        if (to) to.value = end;
+    },
+    formatMoneyInput: (element) => {
+        if (!(element instanceof HTMLInputElement) || element.value.trim() === '') return;
+        const amount = Number(element.value);
+        if (Number.isFinite(amount) && amount >= 0) element.value = amount.toFixed(2);
+    },
+    openUrl: (url) => window.open(url, '_blank', 'noopener,noreferrer'),
+    preventIf: (event, condition) => { if (condition) event.preventDefault(); },
+    trackAndCall: (element, paths, method, args = []) => {
+        const data = Alpine.$data(element);
+        (paths || []).forEach((path) => window.SM.get(data, path));
+        return window.SM.callAlpineMethod(element, method, args);
+    },
+    trackAndCallNextTick: (element, paths, method, args = []) => {
+        const data = Alpine.$data(element);
+        (paths || []).forEach((path) => window.SM.get(data, path));
+        return Alpine.nextTick(() => window.SM.callAlpineMethod(element, method, args));
+    },
+    trackAndCallPreviewCanvas: (canvas, imageUrl) => {
+        const data = Alpine.$data(canvas);
+        const edits = {
+            rotation: data.editRotation,
+            top: data.editCropTop,
+            right: data.editCropRight,
+            bottom: data.editCropBottom,
+            left: data.editCropLeft,
+        };
+        return window.SM.callAlpineMethod(canvas, 'renderPreviewCanvas', [canvas, imageUrl, edits]);
+    },
+    trackAndCallEditorCanvas: (canvas) => {
+        const data = Alpine.$data(canvas);
+        const draft = data.editorDraft || {};
+        ['rotation', 'top', 'right', 'bottom', 'left'].forEach((key) => window.SM.get(draft, key));
+        return window.SM.callAlpineMethod(canvas, 'renderEditorCanvas', [canvas]);
+    },
+    nextTickMethod: (element, method, args = []) => Alpine.nextTick(() => window.SM.callAlpineMethod(element, method, args)),
+    nextFrameMethod: (element, method, args = []) => requestAnimationFrame(() => window.SM.callAlpineMethod(element, method, args)),
+    initializeDataMethods: (element, methods) => (methods || []).forEach((method) => window.SM.callAlpineMethod(element, method, [])),
+    callDataMethodWhen: (element, condition, method, args = []) => condition ? window.SM.callAlpineMethod(element, method, args) : undefined,
+    applyExpenseItemsAndExpand: (element, event) => {
+        const data = Alpine.$data(element);
+        event.detail.appliedCount = data.applyAiItems(event.detail.items);
+        if (event.detail.appliedCount > 0) data.expanded = true;
+    },
+    applyInvoiceAllocationCalculation: (form, detail) => {
+        const data = Alpine.$data(form);
+        data.applyCalculatorValues(detail);
+        form.dataset.allocationChanged = '1';
+    },
+    syncAllocationPlan: (form, changed, values, total) => {
+        if (changed) form.dataset.allocationChanged = '1';
+        form.dispatchEvent(new CustomEvent('allocation-plan-updated', {
+            bubbles: true,
+            detail: { key: 'invoice', values: { ...values }, funding: total },
+        }));
+    },
+    callDataMethods: (element, calls) => (calls || []).forEach(([method, args = []]) => window.SM.callAlpineMethod(element, method, args)),
+    toggleDataAndCall: (element, key, method) => {
+        const data = Alpine.$data(element);
+        data[key] = !data[key];
+        if (data[key]) window.SM.callAlpineMethod(element, method, []);
+    },
+    dispatchAndSetData: (element, eventName, key, value) => {
+        window.SM.setDataValues(element, { [key]: value });
+        element.dispatchEvent(new CustomEvent(eventName, { bubbles: true }));
+    },
+    submitOnce: (form) => {
+        if (!(form instanceof HTMLFormElement)) return;
+        const data = Alpine.$data(form);
+        if (data.isSubmitting) return;
+        data.isSubmitting = true;
+        HTMLFormElement.prototype.submit.call(form);
+    },
+    syncShippingAddressModes: (element) => {
+        const data = Alpine.$data(element);
+        if (data.useOrganisationShippingAddress) data.shippingSameBilling = false;
+        if (data.shippingSameBilling) data.useOrganisationShippingAddress = false;
+        window.SM.updateShippingAddress();
+    },
+    hasChangedObjectValues: (values, initial) => Object.keys(values || {}).some((key) => values[key] !== (initial || {})[key]),
+    hasShippingFieldError: (errors, index, section) => Object.keys(errors || {}).some((key) => {
+        const prefix = `shipping_methods.${index}.${section}`;
+        return section === 'weight_tiers'
+            ? key.startsWith(`${prefix}.`) || key === `shipping_methods.${index}.cubic_divisor` || key === `shipping_methods.${index}.calculated_packaging_cost`
+            : key.startsWith(prefix);
+    }),
+    activePackageCount: (packages) => (Array.isArray(packages) ? packages : []).filter((item) => item?.is_active).length,
+    hasActivePackages: (packages) => window.SM.activePackageCount(packages) > 0,
+    previousGstRatesLabel: (rates) => (Array.isArray(rates) ? rates : []).map((rate) => (Number(rate) * 100).toFixed(2) + '%').join(', '),
+    matchingNewsletterLinks: (links, search) => (Array.isArray(links) ? links : []).filter((link) => (String(link.title || '') + ' ' + String(link.type || '')).toLowerCase().includes(String(search || '').toLowerCase())).slice(0, 30),
+    hasMatchingNewsletterLinks: (links, search) => window.SM.matchingNewsletterLinks(links, search).length > 0,
+    fileTypeLabel: (value) => String(value || '').replace(/\(.*?\)/g, '').trim(),
+    splitParagraphs: (value) => String(value || '').replace(/\r\n?/g, '\n').split(/\n\s*\n/).filter((text) => text.trim()),
+    parseMoney: (value) => Number.parseFloat(String(value || '').replace(/[$,]/g, '')) || 0,
+    aiMode: (element, fieldName) => {
+        const field = element.closest('form')?.querySelector(`[name="${fieldName}"]`);
+        return field && String(field.value || '').trim() ? 'improve' : 'write';
+    },
+    shouldShowPayAtDoor: (registration, price, type, format, locations, selectedLocationId) => registration === 'tickets'
+        && window.SM.parseMoney(price) > 0
+        && (type === 'physical' || format === 'course')
+        && (Array.isArray(locations) ? locations : []).some((location) => String(location.id) === String(selectedLocationId)
+            && String(location.name || '').trim().toLowerCase() !== 'online'),
+    syncAiAction: (element, fieldName, contextMethod) => {
+        const data = Alpine.$data(element);
+        element.dataset.aiContext = JSON.stringify(data[contextMethod]());
+        element.dataset.aiMode = window.SM.aiMode(element, fieldName);
+    },
+    slug: (value) => String(value || '').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, ''),
+    setFilenameFromFile: (element, event) => {
+        const data = Alpine.$data(element);
+        if (!data.filename) data.filename = event.target.files?.[0]?.name || '';
+    },
+    setNewsletterNoteFromAi: (element, event) => {
+        const data = Alpine.$data(element);
+        const html = event.detail?.html || '';
+        if (!html) return;
+        data.noteHtml = event.detail?.mode === 'append' && data.noteHtml.trim()
+            ? data.noteHtml + '<p><br></p>' + html
+            : html;
+    },
+    selectNewsletterLink: (link) => {
+        const url = document.getElementById('newsletter-note-link-url');
+        const label = document.getElementById('newsletter-note-link-label');
+        if (url) url.value = link.url;
+        if (label && !label.value) label.value = link.title;
+    },
+    clearFieldAndRun: (fieldId, method, args = []) => {
+        const field = document.getElementById(fieldId);
+        if (field) field.value = '';
+        if (typeof window[method] === 'function') window[method](...args);
+    },
+    resetNewsletterImage: (fieldId, mode) => window.SM.clearFieldAndRun(fieldId, 'SMNewsletterPhotoPreview', [mode]),
+    nextTickShowModal: (element) => Alpine.nextTick(() => element.showModal()),
+    addAttachmentFiles: (element, event) => {
+        element.classList.remove('border-primary-color', 'bg-sky-50');
+        window.SM.callAlpineMethod(element, 'addAttachmentFiles', [event.dataTransfer.files]);
+    },
+    positionProductSuggestionsIfOpen: (element, item, activeId, inputId) => {
+        const data = Alpine.$data(element);
+        const state = data.productSearchState(item);
+        if (state.open && state.activeId === activeId) data.positionProductSuggestions(item, document.getElementById(inputId));
+    },
+    closeProductSuggestionsOnOutside: (element, event, item, activeId, menuId, inputId) => {
+        const data = Alpine.$data(element);
+        const state = data.productSearchState(item);
+        if (!state.open || state.activeId !== activeId) return;
+        const target = event.target;
+        const menu = document.getElementById(menuId);
+        const input = document.getElementById(inputId);
+        if (!(target instanceof Node) || (!(input instanceof Node) || !input.contains(target)) && (!(menu instanceof Node) || !menu.contains(target))) {
+            data.closeProductSuggestions(item, inputId);
+        }
+    },
+    runProductAiAction: (element, fieldName, contextMethod) => {
+        const data = Alpine.$data(element);
+        const field = element.closest('form')?.querySelector(`[name="${fieldName}"]`);
+        element.dataset.aiContext = JSON.stringify(data[contextMethod]());
+        element.dataset.aiMode = field && String(field.value || '').trim() ? 'improve' : 'write';
+    },
+    dataHasValue: (element, fieldName) => {
+        const field = element.closest('form')?.querySelector(`[name="${fieldName}"]`);
+        return Boolean(field && String(field.value || '').trim());
+    },
+    formTotal: (element) => {
+        const form = element.closest('form');
+        return form ? Alpine.$data(form).total : 0;
+    },
+    limitNumericInput: (element, length) => { element.value = String(element.value || '').replace(/\D+/g, '').slice(0, length); },
+    updateViewportWidth: (element) => window.SM.setDataValues(element, { pickListViewportWidth: window.innerWidth }),
+    formatStockTotalCost: (element) => {
+        if (element.value === '' || !Number.isFinite(Number(element.value))) return;
+        const value = Number(element.value).toFixed(2);
+        element.value = value;
+        window.SM.setDataValues(element, { totalCost: value });
+    },
+    closeDetailsAndConfirmDelete: (button, ...args) => {
+        const details = button.closest('details');
+        if (details) details.open = false;
+        return window.SM.confirmDelete(...args);
+    },
+    closeDialogAndCallGlobal: (element, method) => {
+        element.closest('dialog')?.close();
+        return window.SM.callGlobal(method, []);
+    },
+    openAncestorDetails: (target) => {
+        let section = target instanceof Element ? target.closest('details') : null;
+        while (section) {
+            section.open = true;
+            section = section.parentElement?.closest('details') || null;
+        }
+    },
+    callAndOpenDetails: (element, method) => {
+        window.SM.callAlpineMethod(element, method, []);
+        const details = element.closest('details');
+        if (details) details.open = true;
+    },
+    initializeDialog: (dialog, shouldOpen, focusSelector = '') => Alpine.nextTick(() => {
+        if (!shouldOpen || !(dialog instanceof HTMLDialogElement)) return;
+        dialog.showModal();
+        if (focusSelector) dialog.querySelector(focusSelector)?.focus();
+    }),
+    confirmSubmitButton: (button, title, content, label) => window.SM.confirm(title, content, label).then((result) => {
+        if (result?.isConfirmed && button.form instanceof HTMLFormElement) button.form.requestSubmit(button);
+    }),
+    submitOrphanScan: (form, event) => {
+        event.preventDefault();
+        const data = Alpine.$data(form);
+        if (data.confirmedSubmit) {
+            data.confirmedSubmit = false;
+            HTMLFormElement.prototype.submit.call(form);
+            return;
+        }
+        window.SM.confirm('Confirm action', 'Run orphaned file scan now?', 'Run Scan').then((result) => {
+            if (!result?.isConfirmed) return;
+            data.confirmedSubmit = true;
+            form.requestSubmit();
+        });
+    },
+    copyInvoicePaymentLink: async (url, csrfToken) => {
+        try {
+            const response = await window.fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, Accept: 'application/json' },
+            });
+            const data = await response.json();
+            if (!response.ok || !data?.url) throw new Error('Unable to generate payment link.');
+            await window.SM.copyToClipboard(data.url);
+            window.SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+        } catch (error) {
+            window.SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+        }
+    },
+    setDataValuesThenCall: (element, values, method, args = []) => {
+        window.SM.setDataValues(element, values);
+        return window.SM.callAlpineMethod(element, method, args);
+    },
+    preventAndCallWhen: (element, event, condition, method, args = []) => {
+        if (!condition) return;
+        event.preventDefault();
+        return window.SM.callAlpineMethod(element, method, args);
+    },
+    scrollIntoViewWhen: (element, condition) => { if (condition) element.scrollIntoView({ block: 'nearest' }); },
+    handleAllocationAttention: (element, needsAttention) => {
+        if (!needsAttention) return;
+        const data = Alpine.$data(element);
+        data.allocationOpen = true;
+        if (!data.allocationTouched) data.enabled = true;
+    },
+    refreshDefaultsWhenDisabled: (element, enabled) => { if (!enabled) window.SM.callAlpineMethod(element, 'refreshDefaults', []); },
+    replaceWorkshopPlaceholder: (select) => {
+        if (!select.value) return;
+        window.SM.callAlpineMethod(select, 'insertText', [select.value]);
+        select.value = '';
+    },
+    dispatchWindowEvent: (name, detail = {}) => window.dispatchEvent(new CustomEvent(name, { detail })),
+    clearPhotoSelection: () => {
+        window.dispatchEvent(new CustomEvent('select-all-photo-media', { detail: { checked: false } }));
+        window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'));
+    },
+    saveWorkshopPhotos: (form) => {
+        const data = Alpine.$data(form);
+        data.saving = true;
+        axios.post(form.action, new FormData(form), { headers: { Accept: 'application/json' } })
+            .then(() => window.SM.notice('Photos updated', 'Selected media changes were saved.', 'success', { toast: true }))
+            .catch((error) => window.SM.notice('Save failed', error.response?.data?.message || 'Could not save selected media.', 'danger', { toast: true }))
+            .finally(() => { data.saving = false; });
+    },
+    applyInvoiceEmailTemplate: (element) => {
+        const data = Alpine.$data(element);
+        if (data.$refs?.emailTemplatePending) data.$refs.emailTemplatePending.value = '1';
+        return window.SM.callAlpineMethod(element, 'closeInvoiceEmailModal', []);
+    },
+    closeAgeHelp: (element) => {
+        const data = Alpine.$data(element);
+        if (!data.ageHelpOpen) return;
+        data.ageHelpOpen = false;
+        window.SM.focus(data.$refs?.ageHelpButton);
+    },
+    initializeTicketPayment: (element) => {
+        const data = Alpine.$data(element);
+        window.SM.callAlpineMethod(element, 'startHoldTimer', []);
+        if (data.voucherDialogOpen) Alpine.nextTick(() => window.SM.focus(data.$refs?.voucherInput));
+    },
+    openOrderItemActions: (element, itemId, actions) => {
+        if (actions?.cancel) window.SM.callAlpineMethod(element, 'openCancel', [itemId]);
+        if (Array.isArray(actions?.tracking)) window.SM.callAlpineMethod(element, 'openTracking', [itemId, ...actions.tracking]);
+        if (Array.isArray(actions?.collection)) window.SM.callAlpineMethod(element, 'openCollection', [itemId, ...actions.collection]);
+    },
+    allocateRemainingFromButton: (element, categoryId, editableDefaults) => {
+        if (editableDefaults) Alpine.$data(element).enabled = true;
+        return window.SM.callAlpineMethod(element, 'allocateRemaining', [categoryId]);
+    },
+    updateWorkshopAllocationInputs: (element, detail, workshopId) => {
+        if (String(detail?.id) !== String(workshopId)) return;
+        window.SM.setDataValues(element, { participants: detail.participants, hours: detail.hours });
+    },
+    syncWorkshopAllocationPlan: (form, changed, values, total, key, initialChanged) => {
+        form.dataset.allocationChanged = changed || initialChanged ? '1' : '0';
+        form.dispatchEvent(new CustomEvent('allocation-plan-updated', {
+            bubbles: true,
+            detail: { key, values: { ...values }, funding: total, inspect: false },
+        }));
+    },
+    updatePhotoCounts: (element, event) => {
+        const detail = event.detail || {};
+        window.SM.setDataValuesThenCall(element, {
+            selectedCount: Number(detail.count || 0),
+            totalCount: Number(detail.total || 0),
+        }, 'refreshExistingNames');
+    },
+    validateSearchScopes: (form, event) => {
+        const data = Alpine.$data(form);
+        data.searchScopeError = !data.searchProducts && !data.searchWorkshops;
+        if (data.searchScopeError) event.preventDefault();
+    },
+    validateSearchScopeChange: (element, autoSubmit) => {
+        const data = Alpine.$data(element);
+        data.searchScopeError = !data.searchProducts && !data.searchWorkshops;
+        if (autoSubmit && !data.searchScopeError) Alpine.nextTick(() => data.$refs?.searchForm?.requestSubmit());
+    },
+    validateSearchAndOpenFilters: (form, event) => {
+        const data = Alpine.$data(form);
+        data.searchScopeError = !data.searchProducts && !data.searchWorkshops;
+        if (data.searchScopeError) {
+            event.preventDefault();
+            form.querySelector('[data-open-dialog=search-filters]')?.click();
+            return;
+        }
+        form.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close());
+    },
+    clearSearchFilters: (form) => form.querySelectorAll('[data-search-filter]').forEach((input) => { input.value = ''; }),
+    clearUiSearch: (button, advancedActive, hadValue) => {
+        const form = button.closest('form');
+        const data = Alpine.$data(button);
+        data.search = '';
+        if (advancedActive) {
+            form?.querySelectorAll('[data-advanced-search-param]').forEach((input) => input.remove());
+            data.advancedActive = false;
+            button.dispatchEvent(new CustomEvent('clear-advanced-search', { bubbles: true }));
+            Alpine.nextTick(() => form?.requestSubmit());
+        } else if (hadValue) {
+            Alpine.nextTick(() => form?.requestSubmit());
+        }
+    },
+    uploadFilesFromInput: (input, method, clearAfterChange) => {
+        window.SM.callAlpineMethod(input, method, [input.files]);
+        if (clearAfterChange) input.value = '';
+    },
+    formatLineQuantityHandler: (element, item) => {
+        if (item.kind === 'travel') {
+            item.travel_hours = item.quantity;
+            window.SM.updateWorkshopLine(item);
+        }
+        window.SM.callAlpineMethod(element, 'serializeLineItems', []);
+    },
+    searchProductVariantChanged: (element, item, value, index) => {
+        item.source_variant_id = value;
+        window.SM.callAlpineMethod(element, 'applyProductSelection', [index]);
+    },
+    callGlobal: (name, args = []) => typeof window[name] === 'function' ? window[name](...args) : undefined,
+    toggleBodyScroll: (element, condition) => document.body.classList.toggle('overflow-hidden', Boolean(condition)),
+    setBodyScrollLocks: (locked) => {
+        document.documentElement.classList.toggle('overflow-hidden', Boolean(locked));
+        document.body.classList.toggle('overflow-hidden', Boolean(locked));
+    },
+    shopCartPage: (config = null) => window.shopCartPage(config || window.shopCartPageConfig || {}),
+    shopAdminOrderEditor: (config) => window.shopAdminOrderEditor(config),
+    navigateTo: (url) => { window.location.href = url; },
+    submitFormById: (id) => {
+        const form = document.getElementById(id);
+        if (form instanceof HTMLFormElement) HTMLFormElement.prototype.submit.call(form);
+    },
+    refreshLineAndSerialize: (element, item, price) => {
+        if (price) window.SM.refreshLinePrice(item);
+        else window.SM.refreshLineQuantity(item);
+        window.SM.callAlpineMethod(element, 'serializeLineItems', []);
+    },
+    handleLineQuantityInput: (element, item) => {
+        if (item.kind === 'travel') {
+            item.travel_hours = item.quantity;
+            window.SM.updateWorkshopLine(item);
+        }
+        window.SM.callAlpineMethod(element, 'serializeLineItems', []);
+    },
+    updateUnitPriceInput: (element, item) => {
+        item.auto_pricing = false;
+        delete item.details_json.inclusive_unit_price;
+        delete item.details_json.price_rounding;
+        window.SM.callAlpineMethod(element, 'serializeLineItems', []);
+    },
+});
 
 window.SM.productAllocationFields = (fixed, percent) => ({
     fixed,

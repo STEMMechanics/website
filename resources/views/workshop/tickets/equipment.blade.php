@@ -45,7 +45,7 @@
                                 <div class="mt-2">
                                     <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" :stack-details="true" x-show="!variants[{{ $product->id }}]" />
                                     @foreach($product->purchasableVariants() as $variant)
-                                        <x-stock-indicator :tone="$product->availabilityTone($variant)" :label="$product->availabilityLabel('F jS', $variant)" :stack-details="true" x-show="String(variants[{{ $product->id }}]) === '{{ $variant->id }}'" x-cloak />
+                                        <x-stock-indicator :tone="$product->availabilityTone($variant)" :label="$product->availabilityLabel('F jS', $variant)" :stack-details="true" x-show="$SM.string(variants[{{ $product->id }}]) === '{{ $variant->id }}'" x-cloak />
                                     @endforeach
                                 </div>
                             </div>

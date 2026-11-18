@@ -1,7 +1,7 @@
 <div
     x-data="stockAssemblyDialog()"
     x-init="openInitialAssembly()"
-    x-on:open-workshop-assembly.window="openAssemblyDialog($event.detail?.url)"
+    x-on:open-workshop-assembly.window="openAssemblyDialog($SM.get($event.detail, 'url'))"
 >
     <dialog
         x-ref="assemblyDialog"
@@ -11,9 +11,9 @@
         x-on:submit="submitAssemblyDialog($event)"
         x-on:cancel.prevent="closeAssemblyDialog()"
         x-on:click.self="closeAssemblyDialog()"
-        x-on:click="if ($event.target.closest('[data-close-assembly-dialog]')) closeAssemblyDialog()"
+        x-on:click="$event.target.closest('[data-close-assembly-dialog]') &amp;&amp; closeAssemblyDialog()"
     >
-        <p x-cloak x-show="assemblyDialogLoading" x-text="$refs.assemblyDialogContent?.querySelector('form') ? 'Updating material quantities…' : 'Loading assembly plan…'" class="mb-3 text-xs text-slate-500" role="status"></p>
+        <p x-cloak x-show="assemblyDialogLoading" x-text="$SM.querySelector($refs.assemblyDialogContent, 'form') ? 'Updating material quantities…' : 'Loading assembly plan…'" class="mb-3 text-xs text-slate-500" role="status"></p>
         <p x-cloak x-show="assemblyDialogError" x-text="assemblyDialogError" class="mb-3 text-sm text-red-700" role="alert"></p>
         <div x-ref="assemblyDialogContent"></div>
     </dialog>

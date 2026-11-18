@@ -1,6 +1,6 @@
 @props(['name' => null, 'value' => null])
 
-<div class="relative" x-data="{ ageHelpOpen: false }" x-id="['participant-age', 'participant-age-help']" x-on:keydown.escape.window="if (ageHelpOpen) { ageHelpOpen = false; $refs.ageHelpButton.focus(); }">
+<div class="relative" x-data="{ ageHelpOpen: false }" x-id="['participant-age', 'participant-age-help']" x-on:keydown.escape.window="$SM.closeAgeHelp($el)">
     <div class="mb-1 flex items-center gap-1.5">
         <label x-bind:for="$id('participant-age')" class="text-sm font-medium">Age <span class="text-xs font-normal text-gray-500">(optional)</span></label>
         <x-ui.button variant="plain" type="button" class="inline-flex h-6 w-6 items-center justify-center text-gray-500 hover:text-gray-900" x-ref="ageHelpButton" x-on:click="ageHelpOpen = !ageHelpOpen" x-bind:aria-expanded="ageHelpOpen" x-bind:aria-controls="$id('participant-age-help')" aria-label="About participant age">

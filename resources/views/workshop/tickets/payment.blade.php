@@ -88,7 +88,7 @@
                     voucherError: @js($errors->first('voucher_code') ?: ''),
                     voucherDialogOpen: @js($errors->has('voucher_code')),
                 })"
-            x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
+            x-init="$SM.initializeTicketPayment($el)">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])
             <div class="min-w-0 flex-1">
                 <div class="mb-3 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route(app(\App\Services\WorkshopEquipmentService::class)->products($workshop)->isNotEmpty() ? (($equipmentAmount > 0 || $equipmentQuoteRequired) ? 'workshop.ticket.flow.delivery' : 'workshop.ticket.flow.equipment') : (app(\App\Services\WorkshopCheckoutSelection::class)->supportsCombined($workshop) ? (($session['review_required'] ?? false) ? 'workshop.ticket.flow.review' : 'workshop.ticket.flow.cart') : 'workshop.ticket.flow.start'), $workshop)" /><h2 class="text-2xl font-bold">Payment</h2></div>
@@ -168,8 +168,8 @@
                             error=""
                             x-model="paymentMethod"
                             x-on:change="onPaymentMethodChange()"
-                            x-on:mousedown="if (isSubmitting || expired) { $event.preventDefault() }"
-                            x-on:keydown="if (isSubmitting || expired) { $event.preventDefault() }">
+                            x-on:mousedown="$SM.preventIf($event, isSubmitting || expired)"
+                            x-on:keydown="$SM.preventIf($event, isSubmitting || expired)">
                             @if($totalAmount > 0)
                             @if($canUseAccountTerms)
                             <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
@@ -235,7 +235,7 @@
                     @enderror
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between" x-show="!expired" x-cloak>
-                        <x-ui.button x-data type="button" color="danger-outline" x-bind:disabled="isSubmitting || expired" x-on:click="document.getElementById('ticket-cancel-form').submit();">Cancel</x-ui.button>
+                        <x-ui.button x-data type="button" color="danger-outline" x-bind:disabled="isSubmitting || expired" x-on:click="$SM.submitFormById('ticket-cancel-form')">Cancel</x-ui.button>
                         <x-ui.button type="submit" x-bind:disabled="expired || isSubmitting || (paymentMethod === 'credit_card' && isCardLoading)">
                             <span x-show="!isSubmitting" x-text="submitButtonLabel()"></span>
                             <span x-show="isSubmitting" x-cloak>Processing...</span>
@@ -255,7 +255,7 @@
                         aria-modal="true"
                         aria-labelledby="ticket-voucher-dialog-title"
                         @click.self="closeVoucherDialog()"
-                        @keydown.escape.window="if (voucherDialogOpen) closeVoucherDialog()"
+                        @keydown.escape.window="$SM.callDataMethodWhen($el, voucherDialogOpen, 'closeVoucherDialog')"
                     >
                         <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-visible rounded-3xl bg-white shadow-2xl">
                             <div class="px-6 py-5">

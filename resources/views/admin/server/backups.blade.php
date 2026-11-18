@@ -14,7 +14,7 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <div class="font-semibold" :class="run.status === 'failed' ? 'text-red-900' : (run.status === 'completed' ? 'text-green-900' : 'text-sky-950')" x-text="operationLabel(run.type)"></div>
-                        <div class="mt-1 text-sm" :class="run.status === 'failed' ? 'text-red-800' : (run.status === 'completed' ? 'text-green-800' : 'text-sky-800')" x-text="run.status === 'failed' ? run.error_message : run.message"></div>
+                        <div class="mt-1 text-sm" :class="run.status === 'failed' ? 'text-red-800' : (run.status === 'completed' ? 'text-green-800' : 'text-sky-800')" x-text="run.status === 'failed' ? $SM.get(run, 'error_message') : run.message"></div>
                     </div>
                     <span class="text-xs font-semibold uppercase tracking-wide" x-text="run.status"></span>
                 </div>

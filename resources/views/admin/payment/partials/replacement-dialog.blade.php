@@ -7,15 +7,15 @@
         aria-modal="true"
         aria-labelledby="payment-replacement-dialog-title"
         @click.self="closeReplacementDialog()"
-        @keydown.escape.window="if (replacementDialogOpen) { closeReplacementDialog() }"
+        @keydown.escape.window="$SM.callDataMethodWhen($el, replacementDialogOpen, 'closeReplacementDialog')"
     >
         <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div class="border-b border-gray-200 px-6 py-5">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-amber-700" x-text="replacementDialogData?.headline || 'Override EFTPOS payment?'"></div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-amber-700" x-text="$SM.get(replacementDialogData, 'headline') || 'Override EFTPOS payment?'"></div>
                         <h2 id="payment-replacement-dialog-title" class="mt-1 text-xl font-bold text-gray-900">Compare payments</h2>
-                        <p class="mt-2 text-sm leading-6 text-gray-600" x-text="replacementDialogData?.description || 'Compare the current payment with the matching EFTPOS transaction before replacing it.'"></p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600" x-text="$SM.get(replacementDialogData, 'description') || 'Compare the current payment with the matching EFTPOS transaction before replacing it.'"></p>
                     </div>
                     <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeReplacementDialog()" aria-label="Close replacement dialog">
                         <i class="fa-solid fa-xmark text-lg" aria-hidden="true"></i>
@@ -24,7 +24,7 @@
             </div>
 
             <div class="overflow-y-auto px-6 py-6">
-                <div x-show="replacementDialogData?.candidates?.length > 1" class="mb-5 w-full">
+                <div x-show="$SM.get(replacementDialogData, 'candidates.length', 0) > 1" class="mb-5 w-full">
                     <x-ui.select
                         name="replacement_candidate"
                         label="Select matching payment"
@@ -35,7 +35,7 @@
                         selectClass="w-full"
                         x-model="replacementDialogSelectedCandidateId"
                     >
-                        <template x-for="candidate in (replacementDialogData?.candidates || [])" :key="candidate.id">
+                        <template x-for="candidate in ($SM.get(replacementDialogData, 'candidates', []) || [])" :key="candidate.id">
                             <option :value="String(candidate.id)" x-text="candidate.label + ' · ' + candidate.date + ' · ' + candidate.amount"></option>
                         </template>
                     </x-ui.select>
@@ -45,14 +45,14 @@
                     <section class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide text-amber-800">Current payment</h3>
-                            <x-ui.badge color="warning" variant="outline" x-text="replacementDialogData?.source?.label || '-'"></x-ui.badge>
+                            <x-ui.badge color="warning" variant="outline" x-text="$SM.get(replacementDialogData, 'source.label', '-') || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y divide-amber-100 overflow-hidden rounded-xl border border-amber-200 bg-white">
                             <template x-for="row in [
-                                ['Date / Time', replacementDialogData?.source?.date],
-                                ['Customer', replacementDialogData?.source?.customer],
-                                ['Method', replacementDialogData?.source?.method],
-                                ['Amount', replacementDialogData?.source?.amount],
+                                ['Date / Time', $SM.get(replacementDialogData, 'source.date')],
+                                ['Customer', $SM.get(replacementDialogData, 'source.customer')],
+                                ['Method', $SM.get(replacementDialogData, 'source.method')],
+                                ['Amount', $SM.get(replacementDialogData, 'source.amount')],
                                 ['Reference', replacementDialogData?.source?.reference],
                                 ['Notes', replacementDialogData?.source?.notes],
                             ]" :key="row[0]">
@@ -67,14 +67,14 @@
                     <section class="rounded-2xl border p-4" style="border-color: rgb(165 243 252 / 1); background-color: rgb(236 254 255 / 0.6);">
                         <div class="flex items-center justify-between gap-3">
                             <h3 class="text-sm font-semibold uppercase tracking-wide" style="color: rgb(21 94 117);">Selected match</h3>
-                            <x-ui.badge color="sky" variant="outline" x-text="selectedReplacementCandidate()?.label || '-'"></x-ui.badge>
+                            <x-ui.badge color="sky" variant="outline" x-text="$SM.get(selectedReplacementCandidate(), 'label', '-') || '-'"></x-ui.badge>
                         </div>
                         <div class="mt-4 divide-y overflow-hidden rounded-xl border bg-white" style="border-color: rgb(165 243 252 / 1);">
                             <template x-for="row in [
-                                ['Date / Time', selectedReplacementCandidate()?.date],
-                                ['Customer', selectedReplacementCandidate()?.customer],
-                                ['Method', selectedReplacementCandidate()?.method],
-                                ['Amount', selectedReplacementCandidate()?.amount],
+                                ['Date / Time', $SM.get(selectedReplacementCandidate(), 'date')],
+                                ['Customer', $SM.get(selectedReplacementCandidate(), 'customer')],
+                                ['Method', $SM.get(selectedReplacementCandidate(), 'method')],
+                                ['Amount', $SM.get(selectedReplacementCandidate(), 'amount')],
                                 ['Reference', selectedReplacementCandidate()?.reference],
                                 ['Notes', selectedReplacementCandidate()?.notes],
                             ]" :key="row[0]">

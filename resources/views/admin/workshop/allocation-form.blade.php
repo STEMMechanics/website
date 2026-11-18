@@ -16,7 +16,7 @@
     $enabled = $inline ? (bool) old('workshop_allocations.'.$workshop->id.'.override', $allocation['budget']->manual ?? false) : (bool) ($allocation['budget']->manual ?? false);
 @endphp
 <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
-    <div><h3 class="font-semibold">{{ $workshop->title }}</h3><p class="mt-1 text-sm text-slate-500" x-data="{ participants: @js($allocation['assumptions']['participants']), hours: @js($allocation['assumptions']['hours']) }" @if($inline) x-on:workshop-allocation-inputs.window="if ($event.detail.id === @js($workshop->id)) { participants = $event.detail.participants; hours = $event.detail.hours; }" @endif>{{ $allocation['version']->name }} · <span x-text="participants"></span> participants · <span x-text="hours"></span> hours</p></div>
+    <div><h3 class="font-semibold">{{ $workshop->title }}</h3><p class="mt-1 text-sm text-slate-500" x-data="{ participants: @js($allocation['assumptions']['participants']), hours: @js($allocation['assumptions']['hours']) }" @if($inline) x-on:workshop-allocation-inputs.window="$SM.updateWorkshopAllocationInputs($el, $event.detail, @js($workshop->id))" @endif>{{ $allocation['version']->name }} · <span x-text="participants"></span> participants · <span x-text="hours"></span> hours</p></div>
     @unless($inline)<x-ui.badge :color="$state['current'] ? 'success' : 'gray'">{{ $state['status'] }}</x-ui.badge>@endunless
 </div>
 @unless($state['status'] === 'No allocation required')
@@ -33,7 +33,7 @@
         @if($inline) data-workshop-allocation="{{ $workshop->id }}" data-allocation-ready="{{ $state['ready'] ? '1' : '0' }}" data-allocation-changed="{{ $state['ready'] && !$state['current'] ? '1' : '0' }}" @endif
         x-data="$SM.allocationTally(@js(['workshopId' => $workshop->id, 'received' => $allocation['income']['net'], 'workshopInputs' => $allocation['assumptions'], 'workshopRules' => $rules, 'values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $planningTotal, 'exact' => false, 'enabled' => $enabled]))"
         @if($inline) x-on:workshop-allocation-inputs.window="previewWorkshop($event.detail)" x-on:invoice-lines-updated.window="previewWorkshopFunding($event.detail)" @endif
-        x-effect="@if($inline) $el.dataset.allocationChanged = {{ $state['ready'] && !$state['current'] ? 'true' : 'false' }} || allocationChanged ? '1' : '0'; @endif $dispatch('allocation-plan-updated', { key: '{{ $allocationKey }}', values: { ...values }, funding: total, inspect: false })">
+        x-effect="$SM.syncWorkshopAllocationPlan($el, allocationChanged, values, total, '{{ $allocationKey }}', {{ $state['ready'] && !$state['current'] ? 'true' : 'false' }})">
         @csrf
         <input type="hidden" name="source_hash" value="{{ $state['hash'] }}">
         <input type="hidden" name="revision" value="{{ $allocation['budget'] ? hash('sha256', json_encode((array) $allocation['budget'])) : '' }}">
@@ -48,7 +48,7 @@
                 <h3 class="text-sm font-semibold">Allocation amounts (ex GST)</h3>
                 @if($inline)
                     <input type="hidden" name="override" x-bind:value="enabled ? '1' : '0'">
-                    <x-ui.button type="button" color="outline" class="inline-flex items-center gap-2" x-on:click="enabled = false; refreshWorkshopDefaults()" x-bind:disabled="!enabled"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Use defaults</x-ui.button>
+                    <x-ui.button type="button" color="outline" class="inline-flex items-center gap-2" x-on:click="$SM.setDataValueAndCall($el, 'enabled', false, 'refreshWorkshopDefaults')" x-bind:disabled="!enabled"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Use defaults</x-ui.button>
                 @else
                     <x-ui.checkbox :no-wrapper="true" name="override" value="1" label="Override defaults" x-model="enabled" x-on:change="refreshWorkshopDefaults()" />
                 @endif
@@ -60,7 +60,7 @@
                 <div class="flex justify-between gap-4"><dt>{{ $allocation['fundingLines']->isNotEmpty() ? 'Invoiced funding (ex GST)' : 'Income (ex GST)' }}</dt><dd class="font-semibold tabular-nums" x-text="money(total)"></dd></div>
                 <div class="flex justify-between gap-4"><dt>Received (ex GST)</dt><dd class="text-right font-semibold tabular-nums">${{ number_format($allocation['income']['net'] / 100, 2) }}</dd></div>
                 <div class="flex justify-between gap-4"><dt>Allocation targets (ex GST)</dt><dd class="font-semibold tabular-nums" x-text="money(allocated)"></dd></div>
-                <div class="flex justify-between gap-4" :class="remaining < 0 ? 'text-red-700' : (remaining === 0 ? 'text-emerald-700' : 'text-amber-700')"><dt x-text="remaining < 0 ? 'Shortfall (ex GST)' : 'Unallocated (ex GST)'"></dt><dd class="font-semibold tabular-nums" x-text="money(Math.abs(remaining))"></dd></div>
+                <div class="flex justify-between gap-4" :class="remaining < 0 ? 'text-red-700' : (remaining === 0 ? 'text-emerald-700' : 'text-amber-700')"><dt x-text="remaining < 0 ? 'Shortfall (ex GST)' : 'Unallocated (ex GST)'"></dt><dd class="font-semibold tabular-nums" x-text="money($SM.abs(remaining))"></dd></div>
             </dl>
         </div>
         <div class="mt-6 flex flex-wrap items-center justify-end gap-4">

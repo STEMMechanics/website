@@ -46,7 +46,92 @@
 
             @if(!$showIgnored && $similarPairs->isNotEmpty())
                 <div
-                    x-data="{
+                    x-data="smCspAdminMediaDuplicates1"
+                    x-on:similar-pair-action-change.window="$SM.setDataValues($el, { ['selectionActions.' + $event.detail.key]: $event.detail.action, queueError: '' })"
+                >
+                    <input x-ref="csrf" type="hidden" value="{{ csrf_token() }}">
+                    <div x-ref="pairs" class="mt-5 space-y-5">
+                        @foreach($similarPairs as $pair)
+                            <div class="border-t border-gray-200 pt-5">
+                                <div class="mb-4">
+                                    <h3 class="font-semibold text-gray-900">{{ number_format($pair['similarity'], 1) }}% visually similar</h3>
+                                </div>
+                                @include('admin.media._duplicate-comparison', [
+                                    'left' => $pair['first'],
+                                    'right' => $pair['second'],
+                                    'canMerge' => true,
+                                ])
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="mt-6 flex items-center justify-between gap-4 border-t border-gray-200 pt-5">
+                        <p class="text-sm text-gray-600" x-text="selectedActionLabel()"></p>
+                        <x-ui.button type="button" x-on:click="saveActions()" x-bind:disabled="processing || selectedActionCount() === 0">Save</x-ui.button>
+                    </div>
+                    <p x-show="queueError" x-cloak x-text="queueError" class="mt-3 text-sm text-red-700" role="alert"></p>
+
+                    <div x-show="progressOpen" x-cloak class="fixed inset-0 z-280 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="similar-progress-title">
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+                            <h3 id="similar-progress-title" class="text-lg font-semibold text-gray-900" x-text="complete ? 'Save complete' : 'Saving selected actions'"></h3>
+                            <p class="mt-2 text-sm text-gray-600" x-text="batch.completed+' of '+batch.total+' selected actions processed'"></p>
+                            <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Duplicate actions progress" aria-valuemin="0" x-bind:aria-valuemax="batch.total" x-bind:aria-valuenow="batch.completed">
+                                <div class="h-full rounded-full bg-primary-color transition-all duration-300" x-bind:style="'width: '+progressPercent()+'%'" x-bind:class="processing ? 'animate-pulse' : ''"></div>
+                            </div>
+                            <div x-show="complete && failures.length === 0" x-cloak class="mt-4 text-sm text-green-800">All selected actions were processed.</div>
+                            <div x-show="complete && failures.length > 0" x-cloak class="mt-4">
+                                <p class="text-sm text-amber-800" x-text="failures.length+' action(s) could not be processed. Reload to review those rows.'"></p>
+                                <ul class="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-gray-600">
+                                    <template x-for="failure in failures" :key="failure.row">
+                                        <li><span class="font-medium" x-text="failure.row"></span>: <span x-text="failure.message"></span></li>
+                                    </template>
+                                </ul>
+                            </div>
+                            <div class="mt-6 flex justify-end">
+                                <x-ui.button type="button" x-show="complete" x-on:click="finish()">Finish</x-ui.button>
+                                <span x-show="processing" class="text-sm font-medium text-gray-600">Please keep this page open while it saves.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @elseif($showIgnored && $similarPairs->isNotEmpty())
+                <div class="mt-5 space-y-5">
+                    @foreach($similarPairs as $pair)
+                        <div class="border-t border-gray-200 pt-5">
+                            <div class="mb-4 flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">{{ number_format($pair['similarity'], 1) }}% visually similar</h3>
+                                </div>
+                                <form method="POST" action="{{ route('admin.media.duplicates.restore-similar') }}">
+                                    @csrf
+                                    @method('DELETE')
+                                    <input type="hidden" name="first" value="{{ $pair['first']->name }}">
+                                    <input type="hidden" name="second" value="{{ $pair['second']->name }}">
+                                    <x-ui.button type="submit" color="outline">Restore match</x-ui.button>
+                                </form>
+                            </div>
+                            @include('admin.media._duplicate-comparison', [
+                                'left' => $pair['first'],
+                                'right' => $pair['second'],
+                                'canMerge' => false,
+                            ])
+                        </div>
+                    @endforeach
+                </div>
+            @elseif($similarPairs->isEmpty())
+                <div class="mt-5 border-t border-gray-200 pt-5 text-center text-sm text-gray-700">
+                    {{ $showIgnored ? 'No ignored similar images found.' : 'No similar images found.' }}
+                    <a href="{{ $showIgnored ? route('admin.media.duplicates') : route('admin.media.duplicates', ['show_ignored' => 1]) }}" class="font-medium text-primary-color hover:underline">
+                        {{ $showIgnored ? 'Show possible matches' : 'Show ignored matches' }}
+                    </a>
+                </div>
+            @endif
+        </div>
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminMediaDuplicates1', () => ({
                         mergeUrl: @js(route('admin.media.duplicates.merge-similar')),
                         ignoreUrl: @js(route('admin.media.duplicates.ignore-similar')),
                         processing: false,
@@ -164,86 +249,7 @@
                         finish() {
                             window.location.reload();
                         }
-                    }"
-                    x-on:similar-pair-action-change.window="selectionActions[$event.detail.key] = $event.detail.action; queueError = ''"
-                >
-                    <input x-ref="csrf" type="hidden" value="{{ csrf_token() }}">
-                    <div x-ref="pairs" class="mt-5 space-y-5">
-                        @foreach($similarPairs as $pair)
-                            <div class="border-t border-gray-200 pt-5">
-                                <div class="mb-4">
-                                    <h3 class="font-semibold text-gray-900">{{ number_format($pair['similarity'], 1) }}% visually similar</h3>
-                                </div>
-                                @include('admin.media._duplicate-comparison', [
-                                    'left' => $pair['first'],
-                                    'right' => $pair['second'],
-                                    'canMerge' => true,
-                                ])
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <div class="mt-6 flex items-center justify-between gap-4 border-t border-gray-200 pt-5">
-                        <p class="text-sm text-gray-600" x-text="selectedActionLabel()"></p>
-                        <x-ui.button type="button" x-on:click="saveActions()" x-bind:disabled="processing || selectedActionCount() === 0">Save</x-ui.button>
-                    </div>
-                    <p x-show="queueError" x-cloak x-text="queueError" class="mt-3 text-sm text-red-700" role="alert"></p>
-
-                    <div x-show="progressOpen" x-cloak class="fixed inset-0 z-280 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="similar-progress-title">
-                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-                            <h3 id="similar-progress-title" class="text-lg font-semibold text-gray-900" x-text="complete ? 'Save complete' : 'Saving selected actions'"></h3>
-                            <p class="mt-2 text-sm text-gray-600" x-text="batch.completed+' of '+batch.total+' selected actions processed'"></p>
-                            <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Duplicate actions progress" aria-valuemin="0" x-bind:aria-valuemax="batch.total" x-bind:aria-valuenow="batch.completed">
-                                <div class="h-full rounded-full bg-primary-color transition-all duration-300" x-bind:style="'width: '+progressPercent()+'%'" x-bind:class="processing ? 'animate-pulse' : ''"></div>
-                            </div>
-                            <div x-show="complete && failures.length === 0" x-cloak class="mt-4 text-sm text-green-800">All selected actions were processed.</div>
-                            <div x-show="complete && failures.length > 0" x-cloak class="mt-4">
-                                <p class="text-sm text-amber-800" x-text="failures.length+' action(s) could not be processed. Reload to review those rows.'"></p>
-                                <ul class="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-gray-600">
-                                    <template x-for="failure in failures" :key="failure.row">
-                                        <li><span class="font-medium" x-text="failure.row"></span>: <span x-text="failure.message"></span></li>
-                                    </template>
-                                </ul>
-                            </div>
-                            <div class="mt-6 flex justify-end">
-                                <x-ui.button type="button" x-show="complete" x-on:click="finish()">Finish</x-ui.button>
-                                <span x-show="processing" class="text-sm font-medium text-gray-600">Please keep this page open while it saves.</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @elseif($showIgnored && $similarPairs->isNotEmpty())
-                <div class="mt-5 space-y-5">
-                    @foreach($similarPairs as $pair)
-                        <div class="border-t border-gray-200 pt-5">
-                            <div class="mb-4 flex items-start justify-between gap-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">{{ number_format($pair['similarity'], 1) }}% visually similar</h3>
-                                </div>
-                                <form method="POST" action="{{ route('admin.media.duplicates.restore-similar') }}">
-                                    @csrf
-                                    @method('DELETE')
-                                    <input type="hidden" name="first" value="{{ $pair['first']->name }}">
-                                    <input type="hidden" name="second" value="{{ $pair['second']->name }}">
-                                    <x-ui.button type="submit" color="outline">Restore match</x-ui.button>
-                                </form>
-                            </div>
-                            @include('admin.media._duplicate-comparison', [
-                                'left' => $pair['first'],
-                                'right' => $pair['second'],
-                                'canMerge' => false,
-                            ])
-                        </div>
-                    @endforeach
-                </div>
-            @elseif($similarPairs->isEmpty())
-                <div class="mt-5 border-t border-gray-200 pt-5 text-center text-sm text-gray-700">
-                    {{ $showIgnored ? 'No ignored similar images found.' : 'No similar images found.' }}
-                    <a href="{{ $showIgnored ? route('admin.media.duplicates') : route('admin.media.duplicates', ['show_ignored' => 1]) }}" class="font-medium text-primary-color hover:underline">
-                        {{ $showIgnored ? 'Show possible matches' : 'Show ignored matches' }}
-                    </a>
-                </div>
-            @endif
-        </div>
-    </x-container>
+                    }));
+});
+</script>
 </x-layout>

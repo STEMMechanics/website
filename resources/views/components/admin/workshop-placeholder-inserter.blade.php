@@ -6,7 +6,7 @@
     <select
         class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
         aria-label="Insert workshop placeholder"
-        x-on:change="if ($event.target.value) { insertText($event.target.value); $event.target.value = ''; }"
+        x-on:change="$SM.replaceWorkshopPlaceholder($el)"
     >
         <option value="">Insert workshop placeholder</option>
         <option value="{date-short}">{date-short} · 27/08/2026</option>

@@ -70,7 +70,384 @@
 
     <x-container class="mt-4">
         <x-admin.ai-status-toast id="workshop-blueprint-ai-toast" message="Preparing workshop copy…" detail="Blueprint details are being used to draft this content." progress-label="Workshop blueprint copy generation" />
-        <form id="workshop-blueprint-form" method="POST" action="{{ route('admin.workshop-blueprint.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
+        <form id="workshop-blueprint-form" method="POST" action="{{ route('admin.workshop-blueprint.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="smCspAdminPickListTemplateEdit1" enctype="multipart/form-data" x-init="$SM.initializeDataMethods($el, ['ensureSingleTrailingBlank', 'ensureSingleTrailingBlankTask'])" x-on:submit.prevent="submitBlueprint($event)" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
+            @csrf
+            @if($editing)
+                @method('PUT')
+            @endif
+
+            <input x-ref="itemsPayload" type="hidden" name="items_payload" x-bind:value="serializedItems()">
+            <input type="hidden" name="tasks_payload" x-bind:value="serializedTasks()">
+
+            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Blueprint overview</h2>
+                <x-ui.input label="Blueprint Name" name="name" value="{{ old('name', $template->name ?? '') }}" />
+                <x-ui.input type="textarea" label="Notes" name="description" value="{{ old('description', $template->description ?? '') }}" rows="3" />
+                <x-ui.grid class="gap-4 md:grid-cols-2">
+                    <x-ui.input label="Duration" name="duration" value="{{ old('duration', $template->duration ?? '') }}" placeholder="e.g. 1 hr, 1.5 hours, or 90 mins" />
+                    <x-ui.input label="Participants" name="participants" value="{{ old('participants', $template->participants ?? '') }}" placeholder="e.g. 10 or 10-15" />
+                </x-ui.grid>
+                <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">These categories are preselected when a workshop is created from this blueprint.</p>
+                        </div>
+                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
+                    </div>
+
+                    @if(($workshopCategories ?? collect())->isEmpty())
+                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
+                    @else
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach($workshopCategories as $category)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                    <x-ui.checkbox
+                                        name="category_ids[]"
+                                        value="{{ $category->id }}"
+                                        :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
+                                        :noWrapper="true"
+                                    />
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="font-medium">{{ $category->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
+                <div class="mb-3"><h2 class="text-lg font-semibold">Default workshop details</h2><p class="mt-1 text-sm text-gray-600">These are copied into a new workshop and can be changed there.</p></div>
+                <x-ui.input label="Default Workshop Title" name="default_workshop_title" value="{{ old('default_workshop_title', $template->default_workshop_title ?? $template->name ?? '') }}" />
+                <div class="mb-4">
+                    <div class="mb-1 flex items-center gap-1 pl-1">
+                        <label for="default_workshop_summary" class="text-sm">Default Summary</label>
+                        <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="default_workshop_summary" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="$SM.string(blueprintFieldValue('default_workshop_summary')).trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                    </div>
+                    <x-ui.input type="textarea" noLabel class="mb-0" id="default_workshop_summary" name="default_workshop_summary" value="{{ old('default_workshop_summary', $template->default_workshop_summary ?? '') }}" rows="3" />
+                </div>
+                <x-ui.editor name="default_workshop_content" label="Default Workshop Description" class="workshop-template-editor" :value="old('default_workshop_content', $template->default_workshop_content ?? '')">
+                    <x-slot:toolbar>
+                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="$SM.string(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Replace and improve default workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
+                            <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                        </x-ui.button>
+                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Checking for missing learning outcomes…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="$SM.string(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Add missing supported learning outcomes without changing the description" title="Add only supported learning outcomes that are missing. Existing description and outcomes are kept unchanged." :disabled="blank(config('services.openai.api_key'))">
+                            <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                        </x-ui.button>
+                    </x-slot:toolbar>
+                </x-ui.editor>
+                <div class="mt-4"><x-ui.media label="Default Hero Image" name="hero_media_name" value="{{ old('hero_media_name', $template->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" /></div>
+            </div>
+
+            <template x-teleport="#workshop-template-tasks">
+            <div>
+            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
+                <div class="flex items-center justify-between mb-3 gap-3">
+                    <h2 class="text-lg font-semibold">Tasks</h2>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-sky-50 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Drafting social posts from the workshop description…" data-ai-complete-message="Social post copy is ready. Review and edit it before saving." data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="social_post_bundle" data-ai-mode="write" data-ai-result-key="announcement" data-ai-result-event="workshop-social-post-bundle" data-ai-context="{}" x-on:click="addDefaultSocialPostTasks($event.currentTarget)" x-bind:title="allDefaultSocialPostTasksAdded() ? 'Redraft the default social post copy with AI' : 'Add missing social post tasks and draft their copy with AI'" aria-label="Add missing tasks and draft or refresh social post copy"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i></x-ui.button>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <template x-for="(task, index) in tasks" :key="task.id || ('new-task-' + (index) + '')">
+                        <x-ui.grid class="gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                            <div>
+                                <label class="block text-sm pl-1 mb-1">Task</label>
+                                <div class="flex gap-4 items-center">
+                                    <x-ui.input-control class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)" />
+                                    <x-ui.row-actions :menu="false">
+                                        <x-ui.row-action label="Notes, subtasks, and reminder" icon="fa-solid fa-sliders" tone="neutral" type="button" x-on:click="openTaskEditor(index)" />
+                                        <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" />
+                                        <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" />
+                                        <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeTask(index)" x-bind:disabled="isBlankTask(task)" />
+                                    </x-ui.row-actions>
+                                </div>
+                                <div class="mt-1 pl-1 flex flex-wrap gap-2 text-xs text-gray-500">
+                                    <span x-show="$SM.string(task.notes || '').trim() !== ''"><i class="fa-regular fa-note-sticky mr-1"></i>Has notes</span>
+                                    <span x-show="task.reminder_enabled"><i class="fa-regular fa-bell mr-1"></i><span x-text="('' + (task.reminder_days) + ' day' + ($SM.number(task.reminder_days) === 1 ? '' : 's') + ' ' + (task.reminder_direction) + ' at ' + (task.reminder_time) + '')"></span></span>
+                                </div>
+                            </div>
+                        </x-ui.grid>
+                    </template>
+                </div>
+            </div>
+
+            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="closeTaskEditor()" x-on:click.self="closeTaskEditor()" x-effect="$SM.toggleBodyScroll($el, taskEditorIndex !== null)">
+                <div class="max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-bind:class="taskEditorExpanded ? 'h-[calc(100dvh-2rem)] max-w-none' : 'max-w-4xl'" x-on:wheel.stop>
+                    <template x-if="taskEditorIndex !== null && tasks[taskEditorIndex]">
+                        <div>
+                            <div class="mb-4 flex items-center justify-between gap-3">
+                                <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
+                                <div class="flex items-center gap-3">
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></x-ui.button>
+                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+                                </div>
+                            </div>
+
+                            <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
+                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</x-ui.button>
+                                <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-tab-' + (subtaskIndex) + '')">
+                                    <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === ('subtask-' + (subtaskIndex) + '') ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = ('subtask-' + (subtaskIndex) + '')" x-text="subtask.title || ('Subtask ' + (subtaskIndex + 1) + '')"></x-ui.button>
+                                </template>
+                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus" aria-hidden="true"></i></x-ui.button>
+                            </div>
+
+                            <div x-show="taskEditorTab === 'details'">
+                                <div class="mb-1 flex items-center justify-between gap-2">
+                                    @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Notes'])
+                                    <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(taskAiContext(taskEditorIndex))" x-bind:data-ai-mode="$SM.string($SM.get(tasks[taskEditorIndex], 'notes', '')).trim() ? 'improve' : 'write'" aria-label="Write or improve task content" title="Write or improve task content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                </div>
+                                <x-ui.mini-editor label="Task notes" x-model="tasks[taskEditorIndex].notes">
+                                    <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                </x-ui.mini-editor>
+
+                                <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                                    <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
+                                    <x-ui.grid class="mt-4 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
+                                        <x-ui.input type="number" min="0" max="365" step="1" label="Days" name="task_reminder_days_display" :noLabel="false" x-model="tasks[taskEditorIndex].reminder_days" />
+                                        <x-ui.select label="When" name="task_reminder_direction_display" x-model="tasks[taskEditorIndex].reminder_direction">
+                                            <option value="before">Before workshop</option>
+                                            <option value="after">After workshop</option>
+                                        </x-ui.select>
+                                        <x-ui.select label="Time" name="task_reminder_time_display" x-model="tasks[taskEditorIndex].reminder_time">
+                                            <option value="06:00">6:00am</option>
+                                            <option value="12:00">12:00pm</option>
+                                            <option value="16:00">4:00pm</option>
+                                        </x-ui.select>
+                                    </x-ui.grid>
+                                </div>
+                            </div>
+
+                            <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-panel-' + (subtaskIndex) + '')">
+                                <div x-show="taskEditorTab === ('subtask-' + (subtaskIndex) + '')">
+                                    <div class="mb-4 flex items-end gap-3">
+                                        <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title" /></label>
+                                        <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Remove</x-ui.button>
+                                    </div>
+                                    <div class="mb-1 flex items-center justify-between gap-2">
+                                        @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Subtask content'])
+                                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(taskAiContext(taskEditorIndex, subtaskIndex))" x-bind:data-ai-mode="$SM.string(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve subtask content" title="Write or improve subtask content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                    </div>
+                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
+                                        <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                    </x-ui.mini-editor>
+                                </div>
+                            </template>
+
+                            <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="closeTaskEditor()">Done</x-ui.button></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            </div>
+            </template>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 overflow-x-auto overflow-y-visible shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold">Pick List</h2>
+                </div>
+                <template x-if="items.length === 0">
+                    <p class="text-sm text-gray-600">No items yet. Add your first pick list item.</p>
+                </template>
+
+                <div x-show="items.length > 0">
+                    <x-ui.table variant="plain" table-class="min-w-full border border-gray-200 rounded-md">
+                        <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
+                            <tr>
+                                <th class="px-3 py-2 border-b border-gray-300">Item</th>
+                                <th class="hidden w-44 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Type</th>
+                                <th class="hidden w-24 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Quantity</th>
+                                <th class="w-44 px-3 py-2 border-b border-gray-300 text-center!">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="(item, index) in items" :key="item._rowKey">
+                                <tr class="border-b border-gray-300 last:border-b-0">
+                                    <td class="p-2 align-top">
+                                        <div
+                                            class="flex flex-wrap items-center gap-2"
+                                            x-on:product-item-link-changed="selectProductItem(index)"
+                                            x-on:input="handleRowChange(index)"
+                                            x-on:change="handleRowChange(index)"
+                                        >
+                                            <x-admin.product-item-field class="min-w-56 flex-1" catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
+                                            <x-admin.product-preparation-fields :inline="true" />
+                                        </div>
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][item_name]')" x-bind:value="$SM.get(item, 'item_name', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][id]')" x-bind:value="$SM.get(item, 'id', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_id]')" x-bind:value="$SM.get(item, 'product_id', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_variant_id]')" x-bind:value="$SM.get(item, 'product_variant_id', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][cut_size_id]')" x-bind:value="$SM.get(item, 'cut_size_id', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length]')" x-bind:value="$SM.get(item, 'length', '')">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length_unit]')" x-bind:value="item.length ? item.length_unit : ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_unit]')" x-bind:value="item.product_id ? $SM.productQuantityUnit($SM.findById(productCatalog, item.product_id), item) : ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_type]')" x-bind:value="item.quantity_type">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_value]')" x-bind:value="item.quantity_value">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][sort_order]')" x-bind:value="item.sort_order">
+                                        <x-ui.grid class="md:hidden mt-2 gap-2">
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Type</label>
+                                                    <x-ui.select
+                                                        name="quantity_type_placeholder"
+                                                        label="Type"
+                                                        :noLabel="true"
+                                                        class="mb-0"
+                                                        x-model="item.quantity_type"
+                                                        x-on:change="$SM.setDataValueAndCall($el, 'item.quantity_type', $event.target.value, 'handleRowChange', [index])">
+                                                        <option value="per_participant">Per Participant</option>
+                                                        <option value="fixed">Fixed amount</option>
+                                                    </x-ui.select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Quantity</label>
+                                                    <x-ui.input
+                                                        type="number"
+                                                        name="quantity_value_placeholder"
+                                                        label="Quantity"
+                                                        :noLabel="true"
+                                                        class="mb-0"
+                                                        fieldClasses="mt-0"
+                                                        min="1"
+                                                        step="1"
+                                                        x-model="item.quantity_value"
+                                                        x-bind:required="!isBlankItem(item)"
+                                                        x-on:input="$SM.callDataMethods($el, [['setItemQuantity', [index, $event.target.value]], ['handleRowChange', [index]]])"
+                                                        x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
+                                                </div>
+                                            </div>
+                                        </x-ui.grid>
+
+                                    </td>
+                                    <td class="w-44 p-2 align-top hidden md:table-cell text-center!">
+                                        <x-ui.select
+                                            name="quantity_type_placeholder_desktop"
+                                            label="Type"
+                                            :noLabel="true"
+                                            class="mb-0"
+                                            x-model="item.quantity_type"
+                                            x-on:change="$SM.setDataValueAndCall($el, 'item.quantity_type', $event.target.value, 'handleRowChange', [index])">
+                                            <option value="per_participant">Per Participant</option>
+                                            <option value="fixed">Fixed amount</option>
+                                        </x-ui.select>
+                                    </td>
+                                    <td class="hidden w-24 p-2 align-top md:table-cell">
+                                        <x-ui.input
+                                            type="number"
+                                            name="quantity_value_placeholder_desktop"
+                                            label="Quantity"
+                                            :noLabel="true"
+                                            class="mb-0"
+                                            fieldClasses="mt-0"
+                                            min="1"
+                                            step="1"
+                                            x-model="item.quantity_value"
+                                            x-bind:required="!isBlankItem(item)"
+                                            x-on:input="$SM.callDataMethods($el, [['setItemQuantity', [index, $event.target.value]], ['handleRowChange', [index]]])"
+                                            x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
+                                    </td>
+                                    <td class="w-44 p-2 align-middle">
+                                        <x-ui.row-actions :menu="false" class="h-full">
+                                            <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveUp(index)" x-bind:disabled="index === 0 || isBlankItem(item)" />
+                                            <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveDown(index)" x-bind:disabled="index >= (items.length - 2) || isBlankItem(item)" />
+                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeItem(item._rowKey)" />
+                                        </x-ui.row-actions>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </x-ui.table>
+                </div>
+            </div>
+
+            <div id="workshop-template-tasks"></div>
+
+            <x-ui.collapsible-section title="Run Sheet Instructions" class="mb-6">
+                <x-ui.editor
+                    name="run_sheet"
+                    label="Instructions"
+                    class="workshop-template-editor"
+                    :value="old('run_sheet', $template->run_sheet ?? '')"
+                />
+            </x-ui.collapsible-section>
+
+            <x-ui.collapsible-section title="Drawing" class="mb-6" x-on:toggle="$el.open &amp;&amp; initCanvas()">
+                <p class="mb-3 text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
+                <input type="hidden" name="run_sheet_canvas_data" x-ref="canvasDataInput" value="{{ old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '') }}">
+                <input type="hidden" name="run_sheet_drawing_data" x-ref="canvasImageInput" value="{{ old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '') }}">
+                @include('admin.shared.drawing-canvas', ['heightClass' => 'h-[60vh] min-h-[420px]'])
+            </x-ui.collapsible-section>
+
+            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
+                <div class="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <h2 class="text-lg font-semibold">Attachments</h2>
+                        <p class="text-xs text-gray-500">Files selected here remain linked to this blueprint and are copied when the blueprint is duplicated.</p>
+                    </div>
+                    <x-ui.button type="button" color="outline" x-on:click="chooseAttachments()">Select Attachments</x-ui.button>
+                </div>
+                <template x-for="name in attachments" :key="name">
+                    <input type="hidden" name="attachments[]" x-bind:value="name">
+                </template>
+                <x-ui.input-control type="file" name="attachment_uploads[]" multiple class="hidden" x-ref="attachmentUploads" x-on:change="addAttachmentFiles($event.target.files)" />
+                <div
+                    class="mt-3 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center transition hover:border-primary-color hover:bg-sky-50"
+                    x-on:dragover.prevent="$el.classList.add('border-primary-color', 'bg-sky-50')"
+                    x-on:dragleave.prevent="$el.classList.remove('border-primary-color', 'bg-sky-50')"
+                    x-on:drop.prevent="$SM.addAttachmentFiles($el, $event)"
+                    x-on:click="$refs.attachmentUploads.click()"
+                >
+                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400"></i>
+                    <div class="mt-2 text-sm font-semibold text-gray-700">Drop files here or click to browse</div>
+                    <div class="mt-1 text-xs text-gray-500">Files are uploaded when the blueprint is saved.</div>
+                </div>
+                <div class="mt-3 space-y-2" x-show="attachments.length > 0">
+                    <template x-for="(name, index) in attachments" :key="name">
+                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+                            <div class="min-w-0">
+                                <div class="truncate" x-text="name"></div>
+                                <div class="text-xs text-gray-500" x-text="attachmentDetails[name] ? ('' + (attachmentDetails[name].type) + ' · ' + (attachmentSize(attachmentDetails[name].size)) + '') : 'File details available after saving'"></div>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-3">
+                                <a x-show="$SM.get(attachmentDetails[name], 'view_url')" x-bind:href="$SM.get(attachmentDetails[name], 'view_url')" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment" rel="noopener"><i class="fa-solid fa-eye"></i></a>
+                                <a x-show="$SM.get(attachmentDetails[name], 'download_url')" x-bind:href="$SM.get(attachmentDetails[name], 'download_url')" class="text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
+                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div class="mt-3 space-y-2" x-show="pendingAttachments.length > 0">
+                    <template x-for="(item, index) in pendingAttachments" :key="item.key">
+                        <div class="flex items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm">
+                            <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="('' + (item.file.type || 'File') + ' · ' + (attachmentSize(item.size)) + '')"></div></div>
+                            <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
+                        </div>
+                    </template>
+                </div>
+                <p x-show="attachments.length === 0 && pendingAttachments.length === 0" class="mt-3 text-sm text-gray-600">No attachments selected.</p>
+            </div>
+
+            <div class="flex justify-end gap-2">
+                @if($editing)
+                    <x-ui.button color="outline" href="{{ route('admin.workshop-blueprint.pdf', $template) }}" target="_blank">View PDF</x-ui.button>
+                @endif
+                <x-ui.button type="submit" x-bind:disabled="submitting">
+                    <span x-show="!submitting">{{ $editing ? 'Save Blueprint' : 'Create Blueprint' }}</span>
+                    <span x-show="submitting" class="inline-flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
+                        <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
+                    </span>
+                </x-ui.button>
+            </div>
+        </form>
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminPickListTemplateEdit1', () => ({
             items: @js($seedItems),
             itemRowKeySequence: 0,
             productCatalog: @js($productCatalog ?? []),
@@ -83,7 +460,7 @@
             taskEditorTab: 'details',
             taskEditorExpanded: false,
             submitting: false,
-            ...$SM.drawingCanvas({
+            ...window.SM.drawingCanvas({
                 initialData: @js(old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '')),
                 initialImage: @js(old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '')),
                 exportName: @js(($template->name ?? 'workshop-template').'-drawing'),
@@ -345,7 +722,7 @@
                 item.product_variant_id = null;
                 item.length = null;
                 item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
-                item.quantity_unit = item.product_id ? $SM.defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
+                item.quantity_unit = item.product_id ? window.SM.defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
                 item.item_name = item.product_id ? this.productItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
@@ -448,7 +825,7 @@
                         cut_size_id: Number(item.cut_size_id) || null,
                         length: item.length === '' || item.length === undefined ? null : item.length,
                         length_unit: item.length ? item.length_unit : null,
-                        quantity_unit: item.product_id ? $SM.productQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : null,
+                        quantity_unit: item.product_id ? window.SM.productQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : null,
                         quantity_type: item.quantity_type,
                         quantity_value: Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1),
                         sort_order: (index + 1) * 10,
@@ -463,390 +840,19 @@
                     await this.saveDrawing();
                 } catch (error) {
                     console.error('Could not prepare the blueprint drawing for save.', error);
-                    $SM?.alert('Drawing could not be saved', 'The other blueprint changes will still be saved.', 'warning');
+                    window.SM?.alert('Drawing could not be saved', 'The other blueprint changes will still be saved.', 'warning');
                 }
 
                 try {
                     this.$refs.itemsPayload.value = this.serializedItems();
                 } catch (error) {
                     console.error('Could not serialize the blueprint pick list.', error);
-                    $SM?.alert('Pick list could not be prepared', 'The other blueprint changes will still be saved.', 'danger');
+                    window.SM?.alert('Pick list could not be prepared', 'The other blueprint changes will still be saved.', 'danger');
                 }
 
                 HTMLFormElement.prototype.submit.call(form);
             },
-        }" enctype="multipart/form-data" x-init="ensureSingleTrailingBlank(); ensureSingleTrailingBlankTask()" x-on:submit.prevent="submitBlueprint($event)" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-social-post-bundle.window="applyDefaultSocialPostCopies($event.detail)">
-            @csrf
-            @if($editing)
-                @method('PUT')
-            @endif
-
-            <input x-ref="itemsPayload" type="hidden" name="items_payload" x-bind:value="serializedItems()">
-            <input type="hidden" name="tasks_payload" x-bind:value="serializedTasks()">
-
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
-                <h2 class="text-lg font-semibold mb-4">Blueprint overview</h2>
-                <x-ui.input label="Blueprint Name" name="name" value="{{ old('name', $template->name ?? '') }}" />
-                <x-ui.input type="textarea" label="Notes" name="description" value="{{ old('description', $template->description ?? '') }}" rows="3" />
-                <x-ui.grid class="gap-4 md:grid-cols-2">
-                    <x-ui.input label="Duration" name="duration" value="{{ old('duration', $template->duration ?? '') }}" placeholder="e.g. 1 hr, 1.5 hours, or 90 mins" />
-                    <x-ui.input label="Participants" name="participants" value="{{ old('participants', $template->participants ?? '') }}" placeholder="e.g. 10 or 10-15" />
-                </x-ui.grid>
-                <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
-                            <p class="text-xs text-gray-500">These categories are preselected when a workshop is created from this blueprint.</p>
-                        </div>
-                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
-                    </div>
-
-                    @if(($workshopCategories ?? collect())->isEmpty())
-                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
-                    @else
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach($workshopCategories as $category)
-                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
-                                    <x-ui.checkbox
-                                        name="category_ids[]"
-                                        value="{{ $category->id }}"
-                                        :checked="in_array((string) $category->id, $selectedCategoryIds, true)"
-                                        :noWrapper="true"
-                                    />
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-50 text-gray-600 shadow-sm ring-1 ring-gray-200">
-                                        <i class="{{ $category->iconClass() }}"></i>
-                                    </span>
-                                    <span class="font-medium">{{ $category->name }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-            </div>
-
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
-                <div class="mb-3"><h2 class="text-lg font-semibold">Default workshop details</h2><p class="mt-1 text-sm text-gray-600">These are copied into a new workshop and can be changed there.</p></div>
-                <x-ui.input label="Default Workshop Title" name="default_workshop_title" value="{{ old('default_workshop_title', $template->default_workshop_title ?? $template->name ?? '') }}" />
-                <div class="mb-4">
-                    <div class="mb-1 flex items-center gap-1 pl-1">
-                        <label for="default_workshop_summary" class="text-sm">Default Summary</label>
-                        <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="default_workshop_summary" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_summary')).trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                    </div>
-                    <x-ui.input type="textarea" noLabel class="mb-0" id="default_workshop_summary" name="default_workshop_summary" value="{{ old('default_workshop_summary', $template->default_workshop_summary ?? '') }}" rows="3" />
-                </div>
-                <x-ui.editor name="default_workshop_content" label="Default Workshop Description" class="workshop-template-editor" :value="old('default_workshop_content', $template->default_workshop_content ?? '')">
-                    <x-slot:toolbar>
-                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Replace and improve default workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
-                            <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                        </x-ui.button>
-                        <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Checking for missing learning outcomes…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="blueprint_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(blueprintFormContext())" x-on:click="refreshBlueprintAiContext($event.currentTarget)" x-bind:data-ai-mode="String(blueprintFieldValue('default_workshop_content')).trim() ? 'improve' : 'write'" data-ai-editor-field="default_workshop_content" data-ai-editor-format="workshop-description" aria-label="Add missing supported learning outcomes without changing the description" title="Add only supported learning outcomes that are missing. Existing description and outcomes are kept unchanged." :disabled="blank(config('services.openai.api_key'))">
-                            <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                        </x-ui.button>
-                    </x-slot:toolbar>
-                </x-ui.editor>
-                <div class="mt-4"><x-ui.media label="Default Hero Image" name="hero_media_name" value="{{ old('hero_media_name', $template->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" /></div>
-            </div>
-
-            <template x-teleport="#workshop-template-tasks">
-            <div>
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
-                <div class="flex items-center justify-between mb-3 gap-3">
-                    <h2 class="text-lg font-semibold">Tasks</h2>
-                    <div class="flex shrink-0 items-center gap-2">
-                        <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded-lg border border-gray-300 bg-white text-slate-700 hover:bg-sky-50 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Drafting social posts from the workshop description…" data-ai-complete-message="Social post copy is ready. Review and edit it before saving." data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="social_post_bundle" data-ai-mode="write" data-ai-result-key="announcement" data-ai-result-event="workshop-social-post-bundle" data-ai-context="{}" x-on:click="addDefaultSocialPostTasks($event.currentTarget)" x-bind:title="allDefaultSocialPostTasksAdded() ? 'Redraft the default social post copy with AI' : 'Add missing social post tasks and draft their copy with AI'" aria-label="Add missing tasks and draft or refresh social post copy"><i class="fa-solid fa-calendar-plus" aria-hidden="true"></i></x-ui.button>
-                    </div>
-                </div>
-                <div class="space-y-3">
-                    <template x-for="(task, index) in tasks" :key="task.id || ('new-task-' + (index) + '')">
-                        <x-ui.grid class="gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
-                            <div>
-                                <label class="block text-sm pl-1 mb-1">Task</label>
-                                <div class="flex gap-4 items-center">
-                                    <x-ui.input-control class="bg-white block px-2.5 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="task.name" x-bind:required="!isBlankTask(task)" x-on:input="handleTaskRowChange(index)" />
-                                    <x-ui.row-actions :menu="false">
-                                        <x-ui.row-action label="Notes, subtasks, and reminder" icon="fa-solid fa-sliders" tone="neutral" type="button" x-on:click="openTaskEditor(index)" />
-                                        <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" />
-                                        <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" />
-                                        <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeTask(index)" x-bind:disabled="isBlankTask(task)" />
-                                    </x-ui.row-actions>
-                                </div>
-                                <div class="mt-1 pl-1 flex flex-wrap gap-2 text-xs text-gray-500">
-                                    <span x-show="String(task.notes || '').trim() !== ''"><i class="fa-regular fa-note-sticky mr-1"></i>Has notes</span>
-                                    <span x-show="task.reminder_enabled"><i class="fa-regular fa-bell mr-1"></i><span x-text="('' + (task.reminder_days) + ' day' + (Number(task.reminder_days) === 1 ? '' : 's') + ' ' + (task.reminder_direction) + ' at ' + (task.reminder_time) + '')"></span></span>
-                                </div>
-                            </div>
-                        </x-ui.grid>
-                    </template>
-                </div>
-            </div>
-
-            <div x-show="taskEditorIndex !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-black/50 p-4" x-on:keydown.escape.window="closeTaskEditor()" x-on:click.self="closeTaskEditor()" x-effect="document.body.classList.toggle('overflow-hidden', taskEditorIndex !== null)">
-                <div class="max-h-[calc(100dvh-2rem)] w-full overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-bind:class="taskEditorExpanded ? 'h-[calc(100dvh-2rem)] max-w-none' : 'max-w-4xl'" x-on:wheel.stop>
-                    <template x-if="taskEditorIndex !== null && tasks[taskEditorIndex]">
-                        <div>
-                            <div class="mb-4 flex items-center justify-between gap-3">
-                                <div><h3 class="text-lg font-semibold">Task Details</h3><p class="text-sm text-gray-600" x-text="tasks[taskEditorIndex].name || 'Untitled task'"></p></div>
-                                <div class="flex items-center gap-3">
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="taskEditorExpanded = !taskEditorExpanded" x-bind:title="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'" x-bind:aria-label="taskEditorExpanded ? 'Restore task editor' : 'Expand task editor'"><i class="fa-solid" x-bind:class="taskEditorExpanded ? 'fa-compress' : 'fa-expand'"></i></x-ui.button>
-                                    <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="closeTaskEditor()" title="Close task editor" aria-label="Close task editor"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
-                                </div>
-                            </div>
-
-                            <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
-                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</x-ui.button>
-                                <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-tab-' + (subtaskIndex) + '')">
-                                    <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === ('subtask-' + (subtaskIndex) + '') ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = ('subtask-' + (subtaskIndex) + '')" x-text="subtask.title || ('Subtask ' + (subtaskIndex + 1) + '')"></x-ui.button>
-                                </template>
-                                <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus" aria-hidden="true"></i></x-ui.button>
-                            </div>
-
-                            <div x-show="taskEditorTab === 'details'">
-                                <div class="mb-1 flex items-center justify-between gap-2">
-                                    @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Notes'])
-                                    <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex))" x-bind:data-ai-mode="String(tasks[taskEditorIndex]?.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task content" title="Write or improve task content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                                </div>
-                                <x-ui.mini-editor label="Task notes" x-model="tasks[taskEditorIndex].notes">
-                                    <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
-                                </x-ui.mini-editor>
-
-                                <div class="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                                    <x-ui.checkbox label="Email a reminder to the workshop facilitator" :noWrapper="true" x-model="tasks[taskEditorIndex].reminder_enabled" />
-                                    <x-ui.grid class="mt-4 gap-3 sm:grid-cols-3" x-show="tasks[taskEditorIndex].reminder_enabled">
-                                        <x-ui.input type="number" min="0" max="365" step="1" label="Days" name="task_reminder_days_display" :noLabel="false" x-model="tasks[taskEditorIndex].reminder_days" />
-                                        <x-ui.select label="When" name="task_reminder_direction_display" x-model="tasks[taskEditorIndex].reminder_direction">
-                                            <option value="before">Before workshop</option>
-                                            <option value="after">After workshop</option>
-                                        </x-ui.select>
-                                        <x-ui.select label="Time" name="task_reminder_time_display" x-model="tasks[taskEditorIndex].reminder_time">
-                                            <option value="06:00">6:00am</option>
-                                            <option value="12:00">12:00pm</option>
-                                            <option value="16:00">4:00pm</option>
-                                        </x-ui.select>
-                                    </x-ui.grid>
-                                </div>
-                            </div>
-
-                            <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-panel-' + (subtaskIndex) + '')">
-                                <div x-show="taskEditorTab === ('subtask-' + (subtaskIndex) + '')">
-                                    <div class="mb-4 flex items-end gap-3">
-                                        <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title" /></label>
-                                        <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Remove</x-ui.button>
-                                    </div>
-                                    <div class="mb-1 flex items-center justify-between gap-2">
-                                        @include('admin.pick-list-template.partials.workshop-placeholder-help', ['label' => 'Subtask content'])
-                                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-blueprint-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-blueprint-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(taskAiContext(taskEditorIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve subtask content" title="Write or improve subtask content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                                    </div>
-                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
-                                        <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
-                                    </x-ui.mini-editor>
-                                </div>
-                            </template>
-
-                            <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="closeTaskEditor()">Done</x-ui.button></div>
-                        </div>
-                    </template>
-                </div>
-            </div>
-            </div>
-            </template>
-
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 overflow-x-auto overflow-y-visible shadow-sm">
-                <div class="flex items-center justify-between mb-3">
-                    <h2 class="text-lg font-semibold">Pick List</h2>
-                </div>
-                <template x-if="items.length === 0">
-                    <p class="text-sm text-gray-600">No items yet. Add your first pick list item.</p>
-                </template>
-
-                <div x-show="items.length > 0">
-                    <x-ui.table variant="plain" table-class="min-w-full border border-gray-200 rounded-md">
-                        <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
-                            <tr>
-                                <th class="px-3 py-2 border-b border-gray-300">Item</th>
-                                <th class="hidden w-44 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Type</th>
-                                <th class="hidden w-24 px-3 py-2 border-b border-gray-300 text-center! md:table-cell">Quantity</th>
-                                <th class="w-44 px-3 py-2 border-b border-gray-300 text-center!">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(item, index) in items" :key="item._rowKey">
-                                <tr class="border-b border-gray-300 last:border-b-0">
-                                    <td class="p-2 align-top">
-                                        <div
-                                            class="flex flex-wrap items-center gap-2"
-                                            x-on:product-item-link-changed="selectProductItem(index)"
-                                            x-on:input="handleRowChange(index)"
-                                            x-on:change="handleRowChange(index)"
-                                        >
-                                            <x-admin.product-item-field class="min-w-56 flex-1" catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
-                                            <x-admin.product-preparation-fields :inline="true" />
-                                        </div>
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][item_name]')" x-bind:value="item.item_name ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][id]')" x-bind:value="item.id ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_id]')" x-bind:value="item.product_id ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_variant_id]')" x-bind:value="item.product_variant_id ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][cut_size_id]')" x-bind:value="item.cut_size_id ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length]')" x-bind:value="item.length ?? ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length_unit]')" x-bind:value="item.length ? item.length_unit : ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_unit]')" x-bind:value="item.product_id ? $SM.productQuantityUnit(productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : ''">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_type]')" x-bind:value="item.quantity_type">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_value]')" x-bind:value="item.quantity_value">
-                                        <input type="hidden" x-bind:name="('items[' + (index) + '][sort_order]')" x-bind:value="item.sort_order">
-                                        <x-ui.grid class="md:hidden mt-2 gap-2">
-                                            <div class="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Type</label>
-                                                    <x-ui.select
-                                                        name="quantity_type_placeholder"
-                                                        label="Type"
-                                                        :noLabel="true"
-                                                        class="mb-0"
-                                                        x-model="item.quantity_type"
-                                                        x-on:change="item.quantity_type = $event.target.value; handleRowChange(index)">
-                                                        <option value="per_participant">Per Participant</option>
-                                                        <option value="fixed">Fixed amount</option>
-                                                    </x-ui.select>
-                                                </div>
-                                                <div>
-                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Quantity</label>
-                                                    <x-ui.input
-                                                        type="number"
-                                                        name="quantity_value_placeholder"
-                                                        label="Quantity"
-                                                        :noLabel="true"
-                                                        class="mb-0"
-                                                        fieldClasses="mt-0"
-                                                        min="1"
-                                                        step="1"
-                                                        x-model="item.quantity_value"
-                                                        x-bind:required="!isBlankItem(item)"
-                                                        x-on:input="setItemQuantity(index, $event.target.value); handleRowChange(index)"
-                                                        x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
-                                                </div>
-                                            </div>
-                                        </x-ui.grid>
-
-                                    </td>
-                                    <td class="w-44 p-2 align-top hidden md:table-cell text-center!">
-                                        <x-ui.select
-                                            name="quantity_type_placeholder_desktop"
-                                            label="Type"
-                                            :noLabel="true"
-                                            class="mb-0"
-                                            x-model="item.quantity_type"
-                                            x-on:change="item.quantity_type = $event.target.value; handleRowChange(index)">
-                                            <option value="per_participant">Per Participant</option>
-                                            <option value="fixed">Fixed amount</option>
-                                        </x-ui.select>
-                                    </td>
-                                    <td class="hidden w-24 p-2 align-top md:table-cell">
-                                        <x-ui.input
-                                            type="number"
-                                            name="quantity_value_placeholder_desktop"
-                                            label="Quantity"
-                                            :noLabel="true"
-                                            class="mb-0"
-                                            fieldClasses="mt-0"
-                                            min="1"
-                                            step="1"
-                                            x-model="item.quantity_value"
-                                            x-bind:required="!isBlankItem(item)"
-                                            x-on:input="setItemQuantity(index, $event.target.value); handleRowChange(index)"
-                                            x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
-                                    </td>
-                                    <td class="w-44 p-2 align-middle">
-                                        <x-ui.row-actions :menu="false" class="h-full">
-                                            <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveUp(index)" x-bind:disabled="index === 0 || isBlankItem(item)" />
-                                            <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveDown(index)" x-bind:disabled="index >= (items.length - 2) || isBlankItem(item)" />
-                                            <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeItem(item._rowKey)" />
-                                        </x-ui.row-actions>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </x-ui.table>
-                </div>
-            </div>
-
-            <div id="workshop-template-tasks"></div>
-
-            <x-ui.collapsible-section title="Run Sheet Instructions" class="mb-6">
-                <x-ui.editor
-                    name="run_sheet"
-                    label="Instructions"
-                    class="workshop-template-editor"
-                    :value="old('run_sheet', $template->run_sheet ?? '')"
-                />
-            </x-ui.collapsible-section>
-
-            <x-ui.collapsible-section title="Drawing" class="mb-6" x-on:toggle="if ($el.open) initCanvas()">
-                <p class="mb-3 text-xs text-gray-500">Sketch layouts, wiring, assembly steps, or other visual notes for the run sheet.</p>
-                <input type="hidden" name="run_sheet_canvas_data" x-ref="canvasDataInput" value="{{ old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '') }}">
-                <input type="hidden" name="run_sheet_drawing_data" x-ref="canvasImageInput" value="{{ old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '') }}">
-                @include('admin.shared.drawing-canvas', ['heightClass' => 'h-[60vh] min-h-[420px]'])
-            </x-ui.collapsible-section>
-
-            <div class="rounded-lg border border-gray-200 bg-white p-4 mb-6 shadow-sm">
-                <div class="flex items-center justify-between gap-3 mb-3">
-                    <div>
-                        <h2 class="text-lg font-semibold">Attachments</h2>
-                        <p class="text-xs text-gray-500">Files selected here remain linked to this blueprint and are copied when the blueprint is duplicated.</p>
-                    </div>
-                    <x-ui.button type="button" color="outline" x-on:click="chooseAttachments()">Select Attachments</x-ui.button>
-                </div>
-                <template x-for="name in attachments" :key="name">
-                    <input type="hidden" name="attachments[]" x-bind:value="name">
-                </template>
-                <x-ui.input-control type="file" name="attachment_uploads[]" multiple class="hidden" x-ref="attachmentUploads" x-on:change="addAttachmentFiles($event.target.files)" />
-                <div
-                    class="mt-3 rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center transition hover:border-primary-color hover:bg-sky-50"
-                    x-on:dragover.prevent="$el.classList.add('border-primary-color', 'bg-sky-50')"
-                    x-on:dragleave.prevent="$el.classList.remove('border-primary-color', 'bg-sky-50')"
-                    x-on:drop.prevent="$el.classList.remove('border-primary-color', 'bg-sky-50'); addAttachmentFiles($event.dataTransfer.files)"
-                    x-on:click="$refs.attachmentUploads.click()"
-                >
-                    <i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400"></i>
-                    <div class="mt-2 text-sm font-semibold text-gray-700">Drop files here or click to browse</div>
-                    <div class="mt-1 text-xs text-gray-500">Files are uploaded when the blueprint is saved.</div>
-                </div>
-                <div class="mt-3 space-y-2" x-show="attachments.length > 0">
-                    <template x-for="(name, index) in attachments" :key="name">
-                        <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
-                            <div class="min-w-0">
-                                <div class="truncate" x-text="name"></div>
-                                <div class="text-xs text-gray-500" x-text="attachmentDetails[name] ? ('' + (attachmentDetails[name].type) + ' · ' + (attachmentSize(attachmentDetails[name].size)) + '') : 'File details available after saving'"></div>
-                            </div>
-                            <div class="flex shrink-0 items-center gap-3">
-                                <a x-show="attachmentDetails[name]?.view_url" x-bind:href="attachmentDetails[name]?.view_url" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment" rel="noopener"><i class="fa-solid fa-eye"></i></a>
-                                <a x-show="attachmentDetails[name]?.download_url" x-bind:href="attachmentDetails[name]?.download_url" class="text-gray-500 hover:text-primary-color" title="Download attachment"><i class="fa-solid fa-download"></i></a>
-                                <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="attachments.splice(index, 1)" title="Remove attachment"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
-                            </div>
-                        </div>
-                    </template>
-                </div>
-                <div class="mt-3 space-y-2" x-show="pendingAttachments.length > 0">
-                    <template x-for="(item, index) in pendingAttachments" :key="item.key">
-                        <div class="flex items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm">
-                            <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="('' + (item.file.type || 'File') + ' · ' + (attachmentSize(item.size)) + '')"></div></div>
-                            <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
-                        </div>
-                    </template>
-                </div>
-                <p x-show="attachments.length === 0 && pendingAttachments.length === 0" class="mt-3 text-sm text-gray-600">No attachments selected.</p>
-            </div>
-
-            <div class="flex justify-end gap-2">
-                @if($editing)
-                    <x-ui.button color="outline" href="{{ route('admin.workshop-blueprint.pdf', $template) }}" target="_blank">View PDF</x-ui.button>
-                @endif
-                <x-ui.button type="submit" x-bind:disabled="submitting">
-                    <span x-show="!submitting">{{ $editing ? 'Save Blueprint' : 'Create Blueprint' }}</span>
-                    <span x-show="submitting" class="inline-flex items-center gap-2">
-                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
-                        <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
-                    </span>
-                </x-ui.button>
-            </div>
-        </form>
-    </x-container>
+        }));
+});
+</script>
 </x-layout>

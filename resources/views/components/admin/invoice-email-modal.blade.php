@@ -140,7 +140,7 @@
                     <div class="flex justify-end gap-2">
                         <x-ui.button type="button" color="primary-outline" x-on:click.prevent="closeInvoiceEmailModal()">Cancel</x-ui.button>
                         @if($deferred)
-                            <x-ui.button type="button" x-on:click.prevent="$refs.emailTemplatePending.value = '1'; closeInvoiceEmailModal()">Apply Template</x-ui.button>
+                            <x-ui.button type="button" x-on:click.prevent="$SM.applyInvoiceEmailTemplate($el)">Apply Template</x-ui.button>
                         @else
                             <x-ui.button type="submit" color="primary-outline" name="save_template_only" value="1" x-show="invoiceEmailTemplateOnly">Save Template</x-ui.button>
                             <x-ui.button type="submit" x-show="!invoiceEmailTemplateOnly">Send Invoice Email</x-ui.button>

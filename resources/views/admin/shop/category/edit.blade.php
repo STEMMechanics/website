@@ -290,33 +290,7 @@
             id="product-category-form"
             method="POST"
             action="{{ route('admin.shop.category.'.(isset($category) ? 'update' : 'store'), $category ?? []) }}"
-            x-data="{
-                name: @js(old('name', $category->name ?? '')),
-                slug: @js(old('slug', $category->slug ?? '')),
-                slugTouched: @js(trim((string) old('slug', $category->slug ?? '')) !== ''),
-                slugify(value) {
-                    return String(value || '')
-                        .toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^a-z0-9]+/g, '-')
-                        .replace(/^-+|-+$/g, '')
-                        .replace(/-{2,}/g, '-');
-                },
-                syncSlugFromName() {
-                    if (this.slugTouched || String(this.slug || '').trim() !== '') {
-                        return;
-                    }
-
-                    this.slug = this.slugify(this.name);
-                },
-                handleNameBlur() {
-                    this.syncSlugFromName();
-                },
-                handleSlugInput() {
-                    this.slugTouched = String(this.slug || '').trim() !== '';
-                },
-            }"
+            x-data="smCspAdminShopCategoryEdit1"
         >
             @isset($category)
                 @method('PUT')
@@ -404,4 +378,36 @@
             <x-ui.button type="submit" form="product-category-form">Save</x-ui.button>
         </x-ui.editor-actions>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminShopCategoryEdit1', () => ({
+                name: @js(old('name', $category->name ?? '')),
+                slug: @js(old('slug', $category->slug ?? '')),
+                slugTouched: @js(trim((string) old('slug', $category->slug ?? '')) !== ''),
+                slugify(value) {
+                    return String(value || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                        .replace(/-{2,}/g, '-');
+                },
+                syncSlugFromName() {
+                    if (this.slugTouched || String(this.slug || '').trim() !== '') {
+                        return;
+                    }
+
+                    this.slug = this.slugify(this.name);
+                },
+                handleNameBlur() {
+                    this.syncSlugFromName();
+                },
+                handleSlugInput() {
+                    this.slugTouched = String(this.slug || '').trim() !== '';
+                },
+            }));
+});
+</script>
 </x-layout>

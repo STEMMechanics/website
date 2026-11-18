@@ -9,8 +9,8 @@
     $values = is_array($oldValues) ? collect($values)->map(fn ($value, $id) => is_scalar($oldValues[$id] ?? null) ? (string) $oldValues[$id] : $value)->all() : $values;
     $enabled = (bool) old('allocation_override', $manual->isNotEmpty());
 @endphp
-<section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="$SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
-    <div x-data="{ allocationOpen: @js($errors->has('splits')), allocationTouched: false }" x-effect="if (needsAttention) { allocationOpen = true; if (!allocationTouched) enabled = true; }">
+<section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="$SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="$SM.refreshDefaultsWhenDisabled($el, enabled)">
+    <div x-data="{ allocationOpen: @js($errors->has('splits')), allocationTouched: false }" x-effect="$SM.handleAllocationAttention($el, needsAttention)">
         <x-ui.button variant="plain"
             type="button"
             class="flex w-full items-center justify-between gap-4 text-left"
@@ -34,7 +34,7 @@
                 </span>
                 <span x-show="remaining < 0" x-cloak class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800" role="status">
                     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
-                    Over by <span x-text="money(Math.abs(remaining))"></span>
+                    Over by <span x-text="money($SM.abs(remaining))"></span>
                 </span>
                 <span x-show="remaining === 0" x-cloak class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800" role="status">
                     <i class="fa-solid fa-circle-check" aria-hidden="true"></i>

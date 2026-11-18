@@ -131,7 +131,7 @@
             </section>
 
             @if($recognitionSponsorshipIds !== [])
-                <dialog x-ref="recognitionDialog" class="m-auto max-h-[90vh] w-[min(42rem,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" x-init="$nextTick(() => { if (@js($errors->hasAny(['recognition_public', 'sponsor_type', 'display_name', 'website_url', 'logo']))) $refs.recognitionDialog.showModal() })">
+                <dialog x-ref="recognitionDialog" class="m-auto max-h-[90vh] w-[min(42rem,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" x-init="$SM.initializeDialog($el, {{ $errors->hasAny(['recognition_public', 'sponsor_type', 'display_name', 'website_url', 'logo']) ? 'true' : 'false' }})">
                     <div class="flex items-start justify-between gap-4 border-b border-slate-200 p-5 sm:p-6">
                         <div>
                             <h2 class="text-xl font-semibold text-gray-900">Public recognition</h2>

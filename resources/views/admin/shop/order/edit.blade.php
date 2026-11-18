@@ -1199,11 +1199,12 @@
                 },
             };
         };
+        window.SM.shopAdminOrderEditor = window.shopAdminOrderEditor;
     </script>
     <x-mast backRoute="admin.shop.order.index" backTitle="Store Orders">Order {{ $order->order_number }}</x-mast>
 
     <x-container class="py-8">
-        <div class="space-y-6" x-data="window.shopAdminOrderEditor({{ $orderEditorConfig }})">
+        <div class="space-y-6" x-data="$SM.shopAdminOrderEditor({{ $orderEditorConfig }})">
             <section class="rounded-[1.75rem] border border-gray-200 bg-white p-4 shadow-sm xl:p-5">
                 <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 pb-4 xl:items-center">
                     <div class="min-w-0">
@@ -1442,8 +1443,13 @@
                                 $collectionQtyValue = $collectionOpen ? old('quantity', '') : '';
                                 $collectionNotesValue = $collectionOpen ? old('notes', '') : '';
                                 $collectionCollectedAtValue = $collectionOpen ? old('collected_at', now()->toDateString()) : now()->toDateString();
+                                $itemOpenActions = [
+                                    'cancel' => $cancelOpen,
+                                    'tracking' => $trackingOpen ? [$trackingStageValue, $trackingQtyValue, $trackingParcelValue, $trackingModeValue, $trackingCarrierValue, $trackingNumberValue, $trackingUrlValue] : null,
+                                    'collection' => $collectionOpen ? [$collectionTypeValue, $collectionQtyValue, $collectionCollectedAtValue, $collectionNotesValue, $collectionStateValue] : null,
+                                ];
                             @endphp
-                                    <div id="item-{{ $item->id }}" class="sm-order-item rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4" x-data="{ itemDetailsOpen: false }" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif @if($collectionOpen) openCollection({{ $item->id }}, @js($collectionTypeValue), @js($collectionQtyValue), @js($collectionCollectedAtValue), @js($collectionNotesValue), @js($collectionStateValue)); @endif">
+                                    <div id="item-{{ $item->id }}" class="sm-order-item rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4" x-data="{ itemDetailsOpen: false }" x-init="$SM.openOrderItemActions($el, {{ $item->id }}, @js($itemOpenActions))">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                     $itemStoreUrl = $item->product instanceof \App\Models\Product && $item->product->isActive()
@@ -1733,7 +1739,7 @@
                                 <div
                                     x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen"
                                     x-cloak
-                                    x-effect="document.body.classList.toggle('overflow-hidden', Boolean(itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen))"
+                                    x-effect="$SM.toggleBodyScroll($el, $SM.boolean(itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingOpen))"
                                     class="fixed inset-0 z-180 overflow-y-auto overscroll-contain bg-black/55"
                                     x-on:click.self="closeTracking({{ $item->id }})"
                                     x-on:keydown.escape.window="closeTracking({{ $item->id }})"
@@ -1793,7 +1799,7 @@
                                                                 name="quantity"
                                                                 min="1"
                                                                 max="{{ max($remainingAvailable, $remainingDelayed) }}"
-                                                                x-bind:max="Math.max(remainingAvailable({{ $item->id }}), remainingDelayed({{ $item->id }}))"
+                                                                x-bind:max="$SM.max(remainingAvailable({{ $item->id }}), remainingDelayed({{ $item->id }}))"
                                                                 x-model.number="itemUi['{{ $item->id }}'].trackingQuantity"
                                                                 class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                                             @if($trackingBag->first('quantity'))
@@ -1861,7 +1867,7 @@
                                                                 showSuggestionsOnFocus="true"
                                                                 :error="$trackingBag->first('carrier')"
                                                                 x-model="itemUi['{{ $item->id }}'].trackingCarrier"
-                                                                x-on:blur="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value); applyTrackingLinkTemplateToItem({{ $item->id }})"
+                                                                x-on:blur="$SM.callDataMethods($el, [['syncItemTrackingModeFromCarrier', [{{ $item->id }}, $event.target.value]], ['applyTrackingLinkTemplateToItem', [{{ $item->id }}]]])"
                                                                 x-on:input="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value)"
                                                                 class="mb-0!"
                                                             />
@@ -2057,7 +2063,7 @@
                                                 <template x-for="item in selectedItems()" :key="item.itemId">
                                                     <div class="flex items-center justify-between gap-3">
                                                         <span x-text="item.meta.title || ('Item #' + item.itemId)"></span>
-                                                        <span class="text-xs text-gray-500" x-text="'Open ' + Number(item.meta.open_quantity || 0)"></span>
+                                                        <span class="text-xs text-gray-500" x-text="'Open ' + $SM.number(item.meta.open_quantity || 0)"></span>
                                                     </div>
                                                 </template>
                                             </div>
@@ -2081,7 +2087,7 @@
                         <div
                             x-show="bulkTrackingOpen"
                             x-cloak
-                            x-effect="document.body.classList.toggle('overflow-hidden', bulkTrackingOpen)"
+                            x-effect="$SM.toggleBodyScroll($el, bulkTrackingOpen)"
                             class="fixed inset-0 z-180 overflow-y-auto overscroll-contain bg-black/55"
                             x-on:click.self="closeBulkTracking()"
                             x-on:keydown.escape.window="closeBulkTracking()"
@@ -2104,7 +2110,7 @@
                                                 <template x-for="item in selectedItems()" :key="item.itemId">
                                                     <div class="flex items-center justify-between gap-3">
                                                         <span x-text="item.meta.title || ('Item #' + item.itemId)"></span>
-                                                        <span class="text-xs text-gray-500" x-text="'Open ' + Number(item.meta.open_quantity || 0)"></span>
+                                                        <span class="text-xs text-gray-500" x-text="'Open ' + $SM.number(item.meta.open_quantity || 0)"></span>
                                                     </div>
                                                 </template>
                                             </div>
@@ -2152,7 +2158,7 @@
                                                 :suggestions="$carrierSuggestions ?? []"
                                                 showSuggestionsOnFocus="true"
                                                 x-model="bulkTrackingCarrier"
-                                                x-on:blur="syncBulkTrackingModeFromCarrier($event.target.value); applyTrackingLinkTemplateToBulk()"
+                                                x-on:blur="$SM.callDataMethods($el, [['syncBulkTrackingModeFromCarrier', [$event.target.value]], ['applyTrackingLinkTemplateToBulk', []]])"
                                                 x-on:input="syncBulkTrackingModeFromCarrier($event.target.value)"
                                                 class="mb-0!"
                                             />
@@ -2272,7 +2278,7 @@
                                         </x-ui.button>
                                     </div>
                                     <div x-show="statusEditorOpen" x-cloak class="mt-4">
-                                        <x-ui.select name="status" label="Status" x-model="statusValue" x-bind:disabled="!statusEditorOpen" x-on:change="manualStatusTouched = true; refreshLiveStatus()">
+                                        <x-ui.select name="status" label="Status" x-model="statusValue" x-bind:disabled="!statusEditorOpen" x-on:change="$SM.setDataValueAndCall($el, 'manualStatusTouched', true, 'refreshLiveStatus')">
                                             @foreach(\App\Models\StoreOrder::STATUSES as $status)
                                                 <option value="{{ $status }}" @selected(old('status', $order->status) === $status)>{{ (new \App\Models\StoreOrder(['status' => $status]))->statusLabel() }}</option>
                                             @endforeach

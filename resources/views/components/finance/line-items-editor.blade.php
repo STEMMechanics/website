@@ -91,7 +91,7 @@
                     <div class="sm-invoice-mobile-line-item-header">
                         <div class="min-w-0">
                             <div class="break-words text-sm leading-snug text-slate-600" x-text="itemTypeLabel(item.kind)"></div>
-                            <div x-show="String(item.description || '').trim() !== ''" class="mt-1 break-words text-sm leading-snug text-slate-500" x-text="item.description"></div>
+                            <div x-show="$SM.string(item.description || '').trim() !== ''" class="mt-1 break-words text-sm leading-snug text-slate-500" x-text="item.description"></div>
                         </div>
                         <x-ui.button type="button" color="outline" class="shrink-0 gap-2 px-3! py-2!" x-on:click="openMobileLineItem(index)" x-bind:aria-label="'{{ $isLocked ? 'View' : 'Edit' }} line item ' + (index + 1)">
                             <i class="fa-solid {{ $isLocked ? 'fa-eye' : 'fa-pen-to-square' }}" aria-hidden="true"></i><span>{{ $isLocked ? 'View' : 'Edit' }}</span>

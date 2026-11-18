@@ -46,23 +46,7 @@
             <section
                 id="workshop-stock-reconciliation"
                 class="scroll-mt-24 mb-6 rounded-xl border border-sky-200 bg-white p-5 shadow-sm"
-                x-data="{
-                    listedStockIds: @js($listedStockIds),
-                    activeStockItems: @js($activeStockItems),
-                    additionalItems: [],
-                    addAdditionalItem() {
-                        this.additionalItems.push({ stock_item_id: '', item_name: '', used: '' });
-                    },
-                    removeAdditionalItem(index) {
-                        this.additionalItems.splice(index, 1);
-                    },
-                    isDuplicateAdditionalItem(index) {
-                        const id = Number(this.additionalItems[index]?.stock_item_id || 0);
-                        if (!id) return false;
-                        return this.listedStockIds.includes(id)
-                            || this.additionalItems.some((item, itemIndex) => itemIndex !== index && Number(item.stock_item_id || 0) === id);
-                    },
-                }"
+                x-data="smCspAdminWorkshopPartialsStockReconciliation1"
             >
                 @if($errors->has('stock') || collect($errors->getMessages())->keys()->contains(fn ($errorKey) => str_starts_with((string) $errorKey, 'actual_used')))
                     <div class="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
@@ -109,21 +93,7 @@
                                             $stockItemId = (int) $stockItem->id;
                                             $plannedQuantity = (float) $plannedRow['planned_quantity'];
                                         @endphp
-                                        <tr x-data="{
-                                            planned: @js($plannedQuantity),
-                                            used: @js(old('actual_used.'.$stockItemId, '')),
-                                            unused() {
-                                                const quantity = Number(this.used);
-                                                return this.used === '' || !Number.isFinite(quantity) ? null : Math.max(0, this.planned - quantity);
-                                            },
-                                            extraUsed() {
-                                                const quantity = Number(this.used);
-                                                return this.used === '' || !Number.isFinite(quantity) ? 0 : Math.max(0, quantity - this.planned);
-                                            },
-                                            format(quantity) {
-                                                return new Intl.NumberFormat('en-AU', { maximumFractionDigits: 3 }).format(quantity);
-                                            },
-                                        }">
+                                        <tr x-data="smCspAdminWorkshopPartialsStockReconciliation2">
                                             <td class="px-3 py-3">
                                                 <a
                                                     href="{{ $stockItem->is_kit ? route('admin.shop.stock.kit.edit', $stockItem) : route('admin.shop.stock.edit', $stockItem) }}"
@@ -199,8 +169,8 @@
                                                     min="0"
                                                     max="100000"
                                                     step="1"
-                                                    x-bind:name="additionalItem.stock_item_id && !isDuplicateAdditionalItem(index) ? ('actual_used[' + (Number(additionalItem.stock_item_id)) + ']') : null"
-                                                    x-bind:required="Boolean(additionalItem.stock_item_id) && !isDuplicateAdditionalItem(index)"
+                                                    x-bind:name="additionalItem.stock_item_id && !isDuplicateAdditionalItem(index) ? ('actual_used[' + ($SM.number(additionalItem.stock_item_id)) + ']') : null"
+                                                    x-bind:required="$SM.boolean(additionalItem.stock_item_id) && !isDuplicateAdditionalItem(index)"
                                                     x-bind:disabled="isDuplicateAdditionalItem(index)"
                                                     x-model.number="additionalItem.used"
                                                     class="text-center tabular-nums"
@@ -225,3 +195,40 @@
         @endif
 
 @include('admin.workshop.partials.stock-assembly-dialog')
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopPartialsStockReconciliation1', () => ({
+                    listedStockIds: @js($listedStockIds),
+                    activeStockItems: @js($activeStockItems),
+                    additionalItems: [],
+                    addAdditionalItem() {
+                        this.additionalItems.push({ stock_item_id: '', item_name: '', used: '' });
+                    },
+                    removeAdditionalItem(index) {
+                        this.additionalItems.splice(index, 1);
+                    },
+                    isDuplicateAdditionalItem(index) {
+                        const id = Number(this.additionalItems[index]?.stock_item_id || 0);
+                        if (!id) return false;
+                        return this.listedStockIds.includes(id)
+                            || this.additionalItems.some((item, itemIndex) => itemIndex !== index && Number(item.stock_item_id || 0) === id);
+                    },
+                }));
+    Alpine.data('smCspAdminWorkshopPartialsStockReconciliation2', () => ({
+                                            planned: @js($plannedQuantity),
+                                            used: @js(old('actual_used.'.$stockItemId, '')),
+                                            unused() {
+                                                const quantity = Number(this.used);
+                                                return this.used === '' || !Number.isFinite(quantity) ? null : Math.max(0, this.planned - quantity);
+                                            },
+                                            extraUsed() {
+                                                const quantity = Number(this.used);
+                                                return this.used === '' || !Number.isFinite(quantity) ? 0 : Math.max(0, quantity - this.planned);
+                                            },
+                                            format(quantity) {
+                                                return new Intl.NumberFormat('en-AU', { maximumFractionDigits: 3 }).format(quantity);
+                                            },
+                                        }));
+});
+</script>

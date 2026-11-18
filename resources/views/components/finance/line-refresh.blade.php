@@ -3,6 +3,6 @@
     :title="$price ? 'Refresh price from allocation plan' : 'Recalculate billable quantity'"
     class="{{ $compact ? 'flex h-8 w-6' : 'absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9' }} items-center justify-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-primary-color"
     x-show="['multi_workshop', 'multi_travel', 'workshop', 'travel'].includes(item.kind)"
-    x-on:click="{{ $price ? '$SM.refreshLinePrice(item)' : '$SM.refreshLineQuantity(item)' }}; serializeLineItems()">
+    x-on:click="$SM.refreshLineAndSerialize($el, item, {{ $price ? 'true' : 'false' }})">
     <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
 </x-ui.button>

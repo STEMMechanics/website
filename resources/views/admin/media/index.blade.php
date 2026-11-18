@@ -6,7 +6,7 @@
                     <x-ui.action-menu color="mast" id="media-tools" title="Media tools">
                         <a href="{{ route('admin.media.create') }}"><i class="fa-solid fa-file-circle-plus"></i>Create with metadata</a>
                         <a href="{{ route('admin.media.downloads') }}"><i class="fa-solid fa-chart-column"></i>Download report</a>
-                        <x-ui.button x-data variant="plain" id="regenerate-missing-variants-button" x-on:click="$el.closest('dialog').close(); confirmRegenerateMissingVariants()"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>Regenerate Missing Variants</x-ui.button>
+                        <x-ui.button x-data variant="plain" id="regenerate-missing-variants-button" x-on:click="$SM.closeDialogAndCallGlobal($el, 'confirmRegenerateMissingVariants')"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i>Regenerate Missing Variants</x-ui.button>
                     </x-ui.action-menu>
         </x-slot:actions>
     </x-mast>

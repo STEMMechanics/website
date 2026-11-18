@@ -65,32 +65,7 @@
 <form
     method="POST"
     action="{{ $mergeRoute }}"
-    x-data="{
-        keeper: @js($defaultKeeper),
-        advancedKeeper: @js($defaultKeeper),
-        metadata: @js($defaultMetadata),
-        advancedMetadata: @js($defaultMetadata),
-        advancedOpen: false,
-        chooseImage(name) {
-            this.keeper = name;
-            Object.keys(this.metadata).forEach((field) => { this.metadata[field] = name; });
-        },
-        openAdvanced() {
-            this.advancedKeeper = this.keeper;
-            this.advancedMetadata = {...this.metadata};
-            this.advancedOpen = true;
-        },
-        closeAdvanced() {
-            this.advancedOpen = false;
-            this.keeper = this.advancedKeeper;
-            this.metadata = {...this.advancedMetadata};
-        },
-        submitMerge() {
-            $SM.confirm('Merge these media records?', @js('All detected links will be moved to the selected image. '.$removedCount.' other '.($removedCount === 1 ? 'record' : 'records').' will be removed.'), 'Merge Records', (isConfirmed) => {
-                if (isConfirmed) { this.$root.submit(); }
-            });
-        }
-    }"
+    x-data="smCspAdminMediaDuplicateGroup1"
     x-on:submit.prevent="submitMerge()"
 >
     @csrf
@@ -147,7 +122,7 @@
     </div>
 
     @if($differentFields->isNotEmpty())
-        <div x-show="advancedOpen" x-cloak class="fixed inset-0 z-280 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="{{ $dialogId }}-title" x-on:click.self="closeAdvanced()" x-on:keydown.escape.window="if (advancedOpen) { closeAdvanced() }">
+        <div x-show="advancedOpen" x-cloak class="fixed inset-0 z-280 flex items-end justify-center bg-black/50 p-4 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="{{ $dialogId }}-title" x-on:click.self="closeAdvanced()" x-on:keydown.escape.window="advancedOpen &amp;&amp; closeAdvanced()">
             <div class="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div class="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
                     <div>
@@ -218,3 +193,34 @@
         </div>
     @endif
 </form>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminMediaDuplicateGroup1', () => ({
+        keeper: @js($defaultKeeper),
+        advancedKeeper: @js($defaultKeeper),
+        metadata: @js($defaultMetadata),
+        advancedMetadata: @js($defaultMetadata),
+        advancedOpen: false,
+        chooseImage(name) {
+            this.keeper = name;
+            Object.keys(this.metadata).forEach((field) => { this.metadata[field] = name; });
+        },
+        openAdvanced() {
+            this.advancedKeeper = this.keeper;
+            this.advancedMetadata = {...this.metadata};
+            this.advancedOpen = true;
+        },
+        closeAdvanced() {
+            this.advancedOpen = false;
+            this.keeper = this.advancedKeeper;
+            this.metadata = {...this.advancedMetadata};
+        },
+        submitMerge() {
+            window.SM.confirm('Merge these media records?', @js('All detected links will be moved to the selected image. '.$removedCount.' other '.($removedCount === 1 ? 'record' : 'records').' will be removed.'), 'Merge Records', (isConfirmed) => {
+                if (isConfirmed) { this.$root.submit(); }
+            });
+        }
+    }));
+});
+</script>

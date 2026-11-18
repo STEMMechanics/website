@@ -14,7 +14,7 @@
 
         <div x-data="{ searchProducts: @js($searchProducts), searchWorkshops: @js($searchWorkshops), searchScopeError: @js($searchScopeError) }">
         <section class="mb-8 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
-            <form method="GET" action="{{ route('search.index') }}" x-ref="searchForm" x-on:submit="searchScopeError = !searchProducts && !searchWorkshops; if (searchScopeError) { $event.preventDefault(); $el.querySelector('[data-open-dialog=search-filters]').click(); } else { $el.querySelectorAll('dialog[open]').forEach(dialog => dialog.close()); }">
+            <form method="GET" action="{{ route('search.index') }}" x-ref="searchForm" x-on:submit="$SM.validateSearchAndOpenFilters($el, $event)">
                 <label for="results-search-query" class="sr-only">Search the site</label>
                 <div class="flex items-center gap-2 sm:gap-3">
                     <div class="relative min-w-0 flex-1">
@@ -39,7 +39,7 @@
                         @include('search.partials.filters', ['scope' => 'search_workshops', 'selection' => 'searchWorkshops', 'enabled' => $searchWorkshops, 'title' => 'Workshop filters', 'description' => 'workshops'])
                     </div>
                     <div class="sm-dialog-footer">
-                        <x-ui.button color="outline" x-on:click="$refs.searchForm.querySelectorAll('[data-search-filter]').forEach(input => input.value = '');">Clear filters</x-ui.button>
+                        <x-ui.button color="outline" x-on:click="$SM.clearSearchFilters($refs.searchForm)">Clear filters</x-ui.button>
                         <x-ui.button type="submit">Apply filters</x-ui.button>
                     </div>
                 </x-ui.list-dialog>

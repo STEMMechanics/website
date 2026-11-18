@@ -1,5 +1,5 @@
 <form method="POST" action="{{ route('admin.allocation-overrides.apply', ['kind' => $kind]) }}" data-bulk-save
-    x-data="Object.assign($SM.allocationTally(@js(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 10000, 'enabled' => false, 'exact' => true, 'message' => 'Cost centre percentages must total exactly 100%.'])), { fields: @js((object) $common), initial: @js((object) $common) })">
+    x-data="$SM.combineData($SM.allocationTally(@js(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 10000, 'enabled' => false, 'exact' => true, 'message' => 'Cost centre percentages must total exactly 100%.'])), { fields: @js((object) $common), initial: @js((object) $common) })">
     @csrf
     @foreach($ids as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
     <div class="space-y-5 p-5">
@@ -27,6 +27,6 @@
     </div>
     <div class="sm-dialog-footer">
         <x-ui.button color="outline" data-close-dialog>Cancel</x-ui.button>
-        <x-ui.button type="submit" x-bind:disabled="!valid || !(enabled || Object.keys(fields).some(field => fields[field] !== initial[field]))">Save changes</x-ui.button>
+        <x-ui.button type="submit" x-bind:disabled="!valid || !(enabled || $SM.hasChangedObjectValues(fields, initial))">Save changes</x-ui.button>
     </div>
 </form>

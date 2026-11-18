@@ -32,7 +32,7 @@
                     <x-ui.input label="Price" labelInfo="(inc GST)" type="number" step="0.01" min="0" :moneyFormat="true" inputmode="decimal" x-bind:name="('variants[' + (index) + '][price]')" x-model="variant.price" x-bind:readonly="isPhysicalProduct() && variant.automatic_pricing" placeholder="Use fallback price" />
                 </div>
                 <div x-show="isPhysicalProduct()" x-cloak>
-                    <input type="hidden" x-bind:name="('variants[' + (index) + '][bulk_discount_percent]')" x-bind:value="variant.bulk_discount_percent ?? ''" x-bind:disabled="!isPhysicalProduct() || isBulkPack(variant)">
+                    <input type="hidden" x-bind:name="('variants[' + (index) + '][bulk_discount_percent]')" x-bind:value="$SM.get(variant, 'bulk_discount_percent', '')" x-bind:disabled="!isPhysicalProduct() || isBulkPack(variant)">
                     <x-ui.input label="Bulk discount" labelInfo="(%)" type="number" min="0" max="100" step="0.01" inputmode="decimal" x-bind:name="('variants[' + (index) + '][bulk_discount_percent]')" x-model="variant.bulk_discount_percent" x-bind:disabled="!isBulkPack(variant)" x-bind:placeholder="effectiveProductBulkDiscount()" info="Blank inherits the product discount; 0 means no discount." />
                 </div>
                 <div x-show="isPhysicalProduct()" x-cloak>
@@ -133,8 +133,8 @@
             </div>
         </div>
     </div>
-    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600" x-show="isPhysicalProduct() && (Number(variant.awaiting_fulfilment || 0) > 0 || Number(variant.reserved_quantity || 0) > 0)" x-cloak>
-        <span>Awaiting fulfilment: <strong x-text="Number(variant.awaiting_fulfilment || 0)"></strong></span>
-        <span>Reserved now: <strong x-text="Number(variant.reserved_quantity || 0)"></strong></span>
+    <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600" x-show="isPhysicalProduct() && ($SM.number(variant.awaiting_fulfilment || 0) > 0 || $SM.number(variant.reserved_quantity || 0) > 0)" x-cloak>
+        <span>Awaiting fulfilment: <strong x-text="$SM.number(variant.awaiting_fulfilment || 0)"></strong></span>
+        <span>Reserved now: <strong x-text="$SM.number(variant.reserved_quantity || 0)"></strong></span>
     </div>
 </div>

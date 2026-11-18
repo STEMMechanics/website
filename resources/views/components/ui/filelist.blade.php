@@ -115,7 +115,7 @@
                                 <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                             </div>
                             <span class="text-xs text-gray-400" x-show="file.pending_id" x-text="'Pending upload · ' + $SM.bytesToString(file.size)"></span>
-                            <span class="text-xs text-gray-400" x-show="!file.pending_id" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + $SM.bytesToString(file.size) + ')'"></span>
+                            <span class="text-xs text-gray-400" x-show="!file.pending_id" x-text="$SM.fileTypeLabel(file.file_type) + ' (' + $SM.bytesToString(file.size) + ')'"></span>
                         </div>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id && file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>
@@ -153,7 +153,7 @@
                         <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                     </div>
                     @endif
-                    <span class="text-xs text-gray-400" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + $SM.bytesToString(file.size) + ')'"></span>
+                    <span class="text-xs text-gray-400" x-text="$SM.fileTypeLabel(file.file_type) + ' (' + $SM.bytesToString(file.size) + ')'"></span>
                 </div>
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>

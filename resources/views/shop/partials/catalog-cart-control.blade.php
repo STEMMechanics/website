@@ -1,91 +1,6 @@
 <div
     class="shop-catalog-cart-control space-y-2"
-    x-data="{
-        lineKey: @js($lineKey),
-        fallbackMaxQuantity: {{ $fallbackMaxQuantity }},
-        quantity: 0,
-        maxQuantity: {{ $fallbackMaxQuantity }},
-        busy: false,
-        syncFromCart(cart) {
-            const line = Array.isArray(cart?.lines)
-                ? cart.lines.find((item) => String(item?.key || '') === String(this.lineKey))
-                : null;
-
-            this.quantity = Number(line?.quantity || 0);
-            this.maxQuantity = Number(line?.max_quantity || this.fallbackMaxQuantity || 99);
-        },
-        async add(form) {
-            if (this.busy || !(form instanceof HTMLFormElement)) {
-                return;
-            }
-
-            if (!$SM?.shopCart) {
-                form.submit();
-                return;
-            }
-
-            this.busy = true;
-
-            try {
-                await $SM.shopCart.submitAddForm(form, {
-                    addedLineKey: this.lineKey,
-                });
-            } finally {
-                this.busy = false;
-            }
-        },
-        async handleSubmit(form) {
-            if (this.busy || !(form instanceof HTMLFormElement)) {
-                return;
-            }
-
-            try {
-                await this.add(form);
-            } catch (_error) {
-            }
-        },
-        async change(nextQuantity) {
-            if (this.busy || !$SM?.shopCart) {
-                return;
-            }
-
-            const resolvedQuantity = $SM.toBoundedInt(nextQuantity, {
-                min: 0,
-                max: this.maxQuantity,
-                allowNull: false,
-            });
-            this.busy = true;
-
-            try {
-                if (resolvedQuantity <= 0) {
-                    await $SM.shopCart.removeLine(this.lineKey, {
-                        shippingCountry: $SM.shopCart.getState()?.shipping_country || 'Australia',
-                        showNotice: false,
-                    });
-                    if (typeof $SM.notice === 'function') {
-                        $SM.alert('Removed from cart', @js($removeMessage), 'danger');
-                    }
-                    return;
-                }
-
-                await $SM.shopCart.updateQuantity(this.lineKey, resolvedQuantity, {
-                    max: this.maxQuantity,
-                    shippingCountry: $SM.shopCart.getState()?.shipping_country || 'Australia',
-                    showNotice: false,
-                });
-            } finally {
-                this.busy = false;
-            }
-        },
-        init() {
-            if (!$SM?.shopCart) {
-                return;
-            }
-
-            this.syncFromCart($SM.shopCart.getState());
-            $SM.shopCart.subscribe((cart) => this.syncFromCart(cart));
-        },
-    }"
+    x-data="smCspShopPartialsCatalogCartControl1"
 >
     <form
         method="POST"
@@ -131,3 +46,94 @@
         </div>
     </div>
 </div>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspShopPartialsCatalogCartControl1', () => ({
+        lineKey: @js($lineKey),
+        fallbackMaxQuantity: @js($fallbackMaxQuantity),
+        quantity: 0,
+        maxQuantity: @js($fallbackMaxQuantity),
+        busy: false,
+        syncFromCart(cart) {
+            const line = Array.isArray(cart?.lines)
+                ? cart.lines.find((item) => String(item?.key || '') === String(this.lineKey))
+                : null;
+
+            this.quantity = Number(line?.quantity || 0);
+            this.maxQuantity = Number(line?.max_quantity || this.fallbackMaxQuantity || 99);
+        },
+        async add(form) {
+            if (this.busy || !(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            if (!window.SM?.shopCart) {
+                form.submit();
+                return;
+            }
+
+            this.busy = true;
+
+            try {
+                await window.SM.shopCart.submitAddForm(form, {
+                    addedLineKey: this.lineKey,
+                });
+            } finally {
+                this.busy = false;
+            }
+        },
+        async handleSubmit(form) {
+            if (this.busy || !(form instanceof HTMLFormElement)) {
+                return;
+            }
+
+            try {
+                await this.add(form);
+            } catch (_error) {
+            }
+        },
+        async change(nextQuantity) {
+            if (this.busy || !window.SM?.shopCart) {
+                return;
+            }
+
+            const resolvedQuantity = window.SM.toBoundedInt(nextQuantity, {
+                min: 0,
+                max: this.maxQuantity,
+                allowNull: false,
+            });
+            this.busy = true;
+
+            try {
+                if (resolvedQuantity <= 0) {
+                    await window.SM.shopCart.removeLine(this.lineKey, {
+                        shippingCountry: window.SM.shopCart.getState()?.shipping_country || 'Australia',
+                        showNotice: false,
+                    });
+                    if (typeof window.SM.notice === 'function') {
+                        window.SM.alert('Removed from cart', @js($removeMessage), 'danger');
+                    }
+                    return;
+                }
+
+                await window.SM.shopCart.updateQuantity(this.lineKey, resolvedQuantity, {
+                    max: this.maxQuantity,
+                    shippingCountry: window.SM.shopCart.getState()?.shipping_country || 'Australia',
+                    showNotice: false,
+                });
+            } finally {
+                this.busy = false;
+            }
+        },
+        init() {
+            if (!window.SM?.shopCart) {
+                return;
+            }
+
+            this.syncFromCart(window.SM.shopCart.getState());
+            window.SM.shopCart.subscribe((cart) => this.syncFromCart(cart));
+        },
+    }));
+});
+</script>

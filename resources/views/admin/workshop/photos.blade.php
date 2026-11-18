@@ -22,7 +22,239 @@
                 action="{{ route('admin.workshop.photos.store', $workshop) }}"
                 enctype="multipart/form-data"
                 class="space-y-4"
-                x-data="{
+                x-data="smCspAdminWorkshopPhotos1"
+                x-on:submit.prevent="uploadAll()"
+                x-on:photo-existing-selection-changed.window="refreshExistingSelectionCount()"
+                x-on:select-all-photo-media.window="selectAllMedia($SM.boolean($event.detail.checked))"
+                x-on:open-photo-bulk.window="openBulkEditor()"
+                x-init="$SM.nextFrameMethod($el, 'refreshExistingSelectionCount')"
+            >
+                @csrf
+                <div>
+                    <x-ui.media-uploader :page-upload="true"
+                        input-id="photos"
+                        input-name="photos[]"
+                        input-ref="photosInput"
+                        accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v,.mov,.mp4,.webm,.avi,.m4v"
+                        count="previews.length + existingMedia.length"
+                        empty-text="Drop photos or videos here"
+                        description="Upload new media or select media already in the library."
+                        supported-types="Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files."
+                        on-files="appendFiles"
+                        on-browse-existing="openExistingMediaPicker"
+                        disabled="uploading || preparing"
+                        clear-after-change="false"
+                        :showSubmit="false"
+                    >
+                        <div class="flex flex-col gap-4">
+                            @error('photos') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @error('photos.*') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            @error('existing_media_names') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
+                            <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
+                        </div>
+                    </x-ui.media-uploader>
+                </div>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="preparing"
+                        x-cloak
+                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-photos-preparing-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-photos-preparing-title" class="text-lg font-semibold text-gray-900">Preparing media</div>
+                                    <div class="mt-1 text-sm text-gray-500">Reading photo details and creating previews.</div>
+                                </div>
+                            </div>
+                            <div class="mb-2 flex justify-between text-sm text-gray-700">
+                                <span>Please keep this page open</span>
+                                <span x-text="('' + (preparationIndex) + ' of ' + (preparationTotal) + '')"></span>
+                            </div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0) + '%')"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="uploading"
+                        x-cloak
+                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-photos-progress-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-photos-progress-title" class="text-lg font-semibold text-gray-900">Uploading media</div>
+                                    <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
+                                </div>
+                            </div>
+                            <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700">
+                                <span x-text="currentFileName || ''"></span>
+                                <span x-show="uploading && previews.length" x-text="(' (' + (uploadIndex) + ' of ' + (previews.length) + ')')"></span>
+                            </div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (uploadProgress) + '%')"></div>
+                            </div>
+                            <div class="mt-2 text-right text-sm font-semibold text-gray-700" x-text="('' + (uploadProgress) + '%')"></div>
+                        </div>
+                    </div>
+                </template>
+                <template x-teleport="body">
+                    <div x-show="bulkOpen" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" x-on:keydown.escape.window="bulkOpen = false">
+                        <div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" x-on:click.outside="bulkOpen = false">
+                            <h2 class="text-lg font-semibold text-gray-900">Bulk edit workshop media</h2>
+                            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                                <x-ui.select label="Storage" :name="null" x-model="bulkStorage">
+                                    <option value="">No change</option><option value="media">Media</option><option value="archive">Archive</option>
+                                </x-ui.select>
+                                <x-ui.select label="Visibility" :name="null" x-model="bulkVisibility">
+                                    <option value="">No change</option><option value="public">Public</option><option value="private">Private</option>
+                                </x-ui.select>
+                                <div class="sm:col-span-2">
+                                <x-ui.tags
+                                    label="Tags"
+                                    :name="null"
+                                    :options="$tagOptions ?? []"
+                                    :show-help="false"
+                                    x-model-tags="bulkTags"
+                                    x-model-draft="bulkTagDraft"
+                                    x-mixed-tags="bulkMixedTags"
+                                />
+                                <div class="mt-1 text-xs text-gray-500">Hatched tags are currently present on only some selected items.</div>
+                                </div>
+                            </div>
+                            <div class="mt-5 flex justify-end gap-2">
+                                <x-ui.button type="button" color="outline" x-on:click.prevent="bulkOpen = false">Cancel</x-ui.button>
+                                <x-ui.button type="button" x-bind:disabled="bulkSelectionCount() === 0" x-on:click.prevent="applyBulkEdit()">Apply to selected</x-ui.button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </form>
+        </div>
+
+        <x-ui.dynamic-list name="admin-workshop-photos">
+<x-ui.collection-controls class="my-5" />
+
+        @if($photos->isEmpty())
+            <x-none-found item="photos" search="{{ request()->get('search') }}" />
+        @else
+            <form
+                method="POST"
+                action="{{ route('admin.workshop.photos.bulk-update', $workshop) }}"
+                id="workshop-existing-photos-form"
+                x-data="smCspAdminWorkshopPhotos2"
+                x-on:input="dirty = true"
+                x-on:change="dirty = true"
+                x-on:photo-existing-selection-changed.window="refreshSelection()"
+                x-on:submit.prevent="$SM.saveWorkshopPhotos($el)"
+            >
+                @csrf
+                @method('PUT')
+                <x-ui.table variant="listing" :mobile-cards="true" class="sm-workshop-media-cards" table-class="w-full">
+                        <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden text-center lg:table-cell" label="Tags" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
+                        <tbody class="bg-white">
+                    @foreach($photos as $photo)
+                        <tr data-photo-row x-data="smCspAdminWorkshopPhotos3">
+                            <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="$SM.dispatchWindowEvent('photo-existing-selection-changed')" /></td>
+                            <td data-mobile-primary class="px-3 py-3">
+                                <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
+                                    <a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0" rel="noopener"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a>
+                                    <div class="sm-workshop-media-card-copy min-w-0">
+                                        <div class="sm-workshop-media-card-title font-medium text-gray-900" x-text="title"></div>
+                                        <div class="sm-workshop-media-card-meta">
+                                            <div class="max-w-xs truncate text-xs text-gray-500">{{ $photo->name }}</div>
+                                            <div class="text-xs text-gray-400"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) $photo->size) }}</x-ui.nonbreaking> · {{ $photo->file_type }}</div>
+                                            <div class="md:hidden"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></div>
+                                            <div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize" data-photo-storage-label x-text="storage"></span></div>
+                                            <div class="lg:hidden max-w-xs truncate text-xs text-gray-500" data-photo-tags-label x-text="tags.join(', ') || 'No tags'"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"><span data-photo-tags-label x-text="tags.join(', ') || 'No tags'" :class="tags.length ? '' : 'italic text-gray-400'"></span></td><td class="hidden px-3 py-3 text-center capitalize md:table-cell" data-photo-storage-label x-text="storage"></td><td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></td>
+                            <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-photo-actions-'.md5($photo->name)" :title="$photo->title"><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
+                                        <x-ui.row-action label="Open media editor" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" />
+                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
+                                        <x-ui.row-action label="Remove from workshop" icon="fa-solid fa-ban" tone="warning"
+                                            type="button"
+                                            x-data
+                                            x-on:click.prevent="$SM.confirmDelete(
+                                                '{{ csrf_token() }}',
+                                                'Remove media from workshop?',
+                                                'This will remove the media item from this workshop only. The media item will remain in the media library.',
+                                                '{{ route('admin.workshop.photos.destroy', [$workshop, $photo]) }}',
+                                                'Remove from workshop'
+                                            )"
+                                         />
+                                        <x-ui.row-action label="Delete permanently" icon="fa-solid fa-trash" tone="danger"
+                                            type="button"
+                                            x-data
+                                            x-on:click.prevent="$SM.confirmDelete(
+                                                '{{ csrf_token() }}',
+                                                'Delete media permanently?',
+                                                'This will remove the media item from the media library and from all workshop associations. This action cannot be undone.',
+                                                '{{ route('admin.workshop.photos.delete', [$workshop, $photo]) }}',
+                                                'Delete permanently'
+                                            )"
+                                         />
+                                    </x-ui.action-menu></x-ui.row-actions>
+                                <input type="hidden" name="photos[{{ $photo->name }}][title]" x-bind:value="title"><input type="hidden" name="photos[{{ $photo->name }}][photographed_at]" x-bind:value="photographedAt"><input type="hidden" name="photos[{{ $photo->name }}][tags]" x-bind:value="tags.join(', ')" data-photo-tags><input type="hidden" name="photos[{{ $photo->name }}][storage_disk]" x-bind:value="storage" data-photo-storage><input type="hidden" name="photos[{{ $photo->name }}][visibility]" x-bind:value="visibility" data-photo-visibility><input type="hidden" name="photos[{{ $photo->name }}][caption]" x-bind:value="caption"><input type="hidden" name="photos[{{ $photo->name }}][consent_notes]" x-bind:value="notes">
+                                <template x-teleport="body"><div x-show="editing" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"><div class="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="editing = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Edit media</h3><div class="text-xs text-gray-500">{{ $photo->name }}</div></div><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="editing = false" /></div><div class="grid gap-4 sm:grid-cols-2"><div><x-ui.input label="Title" :name="null" x-model="title" /><x-ui.input label="Original Name" name="original_name_{{ $loop->index }}" value="{{ $photo->name }}" disabled="true" /><x-ui.input label="Photographed At" type="date" :name="null" x-model="photographedAt" /><x-ui.tags :name="null" :options="$tagOptions ?? []" x-model-tags="tags" x-model-draft="tagDraft" /></div><div><x-ui.select label="Storage" :name="null" x-model="storage"><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="visibility"><option value="public">Public</option><option value="private">Private</option></x-ui.select><x-ui.input label="Caption" :name="null" x-model="caption" /><x-ui.input label="Notes" type="textarea" :name="null" x-model="notes" /></div></div><div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="editing = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="saving" x-on:click="save()"><span x-show="!saving">Save</span><span x-show="saving">Saving…</span></x-ui.button></div></div></div></template>
+                            </td>
+                        </tr>
+                    @endforeach
+                        </tbody>
+                </x-ui.table>
+
+            </form>
+
+            <x-ui.list-pagination :paginator="$photos"><x-slot:actions>
+        <div
+            class="min-w-0"
+            x-data="smCspAdminWorkshopPhotos4"
+                x-on:photo-bulk-selection-count.window="$SM.updatePhotoCounts($el, $event)"
+        >
+            <x-ui.selection-toolbar x-bind:data-selected="$SM.string(selectedCount > 0)" hint="Select media to edit or download.">
+                <x-slot:count><span x-text="selectedCount">0</span></x-slot:count>
+                <x-slot:clear><x-ui.button variant="plain" class="text-sm font-semibold text-primary-color underline underline-offset-4" x-on:click="$SM.clearPhotoSelection()">Clear selection</x-ui.button></x-slot:clear>
+                <x-ui.bulk-edit-button
+                    type="button"
+                    x-bind:disabled="selectedCount === 0"
+                    x-on:click.prevent="$SM.dispatchWindowEvent('open-photo-bulk')"
+                 />
+                <x-ui.button
+                    type="button"
+                    color="outline"
+                    x-bind:disabled="existingNames.length === 0"
+                    x-on:click.prevent="downloadSelected()"
+                >Download ZIP</x-ui.button>
+            </x-ui.selection-toolbar>
+        </div>
+            </x-slot:actions></x-ui.list-pagination>
+        @endif
+
+
+        </x-ui.dynamic-list>
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopPhotos1', () => ({
                     pageUploadDragDepth: 0,
                     workshopDate: @js(optional($workshop->starts_at)->format('Y-m-d') ?? now()->format('Y-m-d')),
                     attachedPhotoNames: @js($attachedPhotoNames ?? []),
@@ -708,7 +940,7 @@
                             };
                             this.existingMedia.push(item);
                             selectedNames.push(mediaName);
-                            $SM.mediaDetails(mediaName, (details) => {
+                            window.SM.mediaDetails(mediaName, (details) => {
                                 if (!details || typeof details !== 'object') return;
                                 const index = this.existingMedia.findIndex((existing) => existing.name === mediaName);
                                 if (index === -1) return;
@@ -760,10 +992,10 @@
                                 const preview = this.previews[index];
                                 const file = files[index];
                                 if (!file) continue;
-                                const maxUploadSize = $SM && typeof $SM.maxUploadSize === 'function' ? $SM.maxUploadSize() : 0;
+                                const maxUploadSize = window.SM && typeof window.SM.maxUploadSize === 'function' ? window.SM.maxUploadSize() : 0;
                                 if (maxUploadSize > 0 && file.size > maxUploadSize) {
-                                    const sizeLabel = $SM && typeof $SM.bytesToString === 'function' ? $SM.bytesToString(file.size) : `${file.size} bytes`;
-                                    const maxLabel = $SM && typeof $SM.bytesToString === 'function' ? $SM.bytesToString(maxUploadSize) : `${maxUploadSize} bytes`;
+                                    const sizeLabel = window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(file.size) : `${file.size} bytes`;
+                                    const maxLabel = window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(maxUploadSize) : `${maxUploadSize} bytes`;
                                     throw new Error(`${file.name} is ${sizeLabel}, which exceeds the upload limit of ${maxLabel}.`);
                                 }
                                 this.uploadIndex = index + 1;
@@ -777,7 +1009,7 @@
                                         reject(new Error(`${file.name}: ${message || 'Upload failed.'}`));
                                     };
 
-                                    $SM.upload([file], (result) => {
+                                    window.SM.upload([file], (result) => {
                                         if (settled) return;
                                         if (!result?.success || !result.files?.[0]?.data?.upload_token) {
                                             rejectOnce(result?.message || 'Upload failed.');
@@ -866,7 +1098,7 @@
                             this.uploadError = error?.response?.status === 413
                                 ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
                                 : (error.message || 'Upload failed.');
-                            $SM?.notice?.('Upload failed', this.uploadError, 'danger');
+                            window.SM?.notice?.('Upload failed', this.uploadError, 'danger');
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
                             this.previews = [];
                             this.existingMedia = [];
@@ -874,235 +1106,12 @@
                             this.uploading = false;
                         }
                     },
-                }"
-                x-on:submit.prevent="uploadAll()"
-                x-on:photo-existing-selection-changed.window="refreshExistingSelectionCount()"
-                x-on:select-all-photo-media.window="selectAllMedia(Boolean($event.detail.checked))"
-                x-on:open-photo-bulk.window="openBulkEditor()"
-                x-init="requestAnimationFrame(() => refreshExistingSelectionCount())"
-            >
-                @csrf
-                <div>
-                    <x-ui.media-uploader :page-upload="true"
-                        input-id="photos"
-                        input-name="photos[]"
-                        input-ref="photosInput"
-                        accept="image/*,video/mp4,video/quicktime,video/webm,video/x-msvideo,video/x-m4v,.mov,.mp4,.webm,.avi,.m4v"
-                        count="previews.length + existingMedia.length"
-                        empty-text="Drop photos or videos here"
-                        description="Upload new media or select media already in the library."
-                        supported-types="Supports JPG, PNG, WebP, GIF, MP4, MOV, WebM, AVI, and M4V files."
-                        on-files="appendFiles"
-                        on-browse-existing="openExistingMediaPicker"
-                        disabled="uploading || preparing"
-                        clear-after-change="false"
-                        :showSubmit="false"
-                    >
-                        <div class="flex flex-col gap-4">
-                            @error('photos') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            @error('photos.*') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            @error('existing_media_names') <div class="mt-1 text-sm text-red-600">{{ $message }}</div> @enderror
-                            <div x-show="uploadError" x-cloak class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="uploadError"></div>
-                        </div>
-                    </x-ui.media-uploader>
-                </div>
-
-                <template x-teleport="body">
-                    <div
-                        x-show="preparing"
-                        x-cloak
-                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="workshop-photos-preparing-title"
-                        x-on:keydown.escape.prevent.stop
-                    >
-                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
-                            <div class="mb-4 flex items-center gap-3">
-                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
-                                <div>
-                                    <div id="workshop-photos-preparing-title" class="text-lg font-semibold text-gray-900">Preparing media</div>
-                                    <div class="mt-1 text-sm text-gray-500">Reading photo details and creating previews.</div>
-                                </div>
-                            </div>
-                            <div class="mb-2 flex justify-between text-sm text-gray-700">
-                                <span>Please keep this page open</span>
-                                <span x-text="('' + (preparationIndex) + ' of ' + (preparationTotal) + '')"></span>
-                            </div>
-                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0) + '%')"></div>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-
-                <template x-teleport="body">
-                    <div
-                        x-show="uploading"
-                        x-cloak
-                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="workshop-photos-progress-title"
-                        x-on:keydown.escape.prevent.stop
-                    >
-                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
-                            <div class="mb-4 flex items-center gap-3">
-                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
-                                <div>
-                                    <div id="workshop-photos-progress-title" class="text-lg font-semibold text-gray-900">Uploading media</div>
-                                    <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
-                                </div>
-                            </div>
-                            <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700">
-                                <span x-text="currentFileName || ''"></span>
-                                <span x-show="uploading && previews.length" x-text="(' (' + (uploadIndex) + ' of ' + (previews.length) + ')')"></span>
-                            </div>
-                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (uploadProgress) + '%')"></div>
-                            </div>
-                            <div class="mt-2 text-right text-sm font-semibold text-gray-700" x-text="('' + (uploadProgress) + '%')"></div>
-                        </div>
-                    </div>
-                </template>
-                <template x-teleport="body">
-                    <div x-show="bulkOpen" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4" role="dialog" aria-modal="true" x-on:keydown.escape.window="bulkOpen = false">
-                        <div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" x-on:click.outside="bulkOpen = false">
-                            <h2 class="text-lg font-semibold text-gray-900">Bulk edit workshop media</h2>
-                            <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                                <x-ui.select label="Storage" :name="null" x-model="bulkStorage">
-                                    <option value="">No change</option><option value="media">Media</option><option value="archive">Archive</option>
-                                </x-ui.select>
-                                <x-ui.select label="Visibility" :name="null" x-model="bulkVisibility">
-                                    <option value="">No change</option><option value="public">Public</option><option value="private">Private</option>
-                                </x-ui.select>
-                                <div class="sm:col-span-2">
-                                <x-ui.tags
-                                    label="Tags"
-                                    :name="null"
-                                    :options="$tagOptions ?? []"
-                                    :show-help="false"
-                                    x-model-tags="bulkTags"
-                                    x-model-draft="bulkTagDraft"
-                                    x-mixed-tags="bulkMixedTags"
-                                />
-                                <div class="mt-1 text-xs text-gray-500">Hatched tags are currently present on only some selected items.</div>
-                                </div>
-                            </div>
-                            <div class="mt-5 flex justify-end gap-2">
-                                <x-ui.button type="button" color="outline" x-on:click.prevent="bulkOpen = false">Cancel</x-ui.button>
-                                <x-ui.button type="button" x-bind:disabled="bulkSelectionCount() === 0" x-on:click.prevent="applyBulkEdit()">Apply to selected</x-ui.button>
-                            </div>
-                        </div>
-                    </div>
-                </template>
-            </form>
-        </div>
-
-        <x-ui.dynamic-list name="admin-workshop-photos">
-<x-ui.collection-controls class="my-5" />
-
-        @if($photos->isEmpty())
-            <x-none-found item="photos" search="{{ request()->get('search') }}" />
-        @else
-            <form
-                method="POST"
-                action="{{ route('admin.workshop.photos.bulk-update', $workshop) }}"
-                id="workshop-existing-photos-form"
-                x-data="{ dirty: false, saving: false, existingSelected: 0, existingTotal: {{ $photos->count() }}, refreshSelection() { this.existingSelected = $el.querySelectorAll('[data-photo-select]:checked').length }, selectAllExisting(checked) { $el.querySelectorAll('[data-photo-select]').forEach((input) => input.checked = checked); this.refreshSelection(); window.dispatchEvent(new CustomEvent('photo-existing-selection-changed')); } }"
-                x-on:input="dirty = true"
-                x-on:change="dirty = true"
-                x-on:photo-existing-selection-changed.window="refreshSelection()"
-                x-on:submit.prevent="saving = true; axios.post($el.action, new FormData($el), { headers: { Accept: 'application/json' } }).then(() => $SM?.notice?.('Photos updated', 'Selected media changes were saved.', 'success', { toast: true })).catch(error => $SM?.notice?.('Save failed', error.response?.data?.message || 'Could not save selected media.', 'danger', { toast: true })).finally(() => saving = false)"
-            >
-                @csrf
-                @method('PUT')
-                <x-ui.table variant="listing" :mobile-cards="true" class="sm-workshop-media-cards" table-class="w-full">
-                        <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden text-center lg:table-cell" label="Tags" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
-                        <tbody class="bg-white">
-                    @foreach($photos as $photo)
-                        <tr data-photo-row x-data="{ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; $SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }">
-                            <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))" /></td>
-                            <td data-mobile-primary class="px-3 py-3">
-                                <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
-                                    <a href="{{ route('admin.workshop.photos.media', [$workshop, $photo]) }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0" rel="noopener"><img src="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'variant' => 'thumbnail']) }}" alt="{{ $photo->title }}" class="h-12 w-16 rounded object-cover"></a>
-                                    <div class="sm-workshop-media-card-copy min-w-0">
-                                        <div class="sm-workshop-media-card-title font-medium text-gray-900" x-text="title"></div>
-                                        <div class="sm-workshop-media-card-meta">
-                                            <div class="max-w-xs truncate text-xs text-gray-500">{{ $photo->name }}</div>
-                                            <div class="text-xs text-gray-400"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) $photo->size) }}</x-ui.nonbreaking> · {{ $photo->file_type }}</div>
-                                            <div class="md:hidden"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></div>
-                                            <div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize" data-photo-storage-label x-text="storage"></span></div>
-                                            <div class="lg:hidden max-w-xs truncate text-xs text-gray-500" data-photo-tags-label x-text="tags.join(', ') || 'No tags'"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"><span data-photo-tags-label x-text="tags.join(', ') || 'No tags'" :class="tags.length ? '' : 'italic text-gray-400'"></span></td><td class="hidden px-3 py-3 text-center capitalize md:table-cell" data-photo-storage-label x-text="storage"></td><td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge color="success" x-cloak x-show="visibility === 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /><x-ui.badge color="slate" x-cloak x-show="visibility !== 'public'" data-photo-visibility-label class="capitalize" x-text="visibility" /></td>
-                            <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-photo-actions-'.md5($photo->name)" :title="$photo->title"><x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" type="button" x-on:click="editing = true" />
-                                        <x-ui.row-action label="Open media editor" icon="fa-solid fa-up-right-from-square" tone="neutral" href="{{ route('admin.media.edit', $photo) }}" target="_blank" rel="noopener noreferrer" />
-                                        <x-ui.row-action label="Download" icon="fa-solid fa-download" tone="neutral" href="{{ route('admin.workshop.photos.media', [$workshop, $photo, 'download' => 1]) }}" />
-                                        <x-ui.row-action label="Remove from workshop" icon="fa-solid fa-ban" tone="warning"
-                                            type="button"
-                                            x-data
-                                            x-on:click.prevent="$SM.confirmDelete(
-                                                '{{ csrf_token() }}',
-                                                'Remove media from workshop?',
-                                                'This will remove the media item from this workshop only. The media item will remain in the media library.',
-                                                '{{ route('admin.workshop.photos.destroy', [$workshop, $photo]) }}',
-                                                'Remove from workshop'
-                                            )"
-                                         />
-                                        <x-ui.row-action label="Delete permanently" icon="fa-solid fa-trash" tone="danger"
-                                            type="button"
-                                            x-data
-                                            x-on:click.prevent="$SM.confirmDelete(
-                                                '{{ csrf_token() }}',
-                                                'Delete media permanently?',
-                                                'This will remove the media item from the media library and from all workshop associations. This action cannot be undone.',
-                                                '{{ route('admin.workshop.photos.delete', [$workshop, $photo]) }}',
-                                                'Delete permanently'
-                                            )"
-                                         />
-                                    </x-ui.action-menu></x-ui.row-actions>
-                                <input type="hidden" name="photos[{{ $photo->name }}][title]" x-bind:value="title"><input type="hidden" name="photos[{{ $photo->name }}][photographed_at]" x-bind:value="photographedAt"><input type="hidden" name="photos[{{ $photo->name }}][tags]" x-bind:value="tags.join(', ')" data-photo-tags><input type="hidden" name="photos[{{ $photo->name }}][storage_disk]" x-bind:value="storage" data-photo-storage><input type="hidden" name="photos[{{ $photo->name }}][visibility]" x-bind:value="visibility" data-photo-visibility><input type="hidden" name="photos[{{ $photo->name }}][caption]" x-bind:value="caption"><input type="hidden" name="photos[{{ $photo->name }}][consent_notes]" x-bind:value="notes">
-                                <template x-teleport="body"><div x-show="editing" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4"><div class="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="editing = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Edit media</h3><div class="text-xs text-gray-500">{{ $photo->name }}</div></div><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="editing = false" /></div><div class="grid gap-4 sm:grid-cols-2"><div><x-ui.input label="Title" :name="null" x-model="title" /><x-ui.input label="Original Name" name="original_name_{{ $loop->index }}" value="{{ $photo->name }}" disabled="true" /><x-ui.input label="Photographed At" type="date" :name="null" x-model="photographedAt" /><x-ui.tags :name="null" :options="$tagOptions ?? []" x-model-tags="tags" x-model-draft="tagDraft" /></div><div><x-ui.select label="Storage" :name="null" x-model="storage"><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="visibility"><option value="public">Public</option><option value="private">Private</option></x-ui.select><x-ui.input label="Caption" :name="null" x-model="caption" /><x-ui.input label="Notes" type="textarea" :name="null" x-model="notes" /></div></div><div x-show="error" class="mt-3 text-sm text-red-600" x-text="error"></div><div class="mt-5 flex justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="editing = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="saving" x-on:click="save()"><span x-show="!saving">Save</span><span x-show="saving">Saving…</span></x-ui.button></div></div></div></template>
-                            </td>
-                        </tr>
-                    @endforeach
-                        </tbody>
-                </x-ui.table>
-
-            </form>
-
-            <x-ui.list-pagination :paginator="$photos"><x-slot:actions>
-        <div
-            class="min-w-0"
-            x-data="{ selectedCount: 0, totalCount: 0, existingNames: [], refreshExistingNames() { this.existingNames = [...document.querySelectorAll('#workshop-existing-photos-form [data-photo-select]:checked')].map((input) => input.dataset.photoName).filter(Boolean) }, downloadSelected() { if (this.existingNames.length === 0) return; const query = new URLSearchParams(); this.existingNames.forEach((name) => query.append('media_names[]', name)); window.location.href = @js(route('admin.workshop.photos.zip', $workshop)) + '?' + query.toString(); } }"
-            x-on:photo-bulk-selection-count.window="selectedCount = Number($event.detail.count || 0); totalCount = Number($event.detail.total || 0); refreshExistingNames()"
-        >
-            <x-ui.selection-toolbar x-bind:data-selected="String(selectedCount > 0)" hint="Select media to edit or download.">
-                <x-slot:count><span x-text="selectedCount">0</span></x-slot:count>
-                <x-slot:clear><x-ui.button variant="plain" class="text-sm font-semibold text-primary-color underline underline-offset-4" x-on:click="window.dispatchEvent(new CustomEvent('select-all-photo-media', { detail: { checked: false } })); window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))">Clear selection</x-ui.button></x-slot:clear>
-                <x-ui.bulk-edit-button
-                    type="button"
-                    x-bind:disabled="selectedCount === 0"
-                    x-on:click.prevent="window.dispatchEvent(new CustomEvent('open-photo-bulk'))"
-                 />
-                <x-ui.button
-                    type="button"
-                    color="outline"
-                    x-bind:disabled="existingNames.length === 0"
-                    x-on:click.prevent="downloadSelected()"
-                >Download ZIP</x-ui.button>
-            </x-ui.selection-toolbar>
-        </div>
-            </x-slot:actions></x-ui.list-pagination>
-        @endif
-
-
-        </x-ui.dynamic-list>
-    </x-container>
+                }));
+    Alpine.data('smCspAdminWorkshopPhotos2', () => ({ dirty: false, saving: false, existingSelected: 0, existingTotal: @js($photos->count()), refreshSelection() { this.existingSelected = this.$el.querySelectorAll('[data-photo-select]:checked').length }, selectAllExisting(checked) { this.$el.querySelectorAll('[data-photo-select]').forEach((input) => input.checked = checked); this.refreshSelection(); window.dispatchEvent(new CustomEvent('photo-existing-selection-changed')); } }));
+    Alpine.data('smCspAdminWorkshopPhotos3', () => ({ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; window.SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }));
+    Alpine.data('smCspAdminWorkshopPhotos4', () => ({ selectedCount: 0, totalCount: 0, existingNames: [], refreshExistingNames() { this.existingNames = [...document.querySelectorAll('#workshop-existing-photos-form [data-photo-select]:checked')].map((input) => input.dataset.photoName).filter(Boolean) }, downloadSelected() { if (this.existingNames.length === 0) return; const query = new URLSearchParams(); this.existingNames.forEach((name) => query.append('media_names[]', name)); window.location.href = @js(route('admin.workshop.photos.zip', $workshop)) + '?' + query.toString(); } }));
+});
+</script>
 </x-layout>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

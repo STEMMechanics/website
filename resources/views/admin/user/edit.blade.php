@@ -24,44 +24,7 @@
         @if($user->id === auth()->id())
             <x-push-settings />
         @endif
-        <div x-data="{
-            mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
-            mergeSearch: '',
-            mergeResults: [],
-            mergeTarget: null,
-            mergeSearching: false,
-            mergeSequence: 0,
-            async findMergeTargets() {
-                const term = this.mergeSearch.trim();
-                const sequence = ++this.mergeSequence;
-                this.mergeTarget = null;
-                if (term.length < 2) { this.mergeResults = []; return; }
-                this.mergeSearching = true;
-                try {
-                    const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
-                    url.searchParams.set('search', term);
-                    url.searchParams.set('include_ghost', '1');
-                    const response = await fetch(url, { headers: { Accept: 'application/json' } });
-                    const data = response.ok ? await response.json() : { users: [] };
-                    if (sequence === this.mergeSequence) {
-                        this.mergeResults = (data.users || []).filter((candidate) => candidate.id !== @js((string) $user->id) && !candidate.is_anonymized);
-                    }
-                } finally {
-                    if (sequence === this.mergeSequence) this.mergeSearching = false;
-                }
-            },
-            chooseMergeTarget(target) {
-                this.mergeTarget = target;
-                this.mergeSearch = `${target.name}${target.email ? ` (${target.email})` : ' (No email)'}`;
-                this.mergeResults = [];
-            },
-            closeMerge() {
-                this.mergeOpen = false;
-                this.mergeSearch = '';
-                this.mergeResults = [];
-                this.mergeTarget = null;
-            }
-        }">
+        <div x-data="smCspAdminUserEdit1">
             <x-ui.toolbar>
             @if($loginUnavailableReason)
                 <x-slot:left>
@@ -131,7 +94,7 @@
 
                         <form method="POST" action="{{ route('admin.user.merge', $user) }}" class="mt-5 space-y-4">
                             @csrf
-                            <input type="hidden" name="target_user_id" x-bind:value="mergeTarget?.id || ''">
+                            <input type="hidden" name="target_user_id" x-bind:value="$SM.get(mergeTarget, 'id', '') || ''">
 
                             <div class="relative">
                                 <label for="merge_target_search" class="mb-1 block pl-1 text-sm">Find the account to merge into</label>
@@ -218,7 +181,7 @@
                                     method="POST"
                                     action="{{ route('admin.payment.refund.manual', $refundPayment) }}"
                                     class="space-y-4"
-                                    x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();"
+                                    x-on:submit.prevent="$SM.submitOnce($el)"
                                 >
                                     @csrf
                                     <x-ui.input
@@ -255,7 +218,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="$SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)">
             @method('PUT')
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
@@ -365,11 +328,11 @@
  name="use_organisation_shipping_address"
  :checked="old('use_organisation_shipping_address', $user->use_organisation_shipping_address)"
  x-model="useOrganisationShippingAddress"
- x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false"
+ x-on:change="$SM.syncShippingAddressModes($el)"
  x-bind:disabled="shippingSameBilling"
  />
                     @endif
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; $SM.updateShippingAddress()" />
+                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="$SM.syncShippingAddressModes($el)" />
                     <fieldset x-bind:disabled="useOrganisationShippingAddress">
                         <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
                         <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
@@ -395,4 +358,47 @@
             </x-ui.editor-actions>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminUserEdit1', () => ({
+            mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
+            mergeSearch: '',
+            mergeResults: [],
+            mergeTarget: null,
+            mergeSearching: false,
+            mergeSequence: 0,
+            async findMergeTargets() {
+                const term = this.mergeSearch.trim();
+                const sequence = ++this.mergeSequence;
+                this.mergeTarget = null;
+                if (term.length < 2) { this.mergeResults = []; return; }
+                this.mergeSearching = true;
+                try {
+                    const url = new URL(@js(route('admin.organisation.contact-options')), window.location.origin);
+                    url.searchParams.set('search', term);
+                    url.searchParams.set('include_ghost', '1');
+                    const response = await fetch(url, { headers: { Accept: 'application/json' } });
+                    const data = response.ok ? await response.json() : { users: [] };
+                    if (sequence === this.mergeSequence) {
+                        this.mergeResults = (data.users || []).filter((candidate) => candidate.id !== @js((string) $user->id) && !candidate.is_anonymized);
+                    }
+                } finally {
+                    if (sequence === this.mergeSequence) this.mergeSearching = false;
+                }
+            },
+            chooseMergeTarget(target) {
+                this.mergeTarget = target;
+                this.mergeSearch = `${target.name}${target.email ? ` (${target.email})` : ' (No email)'}`;
+                this.mergeResults = [];
+            },
+            closeMerge() {
+                this.mergeOpen = false;
+                this.mergeSearch = '';
+                this.mergeResults = [];
+                this.mergeTarget = null;
+            }
+        }));
+});
+</script>
 </x-layout>

@@ -7,7 +7,7 @@
 
     <x-container class="mt-4">
         <div class="mb-4 flex justify-end">
-            <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.tax_adjustment.pdf', ['invoice' => $invoice, 'taxAdjustment' => $taxAdjustment]) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
+            <x-ui.button type="button" x-data x-on:click.prevent="$SM.openUrl('{{ route('admin.tax_adjustment.pdf', ['invoice' => $invoice, 'taxAdjustment' => $taxAdjustment]) }}')">Open PDF</x-ui.button>
         </div>
 
         <div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">

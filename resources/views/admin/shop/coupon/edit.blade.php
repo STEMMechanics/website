@@ -79,257 +79,9 @@
         <form
             method="POST"
             action="{{ route('admin.shop.coupon.'.(isset($coupon) ? 'update' : 'store'), $coupon ?? []) }}"
-            x-data="{
-                status: @js($resolvedStatus),
-                discountType: @js($resolvedDiscountType),
-                amountDraft: @js($resolvedAmount),
-                endsAtDraft: @js($resolvedEndsAt),
-                endsAtPastToastKey: null,
-                productsEnabled: @js($resolvedProductsEnabled),
-                workshopsEnabled: @js($resolvedWorkshopsEnabled),
-                productSelections: @js($selectedProductItems),
-                workshopSelections: @js($selectedWorkshopItems),
-                endpoints: {
-                    products: @js(route('admin.shop.coupon.product-options')),
-                    workshops: @js(route('admin.shop.coupon.workshop-options')),
-                },
-                pickerFilters: {
-                    products: @js($productPickerFilters),
-                    workshops: @js($workshopPickerFilters),
-                },
-                picker: {
-                    type: null,
-                    open: false,
-                    search: '',
-                    filter: 'all',
-                    busy: false,
-                    items: [],
-                    meta: {
-                        current_page: 1,
-                        last_page: 1,
-                        total: 0,
-                    },
-                },
-                init() {
-                    this.syncAmountForType();
-                    this.checkEndsAtWarning(true);
-                    this.$watch('discountType', () => {
-                        this.syncAmountForType();
-                    });
-                    this.$watch('status', () => {
-                        this.checkEndsAtWarning();
-                    });
-                    this.$watch('endsAtDraft', () => {
-                        this.checkEndsAtWarning();
-                    });
-                },
-                syncAmountForType() {
-                    if (this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING }}') {
-                        this.amountDraft = '0.00';
-                        return;
-                    }
-
-                    this.amountDraft = this.formatAmountForCurrentType(this.amountDraft);
-                },
-                formatAmountForCurrentType(value = this.amountDraft) {
-                    const raw = String(value || '').trim();
-                    const amount = parseFloat(raw);
-                    if (!Number.isFinite(amount) || amount < 0) {
-                        return this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE }}' ? '0' : '0.00';
-                    }
-
-                    if (this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE }}') {
-                        return String(Math.round(amount));
-                    }
-
-                    return amount.toFixed(2);
-                },
-                formatAmountForType() {
-                    if (this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING }}') {
-                        this.amountDraft = '0.00';
-                        return;
-                    }
-
-                    this.amountDraft = this.formatAmountForCurrentType();
-                },
-                amountStep() {
-                    return this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE }}' ? '1' : '0.01';
-                },
-                amountInputMode() {
-                    return this.discountType === '{{ \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE }}' ? 'numeric' : 'decimal';
-                },
-                isEndsAtPast() {
-                    if (this.status !== '{{ \App\Models\Coupon::STATUS_ACTIVE }}') {
-                        return false;
-                    }
-
-                    const raw = String(this.endsAtDraft || '').trim();
-                    if (raw === '') {
-                        return false;
-                    }
-
-                    const parsed = new Date(raw);
-                    return Number.isFinite(parsed.getTime()) && parsed.getTime() < Date.now();
-                },
-                checkEndsAtWarning(force = false) {
-                    if (!this.isEndsAtPast()) {
-                        this.endsAtPastToastKey = null;
-                        return;
-                    }
-
-                    const warningKey = String(this.endsAtDraft || '');
-                    if (!force && this.endsAtPastToastKey === warningKey) {
-                        return;
-                    }
-
-                    this.endsAtPastToastKey = warningKey;
-                    if ($SM && typeof $SM.notice === 'function') {
-                        $SM.notice(
-                            'Voucher will be inactive',
-                            'This end time is in the past, so the voucher will be inactive immediately.',
-                            'warning',
-                            { toast: true }
-                        );
-                    }
-                },
-                selectedItems(type) {
-                    return type === 'products' ? this.productSelections : this.workshopSelections;
-                },
-                selectedItemIds(type) {
-                    return this.selectedItems(type).map((item) => String(item.id));
-                },
-                selectedItemCount(type) {
-                    return this.selectedItems(type).length;
-                },
-                openProductsPicker() {
-                    this.productsEnabled = true;
-                    this.openPicker('products');
-                },
-                openWorkshopsPicker() {
-                    this.workshopsEnabled = true;
-                    this.openPicker('workshops');
-                },
-                openPicker(type) {
-                    this.picker.type = type;
-                    this.picker.open = true;
-                    this.picker.search = '';
-                    this.picker.filter = type === 'products' ? '{{ \App\Models\Product::STATUS_ACTIVE }}' : 'all';
-                    this.loadPickerItems(1);
-                    this.$nextTick(() => {
-                        this.$refs.scopePickerSearch?.focus?.();
-                    });
-                },
-                closePicker() {
-                    this.picker.open = false;
-                    this.picker.busy = false;
-                    this.picker.items = [];
-                    this.picker.search = '';
-                    this.picker.filter = 'all';
-                    this.picker.type = null;
-                },
-                pickerTitle() {
-                    return this.picker.type === 'products' ? 'Select products' : 'Select workshops';
-                },
-                pickerDescription() {
-                    return this.picker.type === 'products'
-                        ? 'Choose specific products to limit this voucher, or clear the selection to allow all products.'
-                        : 'Choose specific workshops to limit this voucher, or clear the selection to allow all workshops.';
-                },
-                pickerFiltersForCurrentType() {
-                    return this.pickerFilters[this.picker.type || 'products'] || [];
-                },
-                pickerEndpoint() {
-                    return this.picker.type ? this.endpoints[this.picker.type] : '';
-                },
-                pickerFilterLabel(value) {
-                    const match = this.pickerFiltersForCurrentType().find((item) => String(item.value) === String(value));
-                    return match?.label || String(value || '');
-                },
-                isPickerItemSelected(item) {
-                    return this.selectedItemIds(this.picker.type || 'products').includes(String(item.id));
-                },
-                togglePickerItem(item) {
-                    if (!this.picker.type) {
-                        return;
-                    }
-
-                    const key = String(item.id);
-                    const list = this.selectedItems(this.picker.type);
-                    const index = list.findIndex((entry) => String(entry.id) === key);
-                    if (index >= 0) {
-                        list.splice(index, 1);
-                    } else {
-                        list.push({
-                            id: key,
-                            label: String(item.label || ''),
-                            subtitle: String(item.subtitle || ''),
-                            status: String(item.status || ''),
-                        });
-                        list.sort((left, right) => String(left.label).localeCompare(String(right.label)));
-                    }
-                },
-                async loadPickerItems(page = 1) {
-                    if (!this.picker.type) {
-                        return;
-                    }
-
-                    const endpoint = this.pickerEndpoint();
-                    if (!endpoint) {
-                        return;
-                    }
-
-                    this.picker.busy = true;
-                    try {
-                        const params = new URLSearchParams({
-                            search: this.picker.search || '',
-                            status: this.picker.filter || 'all',
-                            per_page: '12',
-                            page: String(page),
-                        });
-                        const response = await fetch(endpoint + '?' + params.toString(), {
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                        });
-                        const payload = await response.json().catch(() => ({}));
-                        this.picker.items = (payload.items || []).map((item) => ({
-                            ...item,
-                            selected: this.isPickerItemSelected(item),
-                        }));
-                        this.picker.meta = payload.meta || {
-                            current_page: 1,
-                            last_page: 1,
-                            total: 0,
-                        };
-                    } finally {
-                        this.picker.busy = false;
-                    }
-                },
-                async refreshPickerItems() {
-                    await this.loadPickerItems(this.picker.meta?.current_page || 1);
-                },
-                async setPickerFilter(value) {
-                    this.picker.filter = value;
-                    await this.loadPickerItems(1);
-                },
-                clearCurrentPickerSelection() {
-                    if (this.picker.type === 'products') {
-                        this.productSelections = [];
-                        this.productsEnabled = true;
-                    } else if (this.picker.type === 'workshops') {
-                        this.workshopSelections = [];
-                        this.workshopsEnabled = true;
-                    }
-
-                    this.closePicker();
-                },
-                finishPickerSelection() {
-                    this.closePicker();
-                },
-            }"
+            x-data="smCspAdminShopCouponEdit1"
             x-init="init()"
-            x-effect="document.documentElement.classList.toggle('overflow-hidden', picker.open); document.body.classList.toggle('overflow-hidden', picker.open);"
+            x-effect="$SM.setBodyScrollLocks(picker.open)"
         >
             @csrf
             @isset($coupon)
@@ -507,7 +259,7 @@
                     aria-modal="true"
                     :aria-labelledby="picker.type === 'products' ? 'coupon-product-picker-title' : 'coupon-workshop-picker-title'"
                     @click.self="closePicker()"
-                    @keydown.escape.window="if (picker.open) { closePicker() }"
+                    @keydown.escape.window="$SM.callDataMethodWhen($el, picker.open, 'closePicker')"
                 >
                     <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                         <div class="border-b border-gray-200 px-6 py-5">
@@ -539,7 +291,7 @@
                                         <x-ui.button variant="plain"
                                             type="button"
                                             class="rounded-full border px-3 py-1.5 text-sm font-semibold transition"
-                                            x-bind:class="String(picker.filter) === String(filter.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
+                                            x-bind:class="$SM.string(picker.filter) === $SM.string(filter.value) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400'"
                                             x-text="filter.label"
                                             x-on:click="setPickerFilter(filter.value)"
                                         ></x-ui.button>
@@ -609,4 +361,258 @@
             </template>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminShopCouponEdit1', () => ({
+                status: @js($resolvedStatus),
+                discountType: @js($resolvedDiscountType),
+                amountDraft: @js($resolvedAmount),
+                endsAtDraft: @js($resolvedEndsAt),
+                endsAtPastToastKey: null,
+                productsEnabled: @js($resolvedProductsEnabled),
+                workshopsEnabled: @js($resolvedWorkshopsEnabled),
+                productSelections: @js($selectedProductItems),
+                workshopSelections: @js($selectedWorkshopItems),
+                endpoints: {
+                    products: @js(route('admin.shop.coupon.product-options')),
+                    workshops: @js(route('admin.shop.coupon.workshop-options')),
+                },
+                pickerFilters: {
+                    products: @js($productPickerFilters),
+                    workshops: @js($workshopPickerFilters),
+                },
+                picker: {
+                    type: null,
+                    open: false,
+                    search: '',
+                    filter: 'all',
+                    busy: false,
+                    items: [],
+                    meta: {
+                        current_page: 1,
+                        last_page: 1,
+                        total: 0,
+                    },
+                },
+                init() {
+                    this.syncAmountForType();
+                    this.checkEndsAtWarning(true);
+                    this.$watch('discountType', () => {
+                        this.syncAmountForType();
+                    });
+                    this.$watch('status', () => {
+                        this.checkEndsAtWarning();
+                    });
+                    this.$watch('endsAtDraft', () => {
+                        this.checkEndsAtWarning();
+                    });
+                },
+                syncAmountForType() {
+                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)') {
+                        this.amountDraft = '0.00';
+                        return;
+                    }
+
+                    this.amountDraft = this.formatAmountForCurrentType(this.amountDraft);
+                },
+                formatAmountForCurrentType(value = this.amountDraft) {
+                    const raw = String(value || '').trim();
+                    const amount = parseFloat(raw);
+                    if (!Number.isFinite(amount) || amount < 0) {
+                        return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? '0' : '0.00';
+                    }
+
+                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)') {
+                        return String(Math.round(amount));
+                    }
+
+                    return amount.toFixed(2);
+                },
+                formatAmountForType() {
+                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)') {
+                        this.amountDraft = '0.00';
+                        return;
+                    }
+
+                    this.amountDraft = this.formatAmountForCurrentType();
+                },
+                amountStep() {
+                    return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? '1' : '0.01';
+                },
+                amountInputMode() {
+                    return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? 'numeric' : 'decimal';
+                },
+                isEndsAtPast() {
+                    if (this.status !== '@js(\App\Models\Coupon::STATUS_ACTIVE)') {
+                        return false;
+                    }
+
+                    const raw = String(this.endsAtDraft || '').trim();
+                    if (raw === '') {
+                        return false;
+                    }
+
+                    const parsed = new Date(raw);
+                    return Number.isFinite(parsed.getTime()) && parsed.getTime() < Date.now();
+                },
+                checkEndsAtWarning(force = false) {
+                    if (!this.isEndsAtPast()) {
+                        this.endsAtPastToastKey = null;
+                        return;
+                    }
+
+                    const warningKey = String(this.endsAtDraft || '');
+                    if (!force && this.endsAtPastToastKey === warningKey) {
+                        return;
+                    }
+
+                    this.endsAtPastToastKey = warningKey;
+                    if (window.SM && typeof window.SM.notice === 'function') {
+                        window.SM.notice(
+                            'Voucher will be inactive',
+                            'This end time is in the past, so the voucher will be inactive immediately.',
+                            'warning',
+                            { toast: true }
+                        );
+                    }
+                },
+                selectedItems(type) {
+                    return type === 'products' ? this.productSelections : this.workshopSelections;
+                },
+                selectedItemIds(type) {
+                    return this.selectedItems(type).map((item) => String(item.id));
+                },
+                selectedItemCount(type) {
+                    return this.selectedItems(type).length;
+                },
+                openProductsPicker() {
+                    this.productsEnabled = true;
+                    this.openPicker('products');
+                },
+                openWorkshopsPicker() {
+                    this.workshopsEnabled = true;
+                    this.openPicker('workshops');
+                },
+                openPicker(type) {
+                    this.picker.type = type;
+                    this.picker.open = true;
+                    this.picker.search = '';
+                    this.picker.filter = type === 'products' ? '@js(\App\Models\Product::STATUS_ACTIVE)' : 'all';
+                    this.loadPickerItems(1);
+                    this.$nextTick(() => {
+                        this.$refs.scopePickerSearch?.focus?.();
+                    });
+                },
+                closePicker() {
+                    this.picker.open = false;
+                    this.picker.busy = false;
+                    this.picker.items = [];
+                    this.picker.search = '';
+                    this.picker.filter = 'all';
+                    this.picker.type = null;
+                },
+                pickerTitle() {
+                    return this.picker.type === 'products' ? 'Select products' : 'Select workshops';
+                },
+                pickerDescription() {
+                    return this.picker.type === 'products'
+                        ? 'Choose specific products to limit this voucher, or clear the selection to allow all products.'
+                        : 'Choose specific workshops to limit this voucher, or clear the selection to allow all workshops.';
+                },
+                pickerFiltersForCurrentType() {
+                    return this.pickerFilters[this.picker.type || 'products'] || [];
+                },
+                pickerEndpoint() {
+                    return this.picker.type ? this.endpoints[this.picker.type] : '';
+                },
+                pickerFilterLabel(value) {
+                    const match = this.pickerFiltersForCurrentType().find((item) => String(item.value) === String(value));
+                    return match?.label || String(value || '');
+                },
+                isPickerItemSelected(item) {
+                    return this.selectedItemIds(this.picker.type || 'products').includes(String(item.id));
+                },
+                togglePickerItem(item) {
+                    if (!this.picker.type) {
+                        return;
+                    }
+
+                    const key = String(item.id);
+                    const list = this.selectedItems(this.picker.type);
+                    const index = list.findIndex((entry) => String(entry.id) === key);
+                    if (index >= 0) {
+                        list.splice(index, 1);
+                    } else {
+                        list.push({
+                            id: key,
+                            label: String(item.label || ''),
+                            subtitle: String(item.subtitle || ''),
+                            status: String(item.status || ''),
+                        });
+                        list.sort((left, right) => String(left.label).localeCompare(String(right.label)));
+                    }
+                },
+                async loadPickerItems(page = 1) {
+                    if (!this.picker.type) {
+                        return;
+                    }
+
+                    const endpoint = this.pickerEndpoint();
+                    if (!endpoint) {
+                        return;
+                    }
+
+                    this.picker.busy = true;
+                    try {
+                        const params = new URLSearchParams({
+                            search: this.picker.search || '',
+                            status: this.picker.filter || 'all',
+                            per_page: '12',
+                            page: String(page),
+                        });
+                        const response = await fetch(endpoint + '?' + params.toString(), {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                        });
+                        const payload = await response.json().catch(() => ({}));
+                        this.picker.items = (payload.items || []).map((item) => ({
+                            ...item,
+                            selected: this.isPickerItemSelected(item),
+                        }));
+                        this.picker.meta = payload.meta || {
+                            current_page: 1,
+                            last_page: 1,
+                            total: 0,
+                        };
+                    } finally {
+                        this.picker.busy = false;
+                    }
+                },
+                async refreshPickerItems() {
+                    await this.loadPickerItems(this.picker.meta?.current_page || 1);
+                },
+                async setPickerFilter(value) {
+                    this.picker.filter = value;
+                    await this.loadPickerItems(1);
+                },
+                clearCurrentPickerSelection() {
+                    if (this.picker.type === 'products') {
+                        this.productSelections = [];
+                        this.productsEnabled = true;
+                    } else if (this.picker.type === 'workshops') {
+                        this.workshopSelections = [];
+                        this.workshopsEnabled = true;
+                    }
+
+                    this.closePicker();
+                },
+                finishPickerSelection() {
+                    this.closePicker();
+                },
+            }));
+});
+</script>
 </x-layout>

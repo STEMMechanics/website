@@ -4,8 +4,8 @@
     <x-container class="mt-5">
         <form method="POST" action="{{ route('admin.site_option.hero.update') }}"
             x-data="{ hero: @js(array_replace($hero, array_intersect_key(old(), $hero))), heroImageUrl: @js($heroImageUrl) }"
-            x-on:sm-media-updated.window="if ($event.detail.name === 'hero_image') heroImageUrl = $event.detail.details.thumbnail"
-            x-on:click="if ($event.target.closest('button')?.id.startsWith('hero_image_clear_')) heroImageUrl = @js(asset('home-hero-1024.webp'))">
+            x-on:sm-media-updated.window="$SM.updateDataFromEvent($el, $event, 'hero_image', 'heroImageUrl', 'details.thumbnail')"
+            x-on:click="$SM.clearSelectionIfButton($el, $event, 'hero_image_clear_', 'heroImageUrl', @js(asset('home-hero-1024.webp')))">
             @csrf
             @method('PUT')
             <h2 class="mb-3 text-xl font-bold text-gray-900">Hero</h2>

@@ -1,5 +1,5 @@
 @props(['products' => true, 'workshops' => true, 'autoSubmit' => false])
-<fieldset class="mt-3" x-on:change="searchScopeError = !searchProducts && !searchWorkshops; @if($autoSubmit) if (!searchScopeError) $nextTick(() => $refs.searchForm.requestSubmit()); @endif">
+<fieldset class="mt-3" x-on:change="$SM.validateSearchScopeChange($el, {{ $autoSubmit ? 'true' : 'false' }})">
     <input type="hidden" name="include_products" value="{{ $products ? 1 : 0 }}" x-bind:value="searchProducts ? 1 : 0">
     <input type="hidden" name="include_workshops" value="{{ $workshops ? 1 : 0 }}" x-bind:value="searchWorkshops ? 1 : 0">
     <div class="flex flex-wrap gap-x-6 gap-y-3 items-center">

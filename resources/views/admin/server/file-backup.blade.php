@@ -32,9 +32,9 @@
                 </form>
             </div>
             <div x-show="run" x-cloak class="mt-4 rounded-md border p-3" :class="run?.status === 'failed' ? 'border-red-200 bg-red-50' : (run?.status === 'completed' ? 'border-green-200 bg-green-50' : 'border-sky-200 bg-sky-50')">
-                <div class="text-sm" x-text="run?.status === 'failed' ? run.error_message : run?.message"></div>
+                <div class="text-sm" x-text="$SM.get(run, 'status') === 'failed' ? $SM.get(run, 'error_message') : $SM.get(run, 'message')"></div>
                 <div x-show="run && !run.finished" class="mt-2 h-2 overflow-hidden rounded-full bg-white"><div class="h-full animate-pulse rounded-full bg-sky-600" :style="('width:' + (Math.max(5, Number(run?.progress || 0))) + '%')"></div></div>
-                <a x-show="run?.download_url" :href="run?.download_url" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-color hover:underline"><i class="fa-solid fa-download"></i> Download ZIP</a>
+                <a x-show="$SM.get(run, 'download_url')" :href="run?.download_url" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-color hover:underline"><i class="fa-solid fa-download"></i> Download ZIP</a>
             </div>
         </div>
 

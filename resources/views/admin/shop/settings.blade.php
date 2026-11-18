@@ -80,186 +80,7 @@
             method="POST"
             action="{{ route('admin.shop.settings.update') }}"
             class="space-y-6"
-            x-data="{
-                shippingMethods: @js($shippingMethodRows),
-                processingPauseUntil: @js(old('processing_pause_until', $processingPauseUntil ?? '')),
-                trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
-                validationErrors: @js($validationErrors),
-                trackingLinkTemplates: [],
-                init() {
-                    this.trackingLinkTemplates = this.parseTrackingLinkTemplates(this.trackingLinkTemplatesSource);
-                },
-                newPackage(sortOrder = 1) {
-                    return {
-                        id: null,
-                        code: '',
-                        label: '',
-                        sort_order: sortOrder,
-                        capacity: '1.00',
-                        internal_length_mm: '',
-                        internal_width_mm: '',
-                        internal_height_mm: '',
-                        max_weight_grams: '5000',
-                        price: '0.00',
-                        is_active: true,
-                        suppresses_request_quote: true,
-                    };
-                },
-                loadStandardBoxes(methodIndex) {
-                    this.shippingMethods[methodIndex].packages = [
-                        { id: null, code: 'box_220_160_70', label: '220 × 160 × 70 mm Box', sort_order: 1, capacity: '1.00', internal_length_mm: '220', internal_width_mm: '160', internal_height_mm: '70', max_weight_grams: '5000', price: '12.38', is_active: true },
-                        { id: null, code: 'box_240_190_120', label: '240 × 190 × 120 mm Box', sort_order: 2, capacity: '1.00', internal_length_mm: '240', internal_width_mm: '190', internal_height_mm: '120', max_weight_grams: '5000', price: '16.56', is_active: true },
-                        { id: null, code: 'box_390_280_140', label: '390 × 280 × 140 mm Box', sort_order: 3, capacity: '1.00', internal_length_mm: '390', internal_width_mm: '280', internal_height_mm: '140', max_weight_grams: '5000', price: '20.93', is_active: true },
-                        { id: null, code: 'box_440_277_168', label: '440 × 277 × 168 mm Box', sort_order: 4, capacity: '1.00', internal_length_mm: '440', internal_width_mm: '277', internal_height_mm: '168', max_weight_grams: '5000', price: '25.09', is_active: true },
-                    ];
-                },
-                nextShippingMethodSortOrder() {
-                    return this.shippingMethods.length > 0
-                        ? Math.max(...this.shippingMethods.map((method) => Number(method.sort_order || 0))) + 1
-                        : 0;
-                },
-                nextPackageSortOrder(methodIndex) {
-                    const method = this.shippingMethods[methodIndex];
-                    const packages = Array.isArray(method && method.packages)
-                        ? method.packages
-                        : [];
-
-                    return packages.length > 0
-                        ? Math.max(...packages.map((item) => Number(item.sort_order || 0))) + 1
-                        : 1;
-                },
-                channelUsesFreeCollection(method) {
-                    return !!method?.is_pickup;
-                },
-                changePricingType(method) {
-                    const wasPickup = method.is_pickup;
-                    method.is_pickup = method.pricing_type === 'pickup';
-                    if (wasPickup !== method.is_pickup) {
-                        const oldTerms = wasPickup ? ['Collection', 'Available now', 'Available later'] : ['Shipment', 'Ships now', 'Ships later'];
-                        const newTerms = method.is_pickup ? ['Collection', 'Available now', 'Available later'] : ['Shipment', 'Ships now', 'Ships later'];
-                        ['shipment_label', 'immediate_status_label', 'delayed_status_label'].forEach((key, index) => {
-                            if (method[key] === oldTerms[index]) method[key] = newTerms[index];
-                        });
-                    }
-                    if (method.pricing_type === 'cart_value' && method.cart_value_tiers.length === 0) {
-                        method.cart_value_tiers = [
-                            { min_cart_value: '0.00', price: '12.95' },
-                            { min_cart_value: '150.00', price: '0.00' },
-                        ];
-                    }
-                },
-                addShippingMethod() {
-                    this.shippingMethods.push({
-                        id: null,
-                        is_pickup: false,
-                        pricing_type: 'calculated',
-                        cart_value_tiers: [],
-                        cubic_divisor: '',
-                        calculated_packaging_cost: '0.00',
-                        weight_tiers: [],
-                        code: '',
-                        name: '',
-                        description: '',
-                        shipment_label: 'Shipment',
-                        immediate_status_label: 'Ships now',
-                        delayed_status_label: 'Ships later',
-                        delivery_estimate_min_days: '',
-                        delivery_estimate_max_days: '',
-                        is_active: true,
-                        sort_order: this.nextShippingMethodSortOrder(),
-                        packages: [this.newPackage(1)],
-                    });
-                },
-                removeShippingMethod(index) {
-                    this.shippingMethods.splice(index, 1);
-                },
-                addPackage(methodIndex) {
-                    const method = this.shippingMethods[methodIndex];
-                    if (!method) {
-                        return;
-                    }
-
-                    if (!Array.isArray(method.packages)) {
-                        method.packages = [];
-                    }
-
-                    method.packages.push(this.newPackage(this.nextPackageSortOrder(methodIndex)));
-                },
-                removePackage(methodIndex, packageIndex) {
-                    const method = this.shippingMethods[methodIndex];
-                    if (!method || !Array.isArray(method.packages)) {
-                        return;
-                    }
-
-                    method.packages.splice(packageIndex, 1);
-                },
-                newTrackingLinkTemplate() {
-                    return {
-                        carrier: '',
-                        template: '',
-                    };
-                },
-                parseTrackingLinkTemplates(rawValue) {
-                    if (Array.isArray(rawValue)) {
-                        return rawValue
-                            .map((row) => ({
-                                carrier: String(row && typeof row === 'object' ? row.carrier : '').trim(),
-                                template: String(row && typeof row === 'object' ? row.template : '').trim(),
-                            }))
-                            .filter((row) => row.carrier !== '' || row.template !== '');
-                    }
-
-                    if (typeof rawValue !== 'string' || rawValue.trim() === '') {
-                        return [];
-                    }
-
-                    try {
-                        const parsed = JSON.parse(rawValue);
-
-                        if (Array.isArray(parsed)) {
-                            return parsed
-                                .map((row) => ({
-                                    carrier: String((row && typeof row === 'object' ? row.carrier : '') ?? '').trim(),
-                                    template: String((row && typeof row === 'object' ? row.template : '') ?? '').trim(),
-                                }))
-                                .filter((row) => row.carrier !== '' || row.template !== '');
-                        }
-
-                        if (parsed && typeof parsed === 'object') {
-                            return Object.entries(parsed)
-                                .map(([carrier, template]) => ({
-                                    carrier: String(carrier ?? '').trim(),
-                                    template: String(template ?? '').trim(),
-                                }))
-                                .filter((row) => row.carrier !== '' || row.template !== '');
-                        }
-                    } catch (error) {
-                        return [];
-                    }
-
-                    return [];
-                },
-                addTrackingLinkTemplate() {
-                    this.trackingLinkTemplates.push(this.newTrackingLinkTemplate());
-                },
-                removeTrackingLinkTemplate(index) {
-                    this.trackingLinkTemplates.splice(index, 1);
-                },
-                normalizedTrackingLinkTemplates() {
-                    return this.trackingLinkTemplates
-                        .map((row) => ({
-                            carrier: String(row.carrier ?? '').trim(),
-                            template: String(row.template ?? '').trim(),
-                        }))
-                        .filter((row) => row.carrier !== '' && row.template !== '');
-                },
-                fieldErrors(name) {
-                    return this.validationErrors[name] ?? [];
-                },
-                hasFieldError(name) {
-                    return this.fieldErrors(name).length > 0;
-                },
-            }"
+            x-data="smCspAdminShopSettings1"
         >
             @csrf
             @method('PUT')
@@ -437,8 +258,8 @@
 
             <section class="{{ $settingsCardClasses }} space-y-5"
                 x-data="{ selectedImage: @js(old('sidebar_shipping_image', $sidebarShippingImage) ?? '') }"
-                x-on:sm-media-updated.window="if ($event.detail.name === 'sidebar_shipping_image') selectedImage = $event.detail.value || ''"
-                x-on:click="if ($event.target.closest('button')?.id.startsWith('sidebar_shipping_image_clear_')) selectedImage = ''">
+                x-on:sm-media-updated.window="$SM.updateDataFromEvent($el, $event, 'sidebar_shipping_image', 'selectedImage', 'value')"
+                x-on:click="$SM.clearSelectionIfButton($el, $event, 'sidebar_shipping_image_clear_', 'selectedImage')">
                 <div>
                     <h2 class="text-xl font-bold text-gray-900">Sidebar Shipping Notice</h2>
                     <p class="mt-1 text-sm text-gray-600">Show an image or a text notice below the store categories on desktop and mobile.</p>
@@ -694,8 +515,8 @@
                             </fieldset>
 
                             <fieldset class="min-w-0" x-show="method.pricing_type === 'calculated'" x-bind:disabled="method.pricing_type !== 'calculated'" x-cloak>
-                            <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(('shipping_methods.' + (index) + '.weight_tiers')) || key === ('shipping_methods.' + (index) + '.cubic_divisor') || key === ('shipping_methods.' + (index) + '.calculated_packaging_cost'))">
-                                <x-slot:summary><span x-text="method.weight_tiers.length ? ('' + (method.weight_tiers.length) + ' weight tier' + (method.weight_tiers.length === 1 ? '' : 's') + ' · $' + (Number(method.calculated_packaging_cost || 0).toFixed(2)) + ' packaging per box') : 'Not configured'"></span></x-slot:summary>
+                            <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="$SM.hasShippingFieldError(validationErrors, index, 'weight_tiers')">
+                                <x-slot:summary><span x-text="method.weight_tiers.length ? ('' + (method.weight_tiers.length) + ' weight tier' + (method.weight_tiers.length === 1 ? '' : 's') + ' · $' + ($SM.number(method.calculated_packaging_cost || 0).toFixed(2)) + ' packaging per box') : 'Not configured'"></span></x-slot:summary>
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0 flex-1">
                                         <p class="mt-1 text-sm text-gray-600">Optional. Chargeable weight is the higher of actual weight and cubic weight for each packed box. Whole items are split into more boxes when needed, and fixed-price boxes can be mixed in to reduce the total.</p>
@@ -739,8 +560,8 @@
                                 <p class="mt-3 text-sm text-gray-500">Limits are inclusive and sorted by weight when saved. A single item above the highest limit needs another eligible shipping option or a manual quote.</p>
                             </x-ui.collapsible-section>
 
-                            <x-ui.collapsible-section title="Fixed-price Box Options" variant="product" class="mt-4 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(('shipping_methods.' + (index) + '.packages')))">
-                                <x-slot:summary><span x-text="method.packages.length ? ('' + (method.packages.filter(item => item.is_active).length) + ' active / ' + (method.packages.length) + ' box option' + (method.packages.length === 1 ? '' : 's') + '') : 'No fixed-price boxes'"></span></x-slot:summary>
+                            <x-ui.collapsible-section title="Fixed-price Box Options" variant="product" class="mt-4 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="$SM.hasShippingFieldError(validationErrors, index, 'packages')">
+                                <x-slot:summary><span x-text="method.packages.length ? ('' + ($SM.activePackageCount(method.packages)) + ' active / ' + (method.packages.length) + ' box option' + (method.packages.length === 1 ? '' : 's') + '') : 'No fixed-price boxes'"></span></x-slot:summary>
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0 flex-1">
                                         <div class="mt-1 text-sm text-gray-600">Dimensions are the usable internal measurements of each box. Price is the GST-inclusive customer charge and includes the box and postage.</div>
@@ -751,7 +572,7 @@
                                     </div>
                                 </div>
 
-                                <div x-show="!method.is_pickup && !method.packages.some(item => item.is_active) && method.weight_tiers.length === 0" x-cloak class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                <div x-show="!method.is_pickup && !$SM.hasActivePackages(method.packages) && method.weight_tiers.length === 0" x-cloak class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                     No active shipping prices are configured. This channel requires a manual quote until you add a fixed-price box or calculated tiers.
                                 </div>
 
@@ -858,4 +679,189 @@
             </div>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminShopSettings1', () => ({
+                shippingMethods: @js($shippingMethodRows),
+                processingPauseUntil: @js(old('processing_pause_until', $processingPauseUntil ?? '')),
+                trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
+                validationErrors: @js($validationErrors),
+                trackingLinkTemplates: [],
+                init() {
+                    this.trackingLinkTemplates = this.parseTrackingLinkTemplates(this.trackingLinkTemplatesSource);
+                },
+                newPackage(sortOrder = 1) {
+                    return {
+                        id: null,
+                        code: '',
+                        label: '',
+                        sort_order: sortOrder,
+                        capacity: '1.00',
+                        internal_length_mm: '',
+                        internal_width_mm: '',
+                        internal_height_mm: '',
+                        max_weight_grams: '5000',
+                        price: '0.00',
+                        is_active: true,
+                        suppresses_request_quote: true,
+                    };
+                },
+                loadStandardBoxes(methodIndex) {
+                    this.shippingMethods[methodIndex].packages = [
+                        { id: null, code: 'box_220_160_70', label: '220 × 160 × 70 mm Box', sort_order: 1, capacity: '1.00', internal_length_mm: '220', internal_width_mm: '160', internal_height_mm: '70', max_weight_grams: '5000', price: '12.38', is_active: true },
+                        { id: null, code: 'box_240_190_120', label: '240 × 190 × 120 mm Box', sort_order: 2, capacity: '1.00', internal_length_mm: '240', internal_width_mm: '190', internal_height_mm: '120', max_weight_grams: '5000', price: '16.56', is_active: true },
+                        { id: null, code: 'box_390_280_140', label: '390 × 280 × 140 mm Box', sort_order: 3, capacity: '1.00', internal_length_mm: '390', internal_width_mm: '280', internal_height_mm: '140', max_weight_grams: '5000', price: '20.93', is_active: true },
+                        { id: null, code: 'box_440_277_168', label: '440 × 277 × 168 mm Box', sort_order: 4, capacity: '1.00', internal_length_mm: '440', internal_width_mm: '277', internal_height_mm: '168', max_weight_grams: '5000', price: '25.09', is_active: true },
+                    ];
+                },
+                nextShippingMethodSortOrder() {
+                    return this.shippingMethods.length > 0
+                        ? Math.max(...this.shippingMethods.map((method) => Number(method.sort_order || 0))) + 1
+                        : 0;
+                },
+                nextPackageSortOrder(methodIndex) {
+                    const method = this.shippingMethods[methodIndex];
+                    const packages = Array.isArray(method && method.packages)
+                        ? method.packages
+                        : [];
+
+                    return packages.length > 0
+                        ? Math.max(...packages.map((item) => Number(item.sort_order || 0))) + 1
+                        : 1;
+                },
+                channelUsesFreeCollection(method) {
+                    return !!method?.is_pickup;
+                },
+                changePricingType(method) {
+                    const wasPickup = method.is_pickup;
+                    method.is_pickup = method.pricing_type === 'pickup';
+                    if (wasPickup !== method.is_pickup) {
+                        const oldTerms = wasPickup ? ['Collection', 'Available now', 'Available later'] : ['Shipment', 'Ships now', 'Ships later'];
+                        const newTerms = method.is_pickup ? ['Collection', 'Available now', 'Available later'] : ['Shipment', 'Ships now', 'Ships later'];
+                        ['shipment_label', 'immediate_status_label', 'delayed_status_label'].forEach((key, index) => {
+                            if (method[key] === oldTerms[index]) method[key] = newTerms[index];
+                        });
+                    }
+                    if (method.pricing_type === 'cart_value' && method.cart_value_tiers.length === 0) {
+                        method.cart_value_tiers = [
+                            { min_cart_value: '0.00', price: '12.95' },
+                            { min_cart_value: '150.00', price: '0.00' },
+                        ];
+                    }
+                },
+                addShippingMethod() {
+                    this.shippingMethods.push({
+                        id: null,
+                        is_pickup: false,
+                        pricing_type: 'calculated',
+                        cart_value_tiers: [],
+                        cubic_divisor: '',
+                        calculated_packaging_cost: '0.00',
+                        weight_tiers: [],
+                        code: '',
+                        name: '',
+                        description: '',
+                        shipment_label: 'Shipment',
+                        immediate_status_label: 'Ships now',
+                        delayed_status_label: 'Ships later',
+                        delivery_estimate_min_days: '',
+                        delivery_estimate_max_days: '',
+                        is_active: true,
+                        sort_order: this.nextShippingMethodSortOrder(),
+                        packages: [this.newPackage(1)],
+                    });
+                },
+                removeShippingMethod(index) {
+                    this.shippingMethods.splice(index, 1);
+                },
+                addPackage(methodIndex) {
+                    const method = this.shippingMethods[methodIndex];
+                    if (!method) {
+                        return;
+                    }
+
+                    if (!Array.isArray(method.packages)) {
+                        method.packages = [];
+                    }
+
+                    method.packages.push(this.newPackage(this.nextPackageSortOrder(methodIndex)));
+                },
+                removePackage(methodIndex, packageIndex) {
+                    const method = this.shippingMethods[methodIndex];
+                    if (!method || !Array.isArray(method.packages)) {
+                        return;
+                    }
+
+                    method.packages.splice(packageIndex, 1);
+                },
+                newTrackingLinkTemplate() {
+                    return {
+                        carrier: '',
+                        template: '',
+                    };
+                },
+                parseTrackingLinkTemplates(rawValue) {
+                    if (Array.isArray(rawValue)) {
+                        return rawValue
+                            .map((row) => ({
+                                carrier: String(row && typeof row === 'object' ? row.carrier : '').trim(),
+                                template: String(row && typeof row === 'object' ? row.template : '').trim(),
+                            }))
+                            .filter((row) => row.carrier !== '' || row.template !== '');
+                    }
+
+                    if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+                        return [];
+                    }
+
+                    try {
+                        const parsed = JSON.parse(rawValue);
+
+                        if (Array.isArray(parsed)) {
+                            return parsed
+                                .map((row) => ({
+                                    carrier: String((row && typeof row === 'object' ? row.carrier : '') ?? '').trim(),
+                                    template: String((row && typeof row === 'object' ? row.template : '') ?? '').trim(),
+                                }))
+                                .filter((row) => row.carrier !== '' || row.template !== '');
+                        }
+
+                        if (parsed && typeof parsed === 'object') {
+                            return Object.entries(parsed)
+                                .map(([carrier, template]) => ({
+                                    carrier: String(carrier ?? '').trim(),
+                                    template: String(template ?? '').trim(),
+                                }))
+                                .filter((row) => row.carrier !== '' || row.template !== '');
+                        }
+                    } catch (error) {
+                        return [];
+                    }
+
+                    return [];
+                },
+                addTrackingLinkTemplate() {
+                    this.trackingLinkTemplates.push(this.newTrackingLinkTemplate());
+                },
+                removeTrackingLinkTemplate(index) {
+                    this.trackingLinkTemplates.splice(index, 1);
+                },
+                normalizedTrackingLinkTemplates() {
+                    return this.trackingLinkTemplates
+                        .map((row) => ({
+                            carrier: String(row.carrier ?? '').trim(),
+                            template: String(row.template ?? '').trim(),
+                        }))
+                        .filter((row) => row.carrier !== '' && row.template !== '');
+                },
+                fieldErrors(name) {
+                    return this.validationErrors[name] ?? [];
+                },
+                hasFieldError(name) {
+                    return this.fieldErrors(name).length > 0;
+                },
+            }));
+});
+</script>
 </x-layout>

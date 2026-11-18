@@ -6,7 +6,7 @@
             <p class="mt-1 text-slate-700">Current {{ $documentLabel }} total: <strong class="whitespace-nowrap tabular-nums" x-text="'$' + normalizeMoney($SM.documentAmounts(lineItems, savedTotals).gross)"></strong>. Rounded total: <strong class="whitespace-nowrap tabular-nums" x-text="'$' + normalizeMoney(roundingSummary.roundedTotal)"></strong> (inc GST).</p>
             <p class="mt-1 text-slate-600">Apply rounded rates to update the unit prices and totals.</p>
         </div>
-        <p x-show="roundingSummary.adjusted" x-bind:class="{ 'mt-2': roundingSummary.pending }" class="text-slate-800">Price rounding included in total: <strong class="whitespace-nowrap tabular-nums" x-text="(roundingSummary.increase &gt;= 0 ? '+' : '−') + '$' + Math.abs(roundingSummary.increase).toFixed(2)"></strong></p>
+        <p x-show="roundingSummary.adjusted" x-bind:class="{ 'mt-2': roundingSummary.pending }" class="text-slate-800">Price rounding included in total: <strong class="whitespace-nowrap tabular-nums" x-text="(roundingSummary.increase &gt;= 0 ? '+' : '−') + '$' + $SM.abs(roundingSummary.increase).toFixed(2)"></strong></p>
     </div>
     <div class="flex flex-wrap items-center gap-2">
         <x-ui.button type="button" color="outline" size="small" x-on:click="$dispatch('review-price-rounding', { item: roundingSummary.first })">Review rates</x-ui.button>

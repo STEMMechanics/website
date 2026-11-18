@@ -23,8 +23,8 @@
                         <template x-for="column in columns" :key="column.key">
                             <th scope="col" class="min-w-40 px-3 py-3 font-normal" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'">
                                 <div class="font-semibold" x-text="column.name"></div>
-                                <x-ui.badge color="primary" x-show="column.variant?.is_base">Base</x-ui.badge>
-                                <div class="mt-1 text-xs text-slate-500" x-text="'$' + Number(column.price || 0).toFixed(2) + ' inc GST'"></div>
+                                <x-ui.badge color="primary" x-show="$SM.get(column.variant, 'is_base')">Base</x-ui.badge>
+                                <div class="mt-1 text-xs text-slate-500" x-text="'$' + $SM.number(column.price || 0).toFixed(2) + ' inc GST'"></div>
 
                             </th>
                         </template>
@@ -45,7 +45,7 @@
                                             <span class="pointer-events-none absolute left-3 top-2 text-slate-500">$</span>
                                             <x-ui.input-control type="text" inputmode="decimal" pattern="[0-9]+([.][0-9]{1,2})?" class="h-9 pl-7 pr-2 text-right tabular-nums" x-bind:aria-label="column.name + ' — ' + $el.closest('tr').dataset.categoryName + ' amount'" x-bind:value="values(column)[{{ $category->id }}].amount" x-on:input="$event.target.value = setValue(column, {{ $category->id }}, $event.target.value)" x-on:blur="format(column, {{ $category->id }})" />
                                         </div>
-                                        <x-ui.button variant="plain" type="button" class="inline-flex size-9 shrink-0 items-center justify-center rounded border border-slate-300 text-primary-color hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" x-on:click="allocateRemaining(column, {{ $category->id }})" x-bind:disabled="!Number.isFinite(total(column).remaining)" x-bind:aria-label="'Balance allocation for ' + $el.closest('tr').dataset.categoryName + ' for ' + column.name" title="Balance allocation for {{ $category->name }}">
+                                        <x-ui.button variant="plain" type="button" class="inline-flex size-9 shrink-0 items-center justify-center rounded border border-slate-300 text-primary-color hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40" x-on:click="allocateRemaining(column, {{ $category->id }})" x-bind:disabled="!$SM.numberIsFinite(total(column).remaining)" x-bind:aria-label="'Balance allocation for ' + $el.closest('tr').dataset.categoryName + ' for ' + column.name" title="Balance allocation for {{ $category->name }}">
                                             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                                         </x-ui.button>
                                     </div>

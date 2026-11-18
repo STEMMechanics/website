@@ -1,13 +1,11 @@
 @props(['amount', 'eligible' => 'true'])
 <div x-data="$SM.squareApplePay({
+        element: $el,
         enabled: squareEnabled,
         applicationId: squareApplicationId,
         locationId: squareLocationId,
-        amount: () => ({{ $amount }}),
-        eligible: () => ({{ $eligible }}),
-        setBusy: value => { isSubmitting = value },
-        setSource: value => { sourceId = value },
-        track: stage => $dispatch('checkout-payment-event', { stage })
+        amountExpression: @js($amount),
+        eligibleExpression: @js($eligible)
     })" x-show="walletReady && walletAmount() > 0" x-cloak class="mb-5">
     <x-ui.button variant="plain" type="button" aria-label="Pay with Apple Pay"
         class="square-apple-pay-button w-full disabled:opacity-50 disabled:cursor-not-allowed"

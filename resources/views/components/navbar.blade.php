@@ -299,7 +299,7 @@
 </nav>
 
     @if($publicShopAvailable || $workshopBookings !== [])
-        <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="if (cartOpen) { cartOpen = false }" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
+        <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="$SM.setDataValueWhen($el, 'cartOpen', false, cartOpen)" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">
             <div
                 x-show="cartOpen"
                 @click="cartOpen=false"
@@ -335,7 +335,7 @@
                     <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="$SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
                         <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
                         <p class="text-sm font-semibold" x-text="booking.title"></p>
-                        <p class="mt-1 text-sm text-gray-600"><span x-text="workshopDisplayCount(booking) + (workshopDisplayCount(booking) === 1 ? ' ticket' : ' tickets')"></span> <span x-text="(workshopSelection?.bookingId === booking.id || booking.selection_pending) ? 'selected' : 'reserved'"></span> · <span x-text="timeRemaining"></span> remaining</p>
+                        <p class="mt-1 text-sm text-gray-600"><span x-text="workshopDisplayCount(booking) + (workshopDisplayCount(booking) === 1 ? ' ticket' : ' tickets')"></span> <span x-text="($SM.get(workshopSelection, 'bookingId') === booking.id || booking.selection_pending) ? 'selected' : 'reserved'"></span> · <span x-text="timeRemaining"></span> remaining</p>
                         <x-ui.button href="#" x-bind:href="booking.url" class="mt-3">Continue booking</x-ui.button>
                     </div>
                 </template>
@@ -348,7 +348,7 @@
                 </div>
 
                 <div x-show="!cartState.is_empty" x-cloak>
-                    <div x-show="Array.isArray(cartState.inventory_change_notices) && cartState.inventory_change_notices.length > 0" x-cloak class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                    <div x-show="$SM.isArray(cartState.inventory_change_notices) && cartState.inventory_change_notices.length > 0" x-cloak class="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                         <div class="font-semibold text-amber-900">Stock availability changed</div>
                         <div class="mt-1">Your cart has been updated to match current stock.</div>
                         <div class="mt-3 space-y-2">
@@ -375,7 +375,7 @@
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyCartLineKey === line.key"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
+                                                x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 1) - 1, line.max_quantity, null, line.quantity)"
                                             >-</x-ui.button>
                                             <input
                                                 type="text"
@@ -391,8 +391,8 @@
                                             <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyCartLineKey === line.key || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
+                                                x-bind:disabled="busyCartLineKey === line.key || $SM.number(line.quantity || 0) >= $SM.number(line.max_quantity || 99)"
+                                                x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 0) + 1, line.max_quantity, null, line.quantity)"
                                             >+</x-ui.button>
                                         </div>
                                     </div>
@@ -417,7 +417,7 @@
                         </div>
                         <div class="flex items-center justify-between gap-4">
                             <span>Shipping</span>
-                            <span x-text="drawerHasShippingPrice() ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'TBD'"></span>
+                            <span x-text="drawerHasShippingPrice() ? ($SM.number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'TBD'"></span>
                         </div>
                         <div x-show="drawerDiscountAmount() > 0" class="flex items-center justify-between gap-4 text-emerald-700">
                             <span x-text="cartState.summary.coupon_code ? 'Voucher (' + cartState.summary.coupon_code + ')' : 'Discount'"></span>
@@ -450,7 +450,7 @@
         <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
             <x-ui.button type="button" variant="plain" size="icon" aria-label="Close site search" class="sm-dialog-close absolute right-1 top-1 rounded-lg text-slate-500" x-on:click="showSearch = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
-            <form method="GET" action="{{ route('search.index') }}" class="p-3 sm:p-4" x-on:submit="searchScopeError = !searchProducts && !searchWorkshops; if (searchScopeError) $event.preventDefault();">
+            <form method="GET" action="{{ route('search.index') }}" class="p-3 sm:p-4" x-on:submit="$SM.validateSearchScopes($el, $event)">
                 <div class="mb-3 pr-10">
                     <label for="site-search-query" class="block text-lg font-semibold text-gray-900">Search</label>
                 </div>

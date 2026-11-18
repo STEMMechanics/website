@@ -1,24 +1,7 @@
 <x-layout>
     <x-mast backRoute="admin.server.square-events" backTitle="Square Events">Event #{{ $event->id }}</x-mast>
 
-    <x-container x-data="{
-        ignoreOpen: false,
-        reasonCode: '',
-        reasonOther: '',
-        openIgnore() {
-            this.reasonCode = '';
-            this.reasonOther = '';
-            this.ignoreOpen = true;
-        },
-        closeIgnore() {
-            this.ignoreOpen = false;
-        },
-        canSubmitIgnore() {
-            if (!this.reasonCode) return false;
-            if (this.reasonCode !== 'other') return true;
-            return this.reasonOther.trim().length > 0;
-        }
-    }">
+    <x-container x-data="smCspAdminServerSquareEventShow1">
         @php
             $hasAmount = is_numeric($amountCents ?? null);
             $resolvedAmountCents = $hasAmount ? (int) $amountCents : null;
@@ -121,7 +104,7 @@
             </div>
         </div>
 
-        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4" x-data="{ copyState: '', async copyPayload() { try { await navigator.clipboard.writeText(this.$refs.payload.textContent); this.copyState = 'Copied'; } catch { this.copyState = 'Copy failed. Select the payload and copy it manually.'; } } }">
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4" x-data="smCspAdminServerSquareEventShow2">
             <div class="mb-3 flex items-center justify-between gap-3">
                 <h3 class="text-lg font-bold">Payload</h3>
                 <x-ui.button color="primary-outline" size="small" x-on:click="copyPayload()" aria-label="Copy payload"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i>Copy</x-ui.button>
@@ -130,4 +113,28 @@
             <pre x-ref="payload" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-152 whitespace-pre-wrap">{{ $payloadPretty ?: '{}' }}</pre>
         </div>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminServerSquareEventShow1', () => ({
+        ignoreOpen: false,
+        reasonCode: '',
+        reasonOther: '',
+        openIgnore() {
+            this.reasonCode = '';
+            this.reasonOther = '';
+            this.ignoreOpen = true;
+        },
+        closeIgnore() {
+            this.ignoreOpen = false;
+        },
+        canSubmitIgnore() {
+            if (!this.reasonCode) return false;
+            if (this.reasonCode !== 'other') return true;
+            return this.reasonOther.trim().length > 0;
+        }
+    }));
+    Alpine.data('smCspAdminServerSquareEventShow2', () => ({ copyState: '', async copyPayload() { try { await navigator.clipboard.writeText(this.$refs.payload.textContent); this.copyState = 'Copied'; } catch { this.copyState = 'Copy failed. Select the payload and copy it manually.'; } } }));
+});
+</script>
 </x-layout>

@@ -80,7 +80,7 @@
                     aria-modal="true"
                     aria-labelledby="account-password-dialog-title"
                     @click.self="passwordDialogOpen = false"
-                    @keydown.escape.window="if (passwordDialogOpen) { passwordDialogOpen = false }"
+                    @keydown.escape.window="$SM.setDataValueWhen($el, 'passwordDialogOpen', false, passwordDialogOpen)"
                 >
                     <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded bg-white shadow-2xl">
                         <div class="border-b border-gray-200 px-6 py-5">

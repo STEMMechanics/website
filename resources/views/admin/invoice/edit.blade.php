@@ -138,53 +138,14 @@
 <x-layout>
 
     <div
-        x-data="{
-        invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
-        invoiceEmailAction: {{ json_encode((string) ($invoiceEmailDefaultPayload['action'] ?? '')) }},
-        invoiceEmailInvoiceNumber: {{ json_encode((string) ($invoiceEmailDefaultPayload['invoice_number'] ?? ($invoice->invoice_number ?? ''))) }},
-        invoiceEmailRecipientEmails: {{ json_encode((string) old('recipient_emails', session('invoice-email-recipient-emails', $invoiceEmailDefaultPayload['recipient_emails'] ?? ''))) }},
-        invoiceEmailSubjectLine: {{ json_encode((string) old('subject_line', session('invoice-email-subject-line', $invoiceEmailDefaultPayload['subject_line'] ?? ''))) }},
-        invoiceEmailCcEmails: {{ json_encode((string) old('cc_emails', session('invoice-email-cc-emails', ''))) }},
-        invoiceEmailMessage: {{ json_encode((string) old('email_message', session('invoice-email-message', $invoiceEmailDefaultPayload['email_message'] ?? ''))) }},
-        invoiceEmailSubjectOpen: false,
-        invoiceEmailCcOpen: false,
-        invoiceEmailHelpOpen: false,
-        invoiceEmailTemplateOnly: false,
-        selectedInvoiceUserId: @js($selectedUserId),
-        invoiceEmailTemplatesByUser: @js($userLookupOptions->mapWithKeys(fn ($item) => [$item['id'] => $item['email_template']])->all()),
-        newInvoiceEmailPayload() {
-            const template = this.invoiceEmailTemplatesByUser[this.selectedInvoiceUserId] || @js(app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults());
-            return {
-                action: '',
-                invoice_number: 'New invoice',
-                ...template,
-            };
-        },
-        openInvoiceEmailModal(payload, templateOnly = false) {
-            this.invoiceEmailAction = payload?.action || this.invoiceEmailAction || '';
-            this.invoiceEmailInvoiceNumber = payload?.invoice_number || this.invoiceEmailInvoiceNumber || '';
-            this.invoiceEmailRecipientEmails = payload?.recipient_emails || this.invoiceEmailRecipientEmails || '';
-            this.invoiceEmailSubjectLine = payload?.subject_line || this.invoiceEmailSubjectLine || '';
-            this.invoiceEmailCcEmails = payload?.cc_emails || '';
-            this.invoiceEmailMessage = payload?.email_message || this.invoiceEmailMessage || '';
-            this.invoiceEmailTemplateOnly = templateOnly;
-            this.invoiceEmailModalOpen = true;
-            this.invoiceEmailHelpOpen = false;
-            this.invoiceEmailSubjectOpen = false;
-            this.invoiceEmailCcOpen = false;
-        },
-        closeInvoiceEmailModal() {
-            this.invoiceEmailModalOpen = false;
-            this.invoiceEmailHelpOpen = false;
-        },
-        }"
-        x-on:admin-linked-user-changed.window="selectedInvoiceUserId = String($event.detail?.userId || '')"
+        x-data="smCspAdminInvoiceEdit1"
+        x-on:admin-linked-user-changed.window="selectedInvoiceUserId = $SM.string($SM.get($event.detail, 'userId') || '')"
     >
         <x-mast backRoute="admin.invoice.index" backTitle="Invoices" :title="isset($invoice) ? 'Invoice '.$invoice->invoice_number : 'Create Invoice'">
             @if(isset($invoice))
                 <x-slot:actions>
 <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                            <x-ui.button color="mast" type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')" class="w-full sm:w-auto">Open PDF</x-ui.button>
+                            <x-ui.button color="mast" type="button" x-data x-on:click.prevent="$SM.openUrl('{{ route('admin.invoice.pdf', $invoice) }}')" class="w-full sm:w-auto">Open PDF</x-ui.button>
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                             <x-ui.button color="mast" type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})" class="w-full sm:w-auto">Email invoice</x-ui.button>
                             @if($invoiceCanAcceptPayment)
@@ -192,26 +153,7 @@
                                     type="button"
                                     color="mast"
                                     x-data
-                                    x-on:click.prevent="
-                                        fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                            method: 'POST',
-                                            headers: {
-                                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                'Accept': 'application/json'
-                                            }
-                                        })
-                                        .then(response => response.json())
-                                        .then(data => {
-                                            if (!data || !data.url) {
-                                                throw new Error('Unable to generate payment link.');
-                                            }
-                                            $SM.copyToClipboard(data.url);
-                                            $SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                        })
-                                        .catch((error) => {
-                                            $SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                        });
-                                    "
+                                    x-on:click.prevent="$SM.copyInvoicePaymentLink('{{ route('admin.invoice.payment-link', $invoice) }}', '{{ csrf_token() }}')"
                                     class="w-full sm:w-auto"
                                 >Copy Payment Link</x-ui.button>
                                 <x-ui.button color="mast" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}" class="w-full sm:w-auto">Record payment</x-ui.button>
@@ -350,352 +292,13 @@
         <div class="min-w-0 order-1">
         <div
             class="min-w-0"
-            x-data="{
-                isLocked: @js($isLocked),
-                invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
-                issueNow: @js((bool) old('issue_now', false)),
-                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->isScheduledDraft() : false)),
-                scheduledSendModalOpen: false,
-                scheduledSendNow: true,
-                scheduledSendSubmitter: null,
-                openScheduledSendModal(submitter) {
-                    this.scheduledSendNow = true;
-                    this.scheduledSendSubmitter = submitter || null;
-                    this.scheduledSendModalOpen = true;
-                },
-                closeScheduledSendModal() {
-                    this.scheduledSendModalOpen = false;
-                    this.scheduledSendSubmitter = null;
-                },
-                confirmScheduledSend(form) {
-                    this.$refs.sendScheduledNow.value = this.scheduledSendNow ? '1' : '0';
-                    form.dataset.scheduledSendConfirmed = '1';
-                    this.scheduledSendModalOpen = false;
-                    if (this.scheduledSendSubmitter instanceof HTMLButtonElement) {
-                        form.requestSubmit(this.scheduledSendSubmitter);
-                        return;
-                    }
-                    form.requestSubmit();
-                },
-                canSaveAndEmail() {
-                    return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
-                },
-                issueDate: @js(old('issue_date', isset($invoice) && $invoice->issue_date ? $invoice->issue_date->format('Y-m-d') : now()->format('Y-m-d'))),
-                dueDate: @js(old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '')),
-                selectedUserId: @js($selectedUserId),
-                selectedUserTermsDays: @js(is_array($selectedUser) ? (int) ($selectedUser['account_terms_days'] ?? 0) : 28),
-                ...SM.productLineEditor(@js($catalogProducts ?? []), true),
-                savedTotals: @js(isset($invoice) ? ['count' => $invoice->lines->count(), 'net' => (float) $invoice->subtotal_amount, 'tax' => (float) $invoice->gst_amount, 'gross' => (float) $invoice->total_amount] : null),
-                lineItems: (() => {
-                    try {
-                        const parsed = JSON.parse(@js($savedLineItems));
-                        if (!Array.isArray(parsed)) {
-                            return [];
-                        }
-
-                        return parsed.map((item) => $SM.hydrateTravelLine({
-                            unit_price_inc_tax: $SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (1 + $SM.lineTaxRate(item))),
-                            saved_pricing: item.saved_pricing ?? null,
-                            tax_rate: item.tax_rate ?? $SM.currentGstRate(),
-                            id: item.id ?? null, source_type: item.source_type ?? (item.kind === 'product' ? 'App\\Models\\Product' : null), source_id: item.source_id ?? item.details_json?.store_context?.product_id ?? null,
-                            source_variant_id: String(item.source_variant_id ?? item.details_json?.variant_id ?? item.details_json?.store_context?.variant_id ?? 0),
-                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
-                            travel_hours: item.travel_hours ?? '',
-                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
-                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
-                            legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
-                            details_json: item.details_json || {},
-                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
-                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
-                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
-                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
-                            kind: !item.kind || item.kind === 'generic' ? 'custom' : item.kind,
-                            description: item.description || '',
-                            notes: item.notes || '',
-                            quantity: parseFloat(item.quantity || 0),
-                            unit_price: (() => {
-                                const parsedUnit = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
-                                return Number.isFinite(parsedUnit) ? parsedUnit.toFixed(2) : '0.00';
-                            })(),
-                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? $SM.currentGstRate()) || 0) > 0),
-                        }));
-                    } catch (e) {
-                        return [];
-                    }
-                })(),
-                serializeLineItems() {
-                    const cleaned = this.lineItems
-                        .map((item) => this.invoiceProductItem(item))
-                        .map((item) => ({
-                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
-                            travel_hours: item.travel_hours ?? '',
-                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
-                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
-                            details_json: item.details_json || {},
-                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
-                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
-                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
-                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
-                            id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
-                            kind: (item.kind || 'custom').trim() || 'custom',
-                            description: (item.description || '').trim(),
-                            notes: (item.notes || '').trim(),
-                            quantity: parseFloat(item.quantity || 0),
-                            unit_price: Number(item.unit_price_inc_tax || 0) / (1 + $SM.lineTaxRate(item)),
-                            unit_price_inc_tax: Number(item.unit_price_inc_tax || 0),
-                            saved_pricing: item.saved_pricing ?? null,
-                            gst_applicable: item.gst_applicable !== false,
-                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? $SM.currentGstRate()),
-                        }))
-                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
-
-                    this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
-                    this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
-                },
-                addLineItem() {
-                    if (this.isLocked) {
-                        return;
-                    }
-                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: $SM.currentGstRate() });
-                },
-                setDueDateDefault(force = false) {
-                    if (this.isLocked) {
-                        return;
-                    }
-                    if (!this.issueDate) {
-                        return;
-                    }
-
-                    if (!force && this.dueDate !== '') {
-                        return;
-                    }
-
-                    const [year, month, day] = String(this.issueDate).split('-').map((value) => Number.parseInt(value, 10));
-                    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-                        return;
-                    }
-
-                    const dueDate = new Date(Date.UTC(year, month - 1, day));
-                    dueDate.setUTCDate(dueDate.getUTCDate() + this.selectedUserTermsDays);
-                    while (dueDate.getUTCDay() === 0 || dueDate.getUTCDay() === 6) {
-                        dueDate.setUTCDate(dueDate.getUTCDate() + 1);
-                    }
-                    this.dueDate = dueDate.toISOString().split('T')[0];
-                },
-                normalizeMoney(field) {
-                    const value = parseFloat(field || 0);
-                    return Number.isFinite(value) ? value.toFixed(2) : '0.00';
-                },
-                calculateSubtotal() {
-                    return $SM.documentAmounts(this.lineItems, this.savedTotals).net;
-                },
-                calculateGst() {
-                    return $SM.documentAmounts(this.lineItems, this.savedTotals).tax;
-                },
-                lineTotalExFormatted(item) {
-                    return this.normalizeMoney($SM.lineAmounts(item).net);
-                },
-                subtotalAmountFormatted() {
-                    return this.normalizeMoney(this.calculateSubtotal());
-                },
-                gstAmountFormatted() {
-                    return this.normalizeMoney(this.calculateGst());
-                },
-                totalAmountFormatted() {
-                    return this.normalizeMoney($SM.documentAmounts(this.lineItems, this.savedTotals).gross);
-                },
-                normalizeLineItem(index, field) {
-                    if (field === 'unit_price_inc_tax' && $SM.lineAmounts(this.lineItems[index]).saved) {
-                        this.lineItems[index][field] = $SM.formatUnitPrice(this.lineItems[index][field]);
-                        this.serializeLineItems();
-                        return;
-                    }
-                    const value = parseFloat(this.lineItems[index]?.[field] || 0);
-                    if (!Number.isFinite(value)) {
-                        this.lineItems[index][field] = 0;
-                    } else if (field === 'quantity') {
-                        this.lineItems[index][field] = value;
-                    } else {
-                        this.lineItems[index][field] = value.toFixed(2);
-                    }
-                    this.serializeLineItems();
-                },
-                linkedUserLabel: @js($selectedUserLabel),
-                linkedUserMap: @js($userLookupMap),
-                linkedUsers: @js($userLookupOptions->all()),
-                linkedUserOpen: false,
-                linkedUserSelectedIndex: -1,
-                linkedUserFiltered: [],
-                createUserOpen: false,
-                createUserSubmitting: false,
-                createUserError: '',
-                createUserTab: 'contact',
-                shippingSameBilling: true,
-                newUser: {
-                    firstname: '',
-                    surname: '',
-                    organisation_name: '',
-                    email: '',
-                    phone: '',
-                    billing_address: '',
-                    billing_address2: '',
-                    billing_city: '',
-                    billing_state: '',
-                    billing_postcode: '',
-                    billing_country: '',
-                    shipping_address: '',
-                    shipping_address2: '',
-                    shipping_city: '',
-                    shipping_state: '',
-                    shipping_postcode: '',
-                    shipping_country: '',
-                },
-                syncLinkedUserId() {
-                    const matched = this.linkedUsers.find((option) => option.label === this.linkedUserLabel);
-                    const userId = matched?.id || this.linkedUserMap[this.linkedUserLabel] || '';
-                    if (this.$refs.linkedUserId) this.$refs.linkedUserId.value = userId;
-                },
-                refreshLinkedUsers() {
-                    const needle = String(this.linkedUserLabel || '').toLowerCase().trim();
-                    if (needle === '') {
-                        this.linkedUserFiltered = [];
-                        this.linkedUserSelectedIndex = -1;
-                        this.linkedUserOpen = false;
-                        return;
-                    }
-                    this.linkedUserFiltered = this.linkedUsers
-                        .filter((option) => String(option?.label || '').toLowerCase().includes(needle))
-                        .slice(0, 8);
-                    this.linkedUserSelectedIndex = this.linkedUserFiltered.length > 0 ? 0 : -1;
-                    this.linkedUserOpen = this.linkedUserFiltered.length > 0;
-                },
-                moveLinkedUser(step) {
-                    if (!this.linkedUserOpen) {
-                        this.refreshLinkedUsers();
-                        return;
-                    }
-                    const len = this.linkedUserFiltered.length;
-                    if (!len) {
-                        return;
-                    }
-                    this.linkedUserSelectedIndex = (this.linkedUserSelectedIndex + step + len) % len;
-                },
-                chooseLinkedUser(option) {
-                    this.linkedUserLabel = option?.label || '';
-                    this.$refs.linkedUserId.value = option?.id || '';
-                    this.linkedUserOpen = false;
-                    this.linkedUserSelectedIndex = -1;
-                },
-                confirmLinkedUser() {
-                    if (!this.linkedUserOpen) {
-                        return;
-                    }
-                    if (this.linkedUserSelectedIndex < 0 || this.linkedUserSelectedIndex >= this.linkedUserFiltered.length) {
-                        return;
-                    }
-                    this.chooseLinkedUser(this.linkedUserFiltered[this.linkedUserSelectedIndex]);
-                },
-                openCreateUser() {
-                    this.createUserOpen = true;
-                    this.createUserTab = 'contact';
-                    this.shippingSameBilling = true;
-                    this.createUserError = '';
-                    this.newUser = {
-                        firstname: '',
-                        surname: '',
-                        organisation_name: '',
-                        email: '',
-                        phone: '',
-                        billing_address: '',
-                        billing_address2: '',
-                        billing_city: '',
-                        billing_state: '',
-                        billing_postcode: '',
-                        billing_country: '',
-                        shipping_address: '',
-                        shipping_address2: '',
-                        shipping_city: '',
-                        shipping_state: '',
-                        shipping_postcode: '',
-                        shipping_country: '',
-                    };
-                },
-                closeCreateUser() {
-                    this.createUserOpen = false;
-                    this.createUserError = '';
-                },
-                syncShippingAddress() {
-                    this.newUser.shipping_address = this.newUser.billing_address;
-                    this.newUser.shipping_address2 = this.newUser.billing_address2;
-                    this.newUser.shipping_city = this.newUser.billing_city;
-                    this.newUser.shipping_state = this.newUser.billing_state;
-                    this.newUser.shipping_postcode = this.newUser.billing_postcode;
-                    this.newUser.shipping_country = this.newUser.billing_country;
-                },
-                async submitCreateUser() {
-                    if (this.createUserSubmitting) {
-                        return;
-                    }
-                    this.createUserSubmitting = true;
-                    this.createUserError = '';
-                    try {
-                        if (this.shippingSameBilling) {
-                            this.syncShippingAddress();
-                        }
-                        const response = await fetch('{{ route('admin.user.store-inline') }}', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                            },
-                            body: JSON.stringify(this.newUser),
-                        });
-                        const payload = await response.json();
-                        if (!response.ok || !payload?.success || !payload?.user) {
-                            const firstError = payload?.errors ? Object.values(payload.errors)?.[0]?.[0] : null;
-                            throw new Error(firstError || payload?.message || 'Unable to create user.');
-                        }
-                        const user = payload.user;
-                        this.linkedUserMap[user.label] = user.id;
-                        this.linkedUsers = [...this.linkedUsers, { id: user.id, label: user.label }]
-                            .filter((value, index, array) => array.findIndex((item) => item.id === value.id) === index);
-                        this.linkedUserLabel = user.label;
-                        this.$refs.linkedUserId.value = user.id;
-                        this.refreshLinkedUsers();
-                        this.closeCreateUser();
-                    } catch (error) {
-                        this.createUserError = error?.message || 'Unable to create user.';
-                    } finally {
-                        this.createUserSubmitting = false;
-                    }
-                },
-            }"
-            x-init="setDueDateDefault(); syncLinkedUserId()"
-            x-on:admin-linked-user-changed.window="
-                selectedUserId = String($event.detail?.userId || '');
-                selectedUserTermsDays = selectedUserId === '' ? 28 : Number($event.detail?.accountTermsDays || 0);
-                setDueDateDefault(true);
-            "
+            x-data="smCspAdminInvoiceEdit2"
+            x-init="initializeInvoiceDetails()"
+            x-on:admin-linked-user-changed.window="updateLinkedUserFromEvent($event)"
         >
         <form id="invoice-edit-form" method="POST"
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
-            x-on:submit="
-                $SM.attachInvoiceAllocation($el);
-                serializeLineItems();
-                if (!$el.dataset.scheduledSendConfirmed) {
-                    $refs.sendScheduledNow.value = '0';
-                }
-                if (!isLocked
-                    && invoiceStatus === @js(\App\Models\Invoice::STATUS_DRAFT)
-                    && scheduledEmail
-                    && (issueDate < @js(today()->toDateString()) || (issueDate === @js(today()->toDateString()) && @js(now()->format('H:i') >= '08:00')))
-                    && !$el.dataset.scheduledSendConfirmed
-                ) {
-                    $event.preventDefault();
-                    openScheduledSendModal($event.submitter);
-                }
-            ">
+            x-on:submit="handleInvoiceSubmit($event)">
             @isset($invoice)
                 @method('PUT')
             @endisset
@@ -765,7 +368,7 @@
  :inline="true"
  x-model="issueNow"
  x-bind:disabled="scheduledEmail"
- x-on:change="if (issueNow) scheduledEmail = false"
+ x-on:change="$SM.setDataValueWhen($el, 'scheduledEmail', false, issueNow)"
  />
                         <div class="mt-2">
                             <x-ui.checkbox
@@ -777,7 +380,7 @@
  :inline="true"
  x-model="scheduledEmail"
  x-bind:disabled="issueNow"
- x-on:change="if (scheduledEmail) issueNow = false"
+ x-on:change="$SM.setDataValueWhen($el, 'issueNow', false, scheduledEmail)"
  />
                             <x-ui.button
                                 type="button"
@@ -817,45 +420,7 @@
             @endif
             <div
                 class="mb-4"
-                x-data="{
-                    quoteLabel: @js($selectedQuoteLabel),
-                    quoteId: @js($selectedQuoteId),
-                    quoteOptions: @js($quoteLookupOptions->all()),
-                    filteredQuotes: [],
-                    quoteOpen: false,
-                    selectedQuoteIndex: -1,
-                    refreshQuotes() {
-                        const needle = String(this.quoteLabel || '').toLowerCase().trim();
-                        if (needle === '') {
-                            this.filteredQuotes = [];
-                            this.quoteOpen = false;
-                            this.quoteId = '';
-                            return;
-                        }
-                        const exact = this.quoteOptions.find((option) => option.label === this.quoteLabel);
-                        this.quoteId = exact?.id || '';
-                        this.filteredQuotes = this.quoteOptions.filter((option) => option.label.toLowerCase().includes(needle)).slice(0, 8);
-                        this.selectedQuoteIndex = this.filteredQuotes.length ? 0 : -1;
-                        this.quoteOpen = this.filteredQuotes.length > 0;
-                    },
-                    chooseQuote(option) {
-                        this.quoteLabel = option.label;
-                        this.quoteId = option.id;
-                        this.quoteOpen = false;
-                    },
-                    moveQuote(step) {
-                        if (!this.quoteOpen) { this.refreshQuotes(); return; }
-                        const length = this.filteredQuotes.length;
-                        if (length) this.selectedQuoteIndex = (this.selectedQuoteIndex + step + length) % length;
-                    },
-                    confirmQuote() {
-                        if (this.quoteOpen && this.selectedQuoteIndex >= 0) this.chooseQuote(this.filteredQuotes[this.selectedQuoteIndex]);
-                    },
-                    openQuote() {
-                        const option = this.quoteOptions.find((item) => item.id === this.quoteId);
-                        if (option?.edit_url) window.open(option.edit_url, '_blank', 'noopener,noreferrer');
-                    },
-                }"
+                x-data="smCspAdminInvoiceEdit3"
             >
                 <div class="flex items-center justify-between">
                     <label for="invoice_linked_quote_lookup" class="block text-sm pl-1">Linked Quote</label>
@@ -1132,4 +697,433 @@
             });
         };
     </script>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminInvoiceEdit1', () => ({
+        invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
+        invoiceEmailAction: @js((string) ($invoiceEmailDefaultPayload['action'] ?? '')),
+        invoiceEmailInvoiceNumber: @js((string) ($invoiceEmailDefaultPayload['invoice_number'] ?? ($invoice->invoice_number ?? ''))),
+        invoiceEmailRecipientEmails: @js((string) old('recipient_emails', session('invoice-email-recipient-emails', $invoiceEmailDefaultPayload['recipient_emails'] ?? ''))),
+        invoiceEmailSubjectLine: @js((string) old('subject_line', session('invoice-email-subject-line', $invoiceEmailDefaultPayload['subject_line'] ?? ''))),
+        invoiceEmailCcEmails: @js((string) old('cc_emails', session('invoice-email-cc-emails', ''))),
+        invoiceEmailMessage: @js((string) old('email_message', session('invoice-email-message', $invoiceEmailDefaultPayload['email_message'] ?? ''))),
+        invoiceEmailSubjectOpen: false,
+        invoiceEmailCcOpen: false,
+        invoiceEmailHelpOpen: false,
+        invoiceEmailTemplateOnly: false,
+        selectedInvoiceUserId: @js($selectedUserId),
+        invoiceEmailTemplatesByUser: @js($userLookupOptions->mapWithKeys(fn ($item) => [$item['id'] => $item['email_template']])->all()),
+        newInvoiceEmailPayload() {
+            const template = this.invoiceEmailTemplatesByUser[this.selectedInvoiceUserId] || @js(app(\App\Services\InvoiceEmailTemplateService::class)->organisationDefaults());
+            return {
+                action: '',
+                invoice_number: 'New invoice',
+                ...template,
+            };
+        },
+        openInvoiceEmailModal(payload, templateOnly = false) {
+            this.invoiceEmailAction = payload?.action || this.invoiceEmailAction || '';
+            this.invoiceEmailInvoiceNumber = payload?.invoice_number || this.invoiceEmailInvoiceNumber || '';
+            this.invoiceEmailRecipientEmails = payload?.recipient_emails || this.invoiceEmailRecipientEmails || '';
+            this.invoiceEmailSubjectLine = payload?.subject_line || this.invoiceEmailSubjectLine || '';
+            this.invoiceEmailCcEmails = payload?.cc_emails || '';
+            this.invoiceEmailMessage = payload?.email_message || this.invoiceEmailMessage || '';
+            this.invoiceEmailTemplateOnly = templateOnly;
+            this.invoiceEmailModalOpen = true;
+            this.invoiceEmailHelpOpen = false;
+            this.invoiceEmailSubjectOpen = false;
+            this.invoiceEmailCcOpen = false;
+        },
+        closeInvoiceEmailModal() {
+            this.invoiceEmailModalOpen = false;
+            this.invoiceEmailHelpOpen = false;
+        },
+        }));
+    Alpine.data('smCspAdminInvoiceEdit2', () => ({
+                initializeInvoiceDetails() {
+                    this.setDueDateDefault();
+                    this.syncLinkedUserId();
+                },
+                updateLinkedUserFromEvent(event) {
+                    this.selectedUserId = String(event.detail?.userId || '');
+                    this.selectedUserTermsDays = this.selectedUserId === '' ? 28 : Number(event.detail?.accountTermsDays || 0);
+                    this.setDueDateDefault(true);
+                },
+                handleInvoiceSubmit(event) {
+                    const form = event.currentTarget;
+                    window.SM.attachInvoiceAllocation(form);
+                    this.serializeLineItems();
+                    if (!form.dataset.scheduledSendConfirmed) this.$refs.sendScheduledNow.value = '0';
+                    const isScheduledDraft = !this.isLocked
+                        && this.invoiceStatus === @js(\App\Models\Invoice::STATUS_DRAFT)
+                        && this.scheduledEmail
+                        && (this.issueDate < @js(today()->toDateString()) || (this.issueDate === @js(today()->toDateString()) && @js(now()->format('H:i') >= '08:00')))
+                        && !form.dataset.scheduledSendConfirmed;
+                    if (isScheduledDraft) {
+                        event.preventDefault();
+                        this.openScheduledSendModal(event.submitter);
+                    }
+                },
+                isLocked: @js($isLocked),
+                invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
+                issueNow: @js((bool) old('issue_now', false)),
+                scheduledEmail: @js((bool) old('scheduled_email', isset($invoice) ? $invoice->isScheduledDraft() : false)),
+                scheduledSendModalOpen: false,
+                scheduledSendNow: true,
+                scheduledSendSubmitter: null,
+                openScheduledSendModal(submitter) {
+                    this.scheduledSendNow = true;
+                    this.scheduledSendSubmitter = submitter || null;
+                    this.scheduledSendModalOpen = true;
+                },
+                closeScheduledSendModal() {
+                    this.scheduledSendModalOpen = false;
+                    this.scheduledSendSubmitter = null;
+                },
+                confirmScheduledSend(form) {
+                    this.$refs.sendScheduledNow.value = this.scheduledSendNow ? '1' : '0';
+                    form.dataset.scheduledSendConfirmed = '1';
+                    this.scheduledSendModalOpen = false;
+                    if (this.scheduledSendSubmitter instanceof HTMLButtonElement) {
+                        form.requestSubmit(this.scheduledSendSubmitter);
+                        return;
+                    }
+                    form.requestSubmit();
+                },
+                canSaveAndEmail() {
+                    return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
+                },
+                issueDate: @js(old('issue_date', isset($invoice) && $invoice->issue_date ? $invoice->issue_date->format('Y-m-d') : now()->format('Y-m-d'))),
+                dueDate: @js(old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '')),
+                selectedUserId: @js($selectedUserId),
+                selectedUserTermsDays: @js(is_array($selectedUser) ? (int) ($selectedUser['account_terms_days'] ?? 0) : 28),
+                ...SM.productLineEditor(@js($catalogProducts ?? []), true),
+                savedTotals: @js(isset($invoice) ? ['count' => $invoice->lines->count(), 'net' => (float) $invoice->subtotal_amount, 'tax' => (float) $invoice->gst_amount, 'gross' => (float) $invoice->total_amount] : null),
+                lineItems: (() => {
+                    try {
+                        const parsed = JSON.parse(@js($savedLineItems));
+                        if (!Array.isArray(parsed)) {
+                            return [];
+                        }
+
+                        return parsed.map((item) => window.SM.hydrateTravelLine({
+                            unit_price_inc_tax: window.SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (1 + window.SM.lineTaxRate(item))),
+                            saved_pricing: item.saved_pricing ?? null,
+                            tax_rate: item.tax_rate ?? window.SM.currentGstRate(),
+                            id: item.id ?? null, source_type: item.source_type ?? (item.kind === 'product' ? 'App\\Models\\Product' : null), source_id: item.source_id ?? item.details_json?.store_context?.product_id ?? null,
+                            source_variant_id: String(item.source_variant_id ?? item.details_json?.variant_id ?? item.details_json?.store_context?.variant_id ?? 0),
+                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
+                            legacy_workshop: item.kind === 'workshop' && !item.workshop_hours && !item.details_json?.workshop?.hours,
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                            kind: !item.kind || item.kind === 'generic' ? 'custom' : item.kind,
+                            description: item.description || '',
+                            notes: item.notes || '',
+                            quantity: parseFloat(item.quantity || 0),
+                            unit_price: (() => {
+                                const parsedUnit = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
+                                return Number.isFinite(parsedUnit) ? parsedUnit.toFixed(2) : '0.00';
+                            })(),
+                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? window.SM.currentGstRate()) || 0) > 0),
+                        }));
+                    } catch (e) {
+                        return [];
+                    }
+                })(),
+                serializeLineItems() {
+                    const cleaned = this.lineItems
+                        .map((item) => this.invoiceProductItem(item))
+                        .map((item) => ({
+                            workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            travel_rows: item.travel_rows ?? item.details_json?.multi_travel?.rows ?? [],
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                            id: item.id ?? null, source_type: item.source_type ?? null, source_id: item.source_id ?? null,
+                            kind: (item.kind || 'custom').trim() || 'custom',
+                            description: (item.description || '').trim(),
+                            notes: (item.notes || '').trim(),
+                            quantity: parseFloat(item.quantity || 0),
+                            unit_price: Number(item.unit_price_inc_tax || 0) / (1 + window.SM.lineTaxRate(item)),
+                            unit_price_inc_tax: Number(item.unit_price_inc_tax || 0),
+                            saved_pricing: item.saved_pricing ?? null,
+                            gst_applicable: item.gst_applicable !== false,
+                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? window.SM.currentGstRate()),
+                        }))
+                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+
+                    this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
+                    this.$dispatch('invoice-lines-updated', { items: cleaned, total: Math.round(Number(this.subtotalAmountFormatted()) * 100) });
+                },
+                addLineItem() {
+                    if (this.isLocked) {
+                        return;
+                    }
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: window.SM.currentGstRate() });
+                },
+                setDueDateDefault(force = false) {
+                    if (this.isLocked) {
+                        return;
+                    }
+                    if (!this.issueDate) {
+                        return;
+                    }
+
+                    if (!force && this.dueDate !== '') {
+                        return;
+                    }
+
+                    const [year, month, day] = String(this.issueDate).split('-').map((value) => Number.parseInt(value, 10));
+                    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+                        return;
+                    }
+
+                    const dueDate = new Date(Date.UTC(year, month - 1, day));
+                    dueDate.setUTCDate(dueDate.getUTCDate() + this.selectedUserTermsDays);
+                    while (dueDate.getUTCDay() === 0 || dueDate.getUTCDay() === 6) {
+                        dueDate.setUTCDate(dueDate.getUTCDate() + 1);
+                    }
+                    this.dueDate = dueDate.toISOString().split('T')[0];
+                },
+                normalizeMoney(field) {
+                    const value = parseFloat(field || 0);
+                    return Number.isFinite(value) ? value.toFixed(2) : '0.00';
+                },
+                calculateSubtotal() {
+                    return window.SM.documentAmounts(this.lineItems, this.savedTotals).net;
+                },
+                calculateGst() {
+                    return window.SM.documentAmounts(this.lineItems, this.savedTotals).tax;
+                },
+                lineTotalExFormatted(item) {
+                    return this.normalizeMoney(window.SM.lineAmounts(item).net);
+                },
+                subtotalAmountFormatted() {
+                    return this.normalizeMoney(this.calculateSubtotal());
+                },
+                gstAmountFormatted() {
+                    return this.normalizeMoney(this.calculateGst());
+                },
+                totalAmountFormatted() {
+                    return this.normalizeMoney(window.SM.documentAmounts(this.lineItems, this.savedTotals).gross);
+                },
+                normalizeLineItem(index, field) {
+                    if (field === 'unit_price_inc_tax' && window.SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = window.SM.formatUnitPrice(this.lineItems[index][field]);
+                        this.serializeLineItems();
+                        return;
+                    }
+                    const value = parseFloat(this.lineItems[index]?.[field] || 0);
+                    if (!Number.isFinite(value)) {
+                        this.lineItems[index][field] = 0;
+                    } else if (field === 'quantity') {
+                        this.lineItems[index][field] = value;
+                    } else {
+                        this.lineItems[index][field] = value.toFixed(2);
+                    }
+                    this.serializeLineItems();
+                },
+                linkedUserLabel: @js($selectedUserLabel),
+                linkedUserMap: @js($userLookupMap),
+                linkedUsers: @js($userLookupOptions->all()),
+                linkedUserOpen: false,
+                linkedUserSelectedIndex: -1,
+                linkedUserFiltered: [],
+                createUserOpen: false,
+                createUserSubmitting: false,
+                createUserError: '',
+                createUserTab: 'contact',
+                shippingSameBilling: true,
+                newUser: {
+                    firstname: '',
+                    surname: '',
+                    organisation_name: '',
+                    email: '',
+                    phone: '',
+                    billing_address: '',
+                    billing_address2: '',
+                    billing_city: '',
+                    billing_state: '',
+                    billing_postcode: '',
+                    billing_country: '',
+                    shipping_address: '',
+                    shipping_address2: '',
+                    shipping_city: '',
+                    shipping_state: '',
+                    shipping_postcode: '',
+                    shipping_country: '',
+                },
+                syncLinkedUserId() {
+                    const matched = this.linkedUsers.find((option) => option.label === this.linkedUserLabel);
+                    const userId = matched?.id || this.linkedUserMap[this.linkedUserLabel] || '';
+                    if (this.$refs.linkedUserId) this.$refs.linkedUserId.value = userId;
+                },
+                refreshLinkedUsers() {
+                    const needle = String(this.linkedUserLabel || '').toLowerCase().trim();
+                    if (needle === '') {
+                        this.linkedUserFiltered = [];
+                        this.linkedUserSelectedIndex = -1;
+                        this.linkedUserOpen = false;
+                        return;
+                    }
+                    this.linkedUserFiltered = this.linkedUsers
+                        .filter((option) => String(option?.label || '').toLowerCase().includes(needle))
+                        .slice(0, 8);
+                    this.linkedUserSelectedIndex = this.linkedUserFiltered.length > 0 ? 0 : -1;
+                    this.linkedUserOpen = this.linkedUserFiltered.length > 0;
+                },
+                moveLinkedUser(step) {
+                    if (!this.linkedUserOpen) {
+                        this.refreshLinkedUsers();
+                        return;
+                    }
+                    const len = this.linkedUserFiltered.length;
+                    if (!len) {
+                        return;
+                    }
+                    this.linkedUserSelectedIndex = (this.linkedUserSelectedIndex + step + len) % len;
+                },
+                chooseLinkedUser(option) {
+                    this.linkedUserLabel = option?.label || '';
+                    this.$refs.linkedUserId.value = option?.id || '';
+                    this.linkedUserOpen = false;
+                    this.linkedUserSelectedIndex = -1;
+                },
+                confirmLinkedUser() {
+                    if (!this.linkedUserOpen) {
+                        return;
+                    }
+                    if (this.linkedUserSelectedIndex < 0 || this.linkedUserSelectedIndex >= this.linkedUserFiltered.length) {
+                        return;
+                    }
+                    this.chooseLinkedUser(this.linkedUserFiltered[this.linkedUserSelectedIndex]);
+                },
+                openCreateUser() {
+                    this.createUserOpen = true;
+                    this.createUserTab = 'contact';
+                    this.shippingSameBilling = true;
+                    this.createUserError = '';
+                    this.newUser = {
+                        firstname: '',
+                        surname: '',
+                        organisation_name: '',
+                        email: '',
+                        phone: '',
+                        billing_address: '',
+                        billing_address2: '',
+                        billing_city: '',
+                        billing_state: '',
+                        billing_postcode: '',
+                        billing_country: '',
+                        shipping_address: '',
+                        shipping_address2: '',
+                        shipping_city: '',
+                        shipping_state: '',
+                        shipping_postcode: '',
+                        shipping_country: '',
+                    };
+                },
+                closeCreateUser() {
+                    this.createUserOpen = false;
+                    this.createUserError = '';
+                },
+                syncShippingAddress() {
+                    this.newUser.shipping_address = this.newUser.billing_address;
+                    this.newUser.shipping_address2 = this.newUser.billing_address2;
+                    this.newUser.shipping_city = this.newUser.billing_city;
+                    this.newUser.shipping_state = this.newUser.billing_state;
+                    this.newUser.shipping_postcode = this.newUser.billing_postcode;
+                    this.newUser.shipping_country = this.newUser.billing_country;
+                },
+                async submitCreateUser() {
+                    if (this.createUserSubmitting) {
+                        return;
+                    }
+                    this.createUserSubmitting = true;
+                    this.createUserError = '';
+                    try {
+                        if (this.shippingSameBilling) {
+                            this.syncShippingAddress();
+                        }
+                        const response = await fetch('@js(route('admin.user.store-inline'))', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': '@js(csrf_token())',
+                            },
+                            body: JSON.stringify(this.newUser),
+                        });
+                        const payload = await response.json();
+                        if (!response.ok || !payload?.success || !payload?.user) {
+                            const firstError = payload?.errors ? Object.values(payload.errors)?.[0]?.[0] : null;
+                            throw new Error(firstError || payload?.message || 'Unable to create user.');
+                        }
+                        const user = payload.user;
+                        this.linkedUserMap[user.label] = user.id;
+                        this.linkedUsers = [...this.linkedUsers, { id: user.id, label: user.label }]
+                            .filter((value, index, array) => array.findIndex((item) => item.id === value.id) === index);
+                        this.linkedUserLabel = user.label;
+                        this.$refs.linkedUserId.value = user.id;
+                        this.refreshLinkedUsers();
+                        this.closeCreateUser();
+                    } catch (error) {
+                        this.createUserError = error?.message || 'Unable to create user.';
+                    } finally {
+                        this.createUserSubmitting = false;
+                    }
+                },
+            }));
+    Alpine.data('smCspAdminInvoiceEdit3', () => ({
+                    quoteLabel: @js($selectedQuoteLabel),
+                    quoteId: @js($selectedQuoteId),
+                    quoteOptions: @js($quoteLookupOptions->all()),
+                    filteredQuotes: [],
+                    quoteOpen: false,
+                    selectedQuoteIndex: -1,
+                    refreshQuotes() {
+                        const needle = String(this.quoteLabel || '').toLowerCase().trim();
+                        if (needle === '') {
+                            this.filteredQuotes = [];
+                            this.quoteOpen = false;
+                            this.quoteId = '';
+                            return;
+                        }
+                        const exact = this.quoteOptions.find((option) => option.label === this.quoteLabel);
+                        this.quoteId = exact?.id || '';
+                        this.filteredQuotes = this.quoteOptions.filter((option) => option.label.toLowerCase().includes(needle)).slice(0, 8);
+                        this.selectedQuoteIndex = this.filteredQuotes.length ? 0 : -1;
+                        this.quoteOpen = this.filteredQuotes.length > 0;
+                    },
+                    chooseQuote(option) {
+                        this.quoteLabel = option.label;
+                        this.quoteId = option.id;
+                        this.quoteOpen = false;
+                    },
+                    moveQuote(step) {
+                        if (!this.quoteOpen) { this.refreshQuotes(); return; }
+                        const length = this.filteredQuotes.length;
+                        if (length) this.selectedQuoteIndex = (this.selectedQuoteIndex + step + length) % length;
+                    },
+                    confirmQuote() {
+                        if (this.quoteOpen && this.selectedQuoteIndex >= 0) this.chooseQuote(this.filteredQuotes[this.selectedQuoteIndex]);
+                    },
+                    openQuote() {
+                        const option = this.quoteOptions.find((item) => item.id === this.quoteId);
+                        if (option?.edit_url) window.open(option.edit_url, '_blank', 'noopener,noreferrer');
+                    },
+                }));
+});
+</script>
 </x-layout>
