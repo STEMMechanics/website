@@ -6,6 +6,7 @@ use App\Models\Media;
 use App\Models\MediaDownload;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Support\ListPageSize;
 use App\Services\WorkshopReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -26,7 +27,7 @@ class WorkshopReportController extends Controller
         $dateShortcuts = $this->dateShortcuts();
         $workshops = $this->reports
             ->queryFor($user, $filters)
-            ->paginate(20)
+            ->paginate(ListPageSize::resolve(25))
             ->withQueryString();
 
         $workshops->getCollection()->transform(

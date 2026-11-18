@@ -101,7 +101,7 @@ class ShopProductController extends Controller
                 $request
             );
         } else {
-            $products = $query->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
+            $products = $query->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1);
             $inventorySummaries = app(ProductAttention::class)->inventorySummaries($products->getCollection());
         }
 
@@ -1193,7 +1193,7 @@ class ShopProductController extends Controller
      */
     private function paginateProducts(Collection $products, Request $request): LengthAwarePaginator
     {
-        $perPage = ListPageSize::resolve(20);
+        $perPage = ListPageSize::resolve(25);
         $page = max(1, (int) ($request->query('page') ?? Paginator::resolveCurrentPage('page')));
         $items = $products->forPage($page, $perPage)->values();
 

@@ -167,24 +167,35 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Laravel Log</h3>
-                <form method="POST" action="{{ route('admin.server.log.clear') }}" data-sm-confirm="Clear laravel.log? This cannot be undone." data-sm-confirm-button="Clear Log">
+                <form id="laravel-log-clear-form" method="POST" action="{{ route('admin.server.log.clear', ['file' => $selectedLogFile]) }}" data-sm-confirm="Clear the selected Laravel log? This cannot be undone." data-sm-confirm-button="Clear Log">
                     @csrf
-                    <x-ui.button variant="plain" type="submit" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 shadow-sm hover:bg-rose-50" aria-label="Clear Laravel log" title="Clear Laravel log"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></x-ui.button>
+                    <input id="laravel-log-clear-file" type="hidden" name="file" value="{{ $selectedLogFile ?? '' }}">
+                    <x-ui.button variant="plain" type="submit" :disabled="$selectedLogFile === null" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-rose-200 bg-white text-rose-600 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50" aria-label="Clear selected Laravel log" title="Clear selected Laravel log"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></x-ui.button>
                 </form>
             </div>
 
             <div class="text-xs text-gray-600 mb-3">
-                <p><strong>Path:</strong> <code>{{ $logPath }}</code></p>
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <label for="laravel-log-file" class="font-semibold">Log file:</label>
+                    <select id="laravel-log-file" class="max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-sky-500 focus:outline-none" aria-label="Select a Laravel log file" @disabled(count($logFiles) === 0)>
+                        @forelse($logFiles as $logFile)
+                            <option value="{{ $logFile }}" @selected($selectedLogFile === $logFile)>{{ substr($logFile, 8, 10) }}{{ $logFile === $todayLogFile ? ' (Today)' : '' }}</option>
+                        @empty
+                            <option value="">No dated Laravel logs found</option>
+                        @endforelse
+                    </select>
+                </div>
+                <p><strong>Path:</strong> <code id="laravel-log-path">{{ $logPath }}</code></p>
                 <p><strong>Size:</strong> <span id="laravel-log-size">{{ number_format($logSize) }}</span> bytes</p>
                 <p><strong>Last Modified:</strong> <span id="laravel-log-updated">{{ $logModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 300 lines</p>
                 <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <x-ui.button variant="plain" type="button" id="laravel-log-refresh" data-icon-only="true" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Refresh Laravel log" title="Refresh Laravel log"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button variant="plain" type="button" id="laravel-log-refresh" data-icon-only="true" class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 shadow-sm hover:bg-slate-50" aria-label="Refresh Laravel log" title="Refresh selected Laravel log"><i class="fa-solid fa-rotate" aria-hidden="true"></i></x-ui.button>
                 </div>
             </div>
 
             @if(!$logExists)
-            <p id="laravel-log-empty" class="text-sm text-gray-600">Log file not found.</p>
+            <p id="laravel-log-empty" class="text-sm text-gray-600">{{ $selectedLogFile ? 'Log file not found.' : 'No dated Laravel logs found.' }}</p>
             <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-160 whitespace-pre-wrap"></pre>
             @elseif(trim($logContent) === '')
             <p id="laravel-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
@@ -216,6 +227,11 @@
         const laravelSizeEl = document.getElementById('laravel-log-size');
         const laravelEmptyEl = document.getElementById('laravel-log-empty');
         const laravelContentEl = document.getElementById('laravel-log-content');
+        const laravelPathEl = document.getElementById('laravel-log-path');
+        const laravelFileSelectEl = document.getElementById('laravel-log-file');
+        const laravelClearForm = document.getElementById('laravel-log-clear-form');
+        const laravelClearFileEl = document.getElementById('laravel-log-clear-file');
+        const laravelClearButton = laravelClearForm?.querySelector('button[type="submit"]');
         const laravelEndpoint = "{{ route('admin.server.log') }}";
         const setButtonLoading = (button, isLoading, label = 'Refreshing...') => {
             if (!(button instanceof HTMLButtonElement)) {
@@ -316,8 +332,57 @@
                 return Promise.resolve();
             }
 
-            return fetchJson(laravelEndpoint)
+            const url = new URL(laravelEndpoint, window.location.href);
+            if (laravelFileSelectEl?.value) {
+                url.searchParams.set('file', laravelFileSelectEl.value);
+            }
+
+            return fetchJson(url.toString())
                 .then((data) => {
+                    const files = Array.isArray(data.files) ? data.files : [];
+                    const selectedFile = typeof data.file === 'string' ? data.file : '';
+                    if (laravelFileSelectEl) {
+                        laravelFileSelectEl.replaceChildren();
+                        if (files.length === 0) {
+                            const option = document.createElement('option');
+                            option.value = '';
+                            option.textContent = 'No dated Laravel logs found';
+                            laravelFileSelectEl.append(option);
+                            laravelFileSelectEl.disabled = true;
+                        } else {
+                            files.forEach((file) => {
+                                const option = document.createElement('option');
+                                option.value = file;
+                                option.textContent = file.slice(8, 18) + (file === data.today_file ? ' (Today)' : '');
+                                laravelFileSelectEl.append(option);
+                            });
+                            laravelFileSelectEl.disabled = false;
+                            laravelFileSelectEl.value = selectedFile;
+                        }
+                    }
+                    if (laravelClearFileEl) {
+                        laravelClearFileEl.value = selectedFile;
+                    }
+                    if (laravelClearButton instanceof HTMLButtonElement) {
+                        laravelClearButton.disabled = selectedFile === '';
+                    }
+                    if (laravelClearForm) {
+                        const clearUrl = new URL("{{ route('admin.server.log.clear') }}", window.location.href);
+                        if (selectedFile !== '') {
+                            clearUrl.searchParams.set('file', selectedFile);
+                        }
+                        laravelClearForm.action = clearUrl.toString();
+                        const currentUrl = new URL(window.location.href);
+                        if (selectedFile !== '') {
+                            currentUrl.searchParams.set('file', selectedFile);
+                        } else {
+                            currentUrl.searchParams.delete('file');
+                        }
+                        window.history.replaceState(null, '', currentUrl.toString());
+                    }
+                    if (laravelPathEl) {
+                        laravelPathEl.textContent = data.path || '';
+                    }
                     if (laravelUpdatedEl) {
                         laravelUpdatedEl.textContent = data.modified_at || 'N/A';
                     }
@@ -334,7 +399,7 @@
                     if (!data.exists || content === '') {
                         laravelEmptyEl.classList.remove('hidden');
                         laravelContentEl.classList.add('hidden');
-                        laravelEmptyEl.textContent = data.exists ? 'Log file is empty.' : 'Log file not found.';
+                        laravelEmptyEl.textContent = data.exists ? 'Log file is empty.' : (selectedFile ? 'Log file not found.' : 'No dated Laravel logs found.');
                         return;
                     }
 
@@ -463,6 +528,24 @@
                 event.preventDefault();
                 void runMaintenance(maintenanceRefreshButton);
             }
+        });
+
+        laravelFileSelectEl?.addEventListener('change', () => {
+            const selectedFile = laravelFileSelectEl.value;
+            if (laravelClearFileEl) {
+                laravelClearFileEl.value = selectedFile;
+            }
+            if (laravelClearButton instanceof HTMLButtonElement) {
+                laravelClearButton.disabled = selectedFile === '';
+            }
+            if (laravelClearForm) {
+                const clearUrl = new URL("{{ route('admin.server.log.clear') }}", window.location.href);
+                if (selectedFile !== '') {
+                    clearUrl.searchParams.set('file', selectedFile);
+                }
+                laravelClearForm.action = clearUrl.toString();
+            }
+            refreshLaravelLog();
         });
 
         document.addEventListener('submit', async (event) => {

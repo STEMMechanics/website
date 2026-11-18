@@ -29,7 +29,7 @@ class ShopCouponController extends Controller
         }
 
         return view('admin.shop.coupon.index', [
-            'coupons' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1),
+            'coupons' => $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1),
         ]);
     }
 

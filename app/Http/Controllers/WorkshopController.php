@@ -1556,7 +1556,7 @@ class WorkshopController extends Controller
                 });
             })
             ->orderBy('name')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(50))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->withQueryString();
 
         return view('admin.workshop.files', [
@@ -1774,7 +1774,7 @@ class WorkshopController extends Controller
             })
             ->orderByDesc('photographed_at')
             ->orderByDesc('media.created_at')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(24))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->withQueryString();
 
         return view('admin.workshop.photos', [
@@ -3001,7 +3001,7 @@ class WorkshopController extends Controller
                 [Ticket::STATUS_CANCELLED, Ticket::STATUS_REISSUED]
             )
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return view('admin.workshop.tickets', [

@@ -27,7 +27,8 @@ class CspReportController extends Controller
                 $dedupeKey = $kind === 'eval'
                     ? [$directive, $kind, 'global']
                     : [$directive, $kind, $routeName, $line ?? 'unknown'];
-                if (Cache::add('csp-report:'.hash('sha256', implode('|', $dedupeKey)), true, 86400)) {
+                $cacheKey = hash('sha256', implode('|', $dedupeKey));
+                if (Cache::add('csp-report:'.$cacheKey, true, 86400)) {
                     Log::notice('CSP report-only violation', [
                         'directive' => $directive,
                         'kind' => $kind,

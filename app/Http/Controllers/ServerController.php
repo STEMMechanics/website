@@ -48,7 +48,10 @@ class ServerController extends Controller
 
     public function admin_index(ServerDependencyService $serverDependencyService): View
     {
-        $logPath = $this->getLaravelLogPath();
+        $logFiles = $this->getLaravelLogFiles();
+        $requestedLogFile = request()->query('file');
+        $selectedLogFile = $this->getSelectedLaravelLogFile(is_string($requestedLogFile) ? $requestedLogFile : null, $logFiles);
+        $logPath = $this->getLaravelLogPath($selectedLogFile);
         $logData = $this->getFileData($logPath, 300);
         $deployLogPath = $this->getDeployOutputPath();
         $deployLogData = $this->getFileData($deployLogPath, 150);
@@ -57,6 +60,9 @@ class ServerController extends Controller
             'serverInfo' => $this->getServerInfo(),
             'serverDependencies' => $serverDependencyService->statuses(),
             'deploymentChecks' => app(\App\Services\DeploymentConfigurationService::class)->checks(),
+            'logFiles' => $logFiles,
+            'selectedLogFile' => $selectedLogFile,
+            'todayLogFile' => $this->todayLaravelLogFilename(),
             'logPath' => $logPath,
             'logExists' => $logData['exists'],
             'logSize' => $logData['size'],
@@ -496,22 +502,22 @@ class ServerController extends Controller
         return $this->queueTrackedOperation($request, ServerBackupRun::TYPE_FINANCE_ARCHIVE);
     }
 
-    public function admin_clear_log(): RedirectResponse
+    public function admin_clear_log(Request $request): RedirectResponse
     {
-        $logPath = $this->getLaravelLogPath();
+        $requestedFile = $request->input('file');
+        $selectedLogFile = is_string($requestedFile) && $this->isLaravelLogFilename($requestedFile)
+            ? $requestedFile
+            : $this->getSelectedLaravelLogFile();
+        $selectedLogFile ??= $this->todayLaravelLogFilename();
+        $logPath = $this->getLaravelLogPath($selectedLogFile);
 
-        if (!file_exists($logPath)) {
-            // Create the file to keep behavior predictable for the log viewer.
-            file_put_contents($logPath, '');
-        } else {
-            file_put_contents($logPath, '');
-        }
+        file_put_contents($logPath, '');
 
-        session()->flash('message', 'laravel.log has been cleared');
+        session()->flash('message', $selectedLogFile.' has been cleared');
         session()->flash('message-title', 'Log cleared');
         session()->flash('message-type', 'warning');
 
-        return redirect()->route('admin.server.index');
+        return redirect()->route('admin.server.index', ['file' => $selectedLogFile]);
     }
 
     public function admin_clear_deploy_log(): RedirectResponse
@@ -569,12 +575,19 @@ class ServerController extends Controller
         ]);
     }
 
-    public function admin_laravel_log(): JsonResponse
+    public function admin_laravel_log(Request $request): JsonResponse
     {
-        $laravelLogPath = $this->getLaravelLogPath();
+        $logFiles = $this->getLaravelLogFiles();
+        $requestedLogFile = $request->query('file');
+        $selectedLogFile = $this->getSelectedLaravelLogFile(is_string($requestedLogFile) ? $requestedLogFile : null, $logFiles);
+        $laravelLogPath = $this->getLaravelLogPath($selectedLogFile);
         $laravelLogData = $this->getFileData($laravelLogPath, 300);
 
         return response()->json([
+            'file' => $selectedLogFile,
+            'files' => $logFiles,
+            'today_file' => $this->todayLaravelLogFilename(),
+            'path' => $laravelLogPath,
             'exists' => $laravelLogData['exists'],
             'size' => $laravelLogData['size'],
             'modified_at' => $laravelLogData['modified_at'],
@@ -809,7 +822,7 @@ class ServerController extends Controller
             ->when($request->filled('list_sort'), function ($groups) use ($request) {
                 $column = ['event_type' => 'latest_event_type', 'created_at' => 'latest_created_at', 'processed_at' => 'latest_processed_at'][$request->query('list_sort')];
                 $groups->reorder($column, $request->query('list_direction') ?: 'asc')->orderBy('group_key');
-            })->paginate(\App\Support\ListPageSize::resolve(10, 'page'), ['*'], 'page', $page)
+            })->paginate(\App\Support\ListPageSize::resolve(25, 'page'), ['*'], 'page', $page)
             ->onEachSide(1);
 
         $groupKeys = collect($groupPage->items())
@@ -960,7 +973,7 @@ class ServerController extends Controller
 
         $emails = $query
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return view('admin.server.sent-emails', [
@@ -1014,7 +1027,7 @@ class ServerController extends Controller
 
         $messages = $query
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         $recipientLookup = $this->buildSmsRecipientLookup($smsFlowService);
@@ -1355,7 +1368,7 @@ class ServerController extends Controller
             }
         }
 
-        $logs = $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(50))->onEachSide(1);
+        $logs = $query->orderByDesc('created_at')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))->onEachSide(1);
         $totalRecords = AuditLog::query()->count();
         $oldestRecordAt = AuditLog::query()->min('created_at');
         $tableSizeBytes = $this->auditLogTableSizeBytes();
@@ -1863,9 +1876,53 @@ class ServerController extends Controller
         ];
     }
 
-    private function getLaravelLogPath(): string
+    /** @return array<int, string> */
+    private function getLaravelLogFiles(): array
     {
-        return storage_path('logs/laravel.log');
+        $paths = glob(storage_path('logs/laravel-*.log')) ?: [];
+        $files = [];
+        foreach ($paths as $path) {
+            $filename = basename($path);
+            if (is_file($path) && $this->isLaravelLogFilename($filename)) {
+                $files[] = $filename;
+            }
+        }
+        rsort($files, SORT_STRING);
+
+        return $files;
+    }
+
+    /** @param array<int, string>|null $files */
+    private function getSelectedLaravelLogFile(?string $requestedFile = null, ?array $files = null): ?string
+    {
+        $files ??= $this->getLaravelLogFiles();
+
+        if ($requestedFile !== null && in_array($requestedFile, $files, true)) {
+            return $requestedFile;
+        }
+
+        $today = $this->todayLaravelLogFilename();
+
+        return in_array($today, $files, true) ? $today : ($files[0] ?? null);
+    }
+
+    private function isLaravelLogFilename(string $filename): bool
+    {
+        if (preg_match('/\Alaravel-(\d{4})-(\d{2})-(\d{2})\.log\z/', $filename, $matches) !== 1) {
+            return false;
+        }
+
+        return checkdate((int) $matches[2], (int) $matches[3], (int) $matches[1]);
+    }
+
+    private function todayLaravelLogFilename(): string
+    {
+        return 'laravel-'.now()->format('Y-m-d').'.log';
+    }
+
+    private function getLaravelLogPath(?string $filename = null): string
+    {
+        return storage_path('logs/'.($filename ?? $this->todayLaravelLogFilename()));
     }
 
     /**
@@ -2353,7 +2410,7 @@ class ServerController extends Controller
     private function paginateBackups(Request $request): LengthAwarePaginator
     {
         $allBackups = app(\App\Services\SiteListControls::class)->applyCollection(collect($this->databaseBackupService->listBackups()));
-        $perPage = \App\Support\ListPageSize::resolve(8, 'backup_page');
+        $perPage = \App\Support\ListPageSize::resolve(25, 'backup_page');
         $page = max(1, (int) $request->query('backup_page', 1));
         $items = $allBackups->slice(($page - 1) * $perPage, $perPage)->values();
 
