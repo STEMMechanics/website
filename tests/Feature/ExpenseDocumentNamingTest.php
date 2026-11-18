@@ -46,7 +46,7 @@ class ExpenseDocumentNamingTest extends TestCase
         $collapsedAllocation = $collapsedDocument->querySelector('[data-validation-field="splits"] div[x-data*="allocationOpen"]');
         $this->assertStringContainsString('allocationOpen: false', $collapsedAllocation->getAttribute('x-data'));
         $this->assertStringContainsString('allocationTouched: false', $collapsedAllocation->getAttribute('x-data'));
-        $this->assertStringContainsString('if (needsAttention)', $collapsedAllocation->getAttribute('x-effect'));
+        $this->assertStringContainsString('$SM.handleAllocationAttention($el, needsAttention)', $collapsedAllocation->getAttribute('x-effect'));
         $this->assertStringContainsString('allocationTouched = true', $collapsedDocument->querySelector('[data-validation-field="splits"] input[name="allocation_override"]')->getAttribute('x-on:change'));
 
         $errors = new ViewErrorBag;
@@ -79,7 +79,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $document = HTMLDocument::createFromString($response->getContent(), LIBXML_NOERROR);
         $supplierInput = $document->querySelector('#expense-supplier');
-        $this->assertStringContainsString('if ($event.target?._smAiUpdate === true)', $supplierInput->getAttribute('x-on:input'));
+        $this->assertSame('$SM.autocompleteInput($el, $event)', $supplierInput->getAttribute('x-on:input'));
         $paidOnInput = $document->querySelector('#expense-paid-on');
         $this->assertSame('date', $paidOnInput->getAttribute('type'));
         $this->assertSame('paid_on', $paidOnInput->getAttribute('name'));
@@ -112,9 +112,11 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response = $this->actingAs($admin)->get(route('admin.expense.edit', $expense));
 
-        $response->assertOk()
-            ->assertSee("rawValue: 'Coffin \\u0026 Sons'", false)
-            ->assertDontSee("rawValue: 'Coffin \\u0026amp; Sons'", false);
+        $response->assertOk();
+        $document = HTMLDocument::createFromString($response->getContent(), LIBXML_NOERROR);
+        $autocomplete = $document->querySelector('[x-data*="autocompleteEditor"]');
+        $this->assertStringContainsString('Coffin \\u0026 Sons', $autocomplete->getAttribute('x-data'));
+        $this->assertStringNotContainsString('Coffin \\u0026amp; Sons', $autocomplete->getAttribute('x-data'));
     }
 
     public function test_expense_update_suffixes_attachment_name_when_target_filename_exists(): void

@@ -228,7 +228,7 @@ class NewsletterStorePromotionTest extends TestCase
             ->assertOk()
             ->assertSee('data-theme-mode="0"', false)
             ->assertSee('x-on:change=', false)
-            ->assertSee('window.SMNewsletterApplyTheme($el.form, 0, $el)', false)
+            ->assertSee('$SM.callGlobal(\'SMNewsletterHandleThemeChange\', [$el, 0])', false)
             ->assertDontSee(' onchange=', false)
             ->assertSee('formData.set(actionName, String(actionValue))', false)
             ->assertSee("'refresh_product', '0:0'", false)

@@ -34,7 +34,7 @@ class WorkshopTemplateTest extends TestCase
             ->assertSee('h-[calc(100dvh-2rem)] max-w-none', false)
             ->assertSee('overscroll-contain', false)
             ->assertSee('x-on:click.self="closeTaskEditor()"', false)
-            ->assertSee("document.body.classList.toggle('overflow-hidden'", false)
+            ->assertSee('$SM.toggleBodyScroll($el, taskEditorIndex !== null)', false)
             ->assertSeeText('Details and Alerts')
             ->assertSeeText('Workshop Blueprints')
             ->assertSeeText('Subtask content')
@@ -187,12 +187,12 @@ class WorkshopTemplateTest extends TestCase
             ->assertSee('data-ai-kind="blueprint_description_amend"', false)
             ->assertSee('aria-label="Add missing supported learning outcomes without changing the description"', false)
             ->assertSee('Existing description and outcomes are kept unchanged.', false)
-            ->assertSee('if ($event.detail?.append) { appendExternalContent($event.detail?.html || \'\') }', false)
+            ->assertSee('handleExternalContent($event,', false)
             ->assertSee('data-ai-editor-format="workshop-description"', false)
             ->assertSee('blueprintFieldValue', false)
             ->assertSee('refreshBlueprintAiContext($event.currentTarget)', false)
             ->assertSee('[data-editor-name=default_workshop_content] .tiptap', false)
-            ->assertSee('JSON.stringify(blueprintFormContext())', false)
+            ->assertSee('JSON.stringify(this.blueprintFormContext())', false)
             ->assertSee('data-ai-kind="workshop_summary"', false)
             ->assertSee('data-ai-fill-target="default_workshop_summary"', false)
             ->assertSee('Use the workshop description to draft or improve this summary', false)
@@ -214,8 +214,9 @@ class WorkshopTemplateTest extends TestCase
         libxml_use_internal_errors($previousLibxmlSetting);
         $blueprintForm = $document->getElementById('workshop-blueprint-form');
         $this->assertNotNull($blueprintForm);
-        $this->assertStringContainsString('blueprintFormContext', $blueprintForm->getAttribute('x-data'));
-        $this->assertStringContainsString('defaultDescription', $blueprintForm->getAttribute('x-data'));
+        $this->assertSame('smCspAdminPickListTemplateEdit1', $blueprintForm->getAttribute('x-data'));
+        $this->assertStringContainsString('blueprintFormContext()', $html);
+        $this->assertStringContainsString('defaultDescription', $html);
 
         foreach (['blueprint_description', 'blueprint_description_amend'] as $kind) {
             $this->assertSame(1, preg_match('/<button\b(?=[^>]*data-ai-kind="'.$kind.'")[^>]*>/s', $html, $matches));

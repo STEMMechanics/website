@@ -63,7 +63,7 @@ class ShopCartAjaxTest extends TestCase
             ->assertDontSeeText('Quantity to add')
             ->assertDontSeeText('Add Selected Variant')
             ->assertSee('handleAddToCart($event.target)', false)
-            ->assertSee('chooseOption(String(', false)
+            ->assertSee('chooseOption($SM.string(', false)
             ->assertSee('changeCartQuantity(cartQuantity() - 1)', false)
             ->assertSee('product_variant_id', false);
     }

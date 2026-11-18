@@ -193,7 +193,7 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('No Tracking Number')
             ->assertSee('Tracking Number')
             ->assertSee('data-bulk-select-item="'.$item->id.'"', false)
-            ->assertSee("document.body.classList.toggle('overflow-hidden', bulkTrackingOpen)", false)
+            ->assertSee('$SM.toggleBodyScroll($el, bulkTrackingOpen)', false)
             ->assertSee('overflow-y-auto overscroll-contain', false)
             ->assertSee('Private Notes')
             ->assertSee('Public Notes')

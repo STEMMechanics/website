@@ -61,7 +61,7 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->get(route('admin.organisation.edit', $organisation))
             ->assertOk()
             ->assertSee('name="shipping_same_billing"', false)
-            ->assertSee('x-on:change="SM.updateShippingAddress()"', false)
+            ->assertSee('x-on:change="$SM.updateShippingAddress()"', false)
             ->assertSee('name="shipping_address"', false);
     }
 

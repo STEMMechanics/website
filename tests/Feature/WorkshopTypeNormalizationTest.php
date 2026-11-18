@@ -593,7 +593,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             ->assertDontSee('x-on:submit.prevent="handleSubmit()"', false)
             ->assertSee('syncRegistrationData()', false)
             ->assertSee('nativeSubmit.call(form)', false)
-            ->assertSee('x-on:change="$nextTick(() => syncRegistrationData())"', false);
+            ->assertSee('x-on:change="$SM.nextTickMethod($el, \'syncRegistrationData\')"', false);
     }
 
     public function test_admin_workshop_update_persists_status_and_registration_changes(): void
