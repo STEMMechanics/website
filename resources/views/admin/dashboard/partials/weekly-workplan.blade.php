@@ -31,11 +31,11 @@
                 <div class="flex justify-between items-center rounded-xl border border-sky-100 bg-sky-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Scheduled invoices</div><div class="text-3xl font-bold text-sky-700">{{ $workplan['scheduledInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-pink-100 bg-pink-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-pink-700">Invoices due</div><div class="text-3xl font-bold text-pink-700">{{ $workplan['dueInvoices']->count() }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-violet-100 bg-violet-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-violet-700">Workshops</div><div class="text-3xl font-bold text-violet-700">{{ $workplan['workshops']->count() }}</div></div>
-                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700" x-data="{ count: {{ $outstandingReminderCount }} }" @workplan-task-checked.window="count += $event.detail.change" x-text="count">{{ $outstandingReminderCount }}</div></div>
+                <div class="flex justify-between items-center rounded-xl border border-emerald-100 bg-emerald-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tasks / reminders</div><div class="text-3xl font-bold text-emerald-700" x-data="{ count: {{ $outstandingReminderCount }} }" @workplan-task-checked.window="$SM.incrementDataValue($el, 'count', $event.detail.change)" x-text="count">{{ $outstandingReminderCount }}</div></div>
                 <div class="flex justify-between items-center rounded-xl border border-amber-100 bg-amber-50 p-4"><div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Follow-ups</div><div class="text-3xl font-bold text-amber-700">{{ $followUpCount }}</div></div>
             </section>
 
-            <div class="columns-1 gap-5 md:columns-2" x-data="SM.workplanLayout()">
+            <div class="columns-1 gap-5 md:columns-2" x-data="$SM.workplanLayout()">
             <section class="mb-5 min-w-0 break-inside-avoid self-start">
                 <h3 class="font-semibold text-gray-900">Coming up this fortnight</h3>
                 <div class="mt-2 divide-y divide-gray-100 rounded-xl border border-gray-200">
@@ -47,7 +47,7 @@
                     @endforeach
                     @foreach($workplan['workshops'] as $workshop)
                         @php($workshopLocation = trim((string) $workshop->getLocationName()))
-                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.workshop.checkoff', $workshop)), @js((bool) $workshop->workplan_checked))" :data-checked="checked" data-checked="{{ $workshop->workplan_checked ? 'true' : 'false' }}">
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="$SM.workplanCheckoff(@js(route('admin.workplan.workshop.checkoff', $workshop)), @js((bool) $workshop->workplan_checked))" :data-checked="checked" data-checked="{{ $workshop->workplan_checked ? 'true' : 'false' }}">
                             <i class="fa-solid fa-bullhorn mt-0.5 w-4 text-violet-600" aria-hidden="true"></i>
                             <x-ui.checkbox bare small labelHidden :label="'Items picked and ready to deliver: '.$workshop->title" title="Items picked and ready to deliver" x-model="checked" @change="save()" x-bind:disabled="saving" :checked="$workshop->workplan_checked" />
                             <a data-workplan-label href="{{ route('workshop.show', $workshop) }}" class="flex min-w-0 flex-1 items-start gap-3"><span class="min-w-0 flex-1"><span class="block font-semibold text-gray-900">{{ $workshop->title }}</span><span class="text-xs text-gray-500">{{ $workshop->starts_at?->format('D j M, g:ia') }}{{ $workshopLocation !== '' ? ' · '.$workshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
@@ -66,7 +66,7 @@
                         @php($reminderWorkshopLocation = $reminder->remindable instanceof \App\Models\Workshop ? trim((string) $reminder->remindable->getLocationName()) : '')
                         @php($reminderCompleted = $reminder->isCompletedWorkshopTask())
                         @if($reminder->kind === \App\Services\ReminderService::WORKSHOP_TASK_KIND && $reminder->remindable instanceof \App\Models\Workshop && is_numeric($reminder->source_id))
-                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.task.checkoff', ['workshop' => $reminder->remindable, 'task' => $reminder->source_id])), @js($reminderCompleted))" :data-checked="checked" data-checked="{{ $reminderCompleted ? 'true' : 'false' }}">
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="$SM.workplanCheckoff(@js(route('admin.workplan.task.checkoff', ['workshop' => $reminder->remindable, 'task' => $reminder->source_id])), @js($reminderCompleted))" :data-checked="checked" data-checked="{{ $reminderCompleted ? 'true' : 'false' }}">
                             <i class="fa-regular fa-bell mt-0.5 w-4 text-emerald-600" aria-hidden="true"></i>
                             <x-ui.checkbox bare small labelHidden :label="'Complete '.$reminderTaskName.' for '.$reminderWorkshopName" x-model="checked" @change="save(true)" x-bind:disabled="saving" :checked="$reminderCompleted" />
                             <a data-workplan-label href="{{ $reminder->action_url ?: '#' }}" class="flex min-w-0 flex-1 items-start gap-3"><span class="min-w-0 flex-1" :class="checked ? 'text-gray-400 line-through' : ''"><span class="block font-semibold text-gray-900">{{ $reminderWorkshopName }} · {{ $reminderTaskName }}</span><span class="text-xs text-gray-500">{{ $reminder->scheduled_at?->format('D j M, g:ia') }}{{ $reminderWorkshopLocation !== '' ? ' · '.$reminderWorkshopLocation : '' }}</span></span><i class="fa-solid fa-arrow-up-right-from-square mt-1 text-xs text-gray-400" aria-hidden="true"></i></a>
@@ -128,7 +128,7 @@
                         </div>
                     @endforeach
                     @foreach($workplan['dashboardEnquiries'] as $enquiry)
-                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="SM.workplanCheckoff(@js(route('admin.workplan.enquiry.follow-up', $enquiry)), @js($enquiry->completed_at !== null))" :data-checked="checked" data-checked="{{ $enquiry->completed_at !== null ? 'true' : 'false' }}">
+                        <div class="workplan-checkoff flex items-start gap-3 p-3 text-sm hover:bg-gray-50" x-data="$SM.workplanCheckoff(@js(route('admin.workplan.enquiry.follow-up', $enquiry)), @js($enquiry->completed_at !== null))" :data-checked="checked" data-checked="{{ $enquiry->completed_at !== null ? 'true' : 'false' }}">
                             <i class="fa-regular fa-envelope mt-0.5 w-4 text-sky-600" aria-hidden="true"></i>
                             <x-ui.checkbox bare small title="Mark website enquiry complete" :aria-label="'Mark website enquiry from '.$enquiry->name.' complete'" x-model="checked" @change="save()" x-bind:disabled="saving" :checked="$enquiry->completed_at !== null" />
                             <div data-workplan-label class="min-w-0 flex-1">

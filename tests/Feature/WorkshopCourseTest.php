@@ -35,6 +35,7 @@ class WorkshopCourseTest extends TestCase
 
     public function test_course_summary_only_uses_weekly_pattern_for_matching_sessions(): void
     {
+        $this->travelTo(Carbon::parse('2026-11-18 10:00:00'));
         $course = $this->course();
         $first = \Illuminate\Support\Carbon::parse($course->course_sessions[0]['starts_at']);
         $this->assertStringContainsString('8 weekly sessions, every '.$first->format('l'), $course->getTicketTimeRangeLabel());
@@ -73,6 +74,7 @@ class WorkshopCourseTest extends TestCase
 
     public function test_eight_week_course_uses_eight_teaching_hours_and_displays_all_sessions(): void
     {
+        $this->travelTo(Carbon::parse('2026-11-18 10:00:00'));
         $course = $this->course();
         $this->assertSame(8.0, $course->teachingHours());
         $this->assertCount(8, $course->courseScheduleDisplayLines());

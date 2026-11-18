@@ -58,17 +58,7 @@
             x-show="search || advancedActive"
             x-cloak
             class="absolute z-10 top-1/2 {{ $hasAdvancedSearch ? 'right-31' : 'right-18' }} transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            x-on:click="
-                search = '';
-                if (advancedActive) {
-                    $el.closest('form').querySelectorAll('[data-advanced-search-param]').forEach((input) => input.remove());
-                    advancedActive = false;
-                    $dispatch('clear-advanced-search');
-                    $nextTick(() => $el.closest('form').requestSubmit());
-                } else if ({{ \Illuminate\Support\Js::from($currentValue !== '') }}) {
-                    $nextTick(() => $el.closest('form').requestSubmit());
-                }
-            "
+            x-on:click="$SM.clearUiSearch($el, advancedActive, {{ $currentValue !== '' ? 'true' : 'false' }})"
         ><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></x-ui.button>
     </div>
     @if(isset($advanced))

@@ -57,75 +57,9 @@
 
 @if($value !== '' || $editor === true)
 <div
-    x-data="{
-        dragActive: false,
-        deferredUploads: {{ $deferUploads ? 'true' : 'false' }},
-        uploadFiles(fileList) {
-            const files = Array.from(fileList || []).filter((file) => file instanceof File);
-            if (files.length === 0) {
-                return;
-            }
-
-            if (this.deferredUploads) {
-                queuePendingFiles('{{ $name }}', files);
-                this.dragActive = false;
-                return;
-            }
-
-            SM.upload(files, (result) => {
-                if (!result || result.success !== true || !Array.isArray(result.files)) {
-                    return;
-                }
-
-                const uploaded = result.files
-                    .map((item) => {
-                        const data = item?.data || {};
-                        const name = typeof data.name === 'string' ? data.name.trim() : '';
-
-                        if (name === '') {
-                            return null;
-                        }
-
-                        return {
-                            name,
-                            title: typeof item?.title === 'string' && item.title.trim() !== '' ? item.title.trim() : name,
-                            mime_type: typeof data.mime_type === 'string' ? data.mime_type : '',
-                            size: Number.isFinite(Number(data.size)) ? Number(data.size) : 0,
-                            status: '',
-                            url: '/media/download/' + encodeURIComponent(name),
-                            thumbnail: '/thumbnails/unknown.webp',
-                            file_type: 'File',
-                            is_private: false,
-                            password: null,
-                            download_url: '/media/download/' + encodeURIComponent(name) + '?download=1',
-                            can_delete: false,
-                            delete_url: null,
-                        };
-                    })
-                    .filter((item) => item !== null);
-
-                appendFiles('{{ $name }}', uploaded);
-                this.dragActive = false;
-            }, [], {
-                showModal: false,
-                fields: @js($uploadFields),
-                onStart: () => {
-                    this.dragActive = true;
-                },
-                onSuccess: ({ files: uploadedFiles }) => {
-                    if (window.SM && typeof window.SM.notice === 'function') {
-                        const count = Array.isArray(uploadedFiles) ? uploadedFiles.length : files.length;
-                        window.SM.notice('Upload complete', `${count} file${count === 1 ? '' : 's'} uploaded successfully.`, 'success', {
-                            toast: true,
-                            timer: 2500,
-                        });
-                    }
-                },
-            });
-        },
-    }"
+        x-data="$SM.fileList(@js($name), @js($deferUploads), @js($uploadFields))"
     class="{{ twMerge(['mb-4'], $attributes->get('class')) }}"
-    x-show="currentFileList('{{ $name }}').length > 0 || {{ $editor === true ? 'true' : 'false' }}"
+    x-show="$SM.currentFileList(@js($name)).length > 0 || {{ $editor === true ? 'true' : 'false' }}"
 >
     <h3 class="text-xl font-semibold">{{ $label }}</h3>
     @if($editor)
@@ -135,7 +69,7 @@
             x-on:dragenter.prevent="dragActive = true"
             x-on:dragover.prevent="dragActive = true"
             x-on:dragleave.prevent="dragActive = false"
-            x-on:drop.prevent="dragActive = false; uploadFiles($event.dataTransfer?.files || [])"
+            x-on:drop.prevent="handleDrop($event)"
         >
             <p class="text-sm font-medium text-gray-700">Drag and drop files here</p>
             <p class="mt-1 text-xs text-gray-500" x-text="deferredUploads ? 'Files stay pending until you press Save.' : 'Uploads add to the list immediately.'"></p>
@@ -145,18 +79,18 @@
                     x-show="deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    x-on:click.prevent="SMMediaPicker.open(currentFileList('{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:false,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }}}, (result)=>updateFiles('{{ $name }}', result))"
+                    x-on:click.prevent="$SM.openFileListPicker(@js($name), {allow_multiple:true,allow_uploads:false,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }}})"
                 >Browse existing files</x-ui.button>
                 <x-ui.button variant="plain"
                     x-show="!deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    x-on:click.prevent="SMMediaPicker.open(currentFileList('{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:{{ \Illuminate\Support\Js::from($uploadFields) }}}, (result)=>updateFiles('{{ $name }}', result))"
+                    x-on:click.prevent="$SM.openFileListPicker(@js($name), {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:@js($uploadFields)})"
                 >Browse media</x-ui.button>
             </div>
-            <input class="hidden" id="filelist_upload_{{ $name }}" type="file" multiple x-on:change="uploadFiles($event.target.files); $event.target.value = '';">
-            <ul x-show="currentStagedFileList('{{ $name }}').length > 0" class="mt-4 flex flex-col gap-4 rounded-lg border border-gray-300 bg-white p-3 text-left">
-                <template x-for="file in currentStagedFileList('{{ $name }}')" :key="file.pending_id ? ('pending-' + file.pending_id) : file.name">
+            <input class="hidden" id="filelist_upload_{{ $name }}" type="file" multiple x-on:change="uploadFilesFromInput($event.target)">
+            <ul x-show="$SM.currentStagedFileList(@js($name)).length > 0" class="mt-4 flex flex-col gap-4 rounded-lg border border-gray-300 bg-white p-3 text-left">
+                <template x-for="file in $SM.currentStagedFileList(@js($name))" :key="file.pending_id ? ('pending-' + file.pending_id) : file.name">
                     <li class="flex items-center min-h-10">
                         <template x-if="file.pending_id">
                             <div class="mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded bg-amber-50 text-gray-400">
@@ -180,28 +114,28 @@
                                 ></span>
                                 <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                             </div>
-                            <span class="text-xs text-gray-400" x-show="file.pending_id" x-text="'Pending upload · ' + SM.bytesToString(file.size)"></span>
-                            <span class="text-xs text-gray-400" x-show="!file.pending_id" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>
+                            <span class="text-xs text-gray-400" x-show="file.pending_id" x-text="'Pending upload · ' + $SM.bytesToString(file.size)"></span>
+                            <span class="text-xs text-gray-400" x-show="!file.pending_id" x-text="$SM.fileTypeLabel(file.file_type) + ' (' + $SM.bytesToString(file.size) + ')'"></span>
                         </div>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id && file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>
-                        <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="file.pending_id ? removePendingFile('{{ $name }}', file.pending_id) : removeFile('{{ $name }}', file.name)"></i>
+                        <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="file.pending_id ? $SM.removePendingFile(@js($name), file.pending_id) : $SM.removeFile(@js($name), file.name)"></i>
                     </li>
                 </template>
             </ul>
         </div>
-        <div x-show="currentPendingUploadState('{{ $name }}').uploading" class="mt-3 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
+        <div x-show="$SM.currentPendingUploadState(@js($name)).uploading" class="mt-3 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
             <div class="text-sm font-semibold text-sky-800">Uploading pending files</div>
-            <div class="mt-1 text-xs text-sky-700" x-text="currentPendingUploadState('{{ $name }}').message || 'Preparing upload…'"></div>
+            <div class="mt-1 text-xs text-sky-700" x-text="$SM.currentPendingUploadState(@js($name)).message || 'Preparing upload…'"></div>
             <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
-                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number(currentPendingUploadState('{{ $name }}').progress || 0))) + '%'"></div>
+                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($SM.currentPendingUploadState(@js($name)).progress || 0))) + '%'"></div>
             </div>
         </div>
         <div class="text-xs text-gray-500 mb-4 mt-1">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
         <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $hiddenValue }}" @if($deferUploads) data-filelist-deferred="1" data-filelist-name="{{ $name }}" data-filelist-upload-fields='@json($uploadFields)' @endif />
     @else
-    <ul x-show="currentFileList('{{ $name }}').length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-4 overflow-hidden">
-        <template x-for="file in currentFileList('{{ $name }}')" :key="file.name">
+    <ul x-show="$SM.currentFileList(@js($name)).length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-4 overflow-hidden">
+        <template x-for="file in $SM.currentFileList(@js($name))" :key="file.name">
             <li class="flex items-center min-h-10">
                 <img class="w-10 mr-2" :src="file.thumbnail" src="" alt="thumbnail" />
                 <div class="flex grow flex-col">
@@ -219,12 +153,12 @@
                         <x-ui.badge color="slate" x-show="file.storage_disk" x-text="file.storage_disk"></x-ui.badge>
                     </div>
                     @endif
-                    <span class="text-xs text-gray-400" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>
+                    <span class="text-xs text-gray-400" x-text="$SM.fileTypeLabel(file.file_type) + ' (' + $SM.bytesToString(file.size) + ')'"></span>
                 </div>
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>
                 @if($editor)
-                    <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="removeFile('{{ $name }}', file.name)"></i>
+                    <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="$SM.removeFile(@js($name), file.name)"></i>
                 @endif
             </li>
         </template>
@@ -550,6 +484,16 @@
     }
 
     window.uploadDeferredFileLists = uploadDeferredFileLists;
+    Object.assign(window.SM, {
+        currentFileList,
+        currentStagedFileList,
+        currentPendingUploadState,
+        removeFile,
+        removePendingFile,
+        queuePendingFiles,
+        updateFiles,
+        appendFiles,
+    });
 </script>
 @endpushonce
 @push('scripts')

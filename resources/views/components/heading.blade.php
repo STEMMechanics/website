@@ -9,7 +9,7 @@
     x-data="{ show: false, uri: '{{ $uri }}' }"
     @mouseover="show = true"
     @mouseout="show = false"
-    @click="SM.copyToClipboard('{{ $uri }}')"
+    @click="$SM.copyToClipboard('{{ $uri }}')"
 >
     {{ $slot }}
     <span x-show="show" class="text-primary-color-light pl-2">#</span>

@@ -53,21 +53,21 @@
                 lastSavedAbsolute: @js($lastSavedAt?->format('M j, Y g:i a')),
             })"
             x-init="init()"
-            x-on:resize.window.debounce.100ms="pickListViewportWidth = window.innerWidth"
+            x-on:resize.window.debounce.100ms="$SM.updateViewportWidth($el)"
             x-on:submit.prevent="submitForm($event)"
-            x-on:sm-editor-updated.window="if ($event.detail?.name === 'workshop_run_sheet') scheduleAutosave()"
+            x-on:sm-editor-updated.window="$SM.get($event.detail, 'name') === 'workshop_run_sheet' &amp;&amp; scheduleAutosave()"
         >
             @csrf
-            <template x-for="id in checkedIds" :key="`checked-${id}`">
+            <template x-for="id in checkedIds" :key="('checked-' + (id) + '')">
                 <input type="hidden" name="checked_item_ids[]" :value="id">
             </template>
-            <template x-for="id in completedTaskIds" :key="`completed-task-${id}`">
+            <template x-for="id in completedTaskIds" :key="('completed-task-' + (id) + '')">
                 <input type="hidden" name="completed_task_ids[]" :value="id">
             </template>
             <input
                 type="hidden"
                 x-bind:name="customItemsEnabled() && !itemsEditMode ? 'pick_list_custom_items' : null"
-                x-bind:value="customItemsEnabled() && !itemsEditMode ? JSON.stringify(normalizeCustomItems()) : ''"
+                x-bind:value="customItemsEnabled() && !itemsEditMode ? $SM.jsonStringify(normalizeCustomItems()) : ''"
             >
             <input type="hidden" name="reset_pick_list_customization" :value="resetCustomization ? '1' : '0'">
             <input type="hidden" name="blueprint_task_action" x-bind:value="blueprintTaskAction">
@@ -86,7 +86,7 @@
                     x-ref="pickListNotes"
                     class="mt-2 disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
                     x-model="notes"
-                    x-on:input="resizeNotesField(); scheduleAutosave()"
+                    x-on:input="$SM.callDataMethods($el, [['resizeNotesField', []], ['scheduleAutosave', []]])"
                 ></x-ui.textarea-control>
             </details>
 
@@ -126,7 +126,7 @@
                                                     <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
                                                     <div class="flex gap-3 items-center">
                                                         @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="taskName = {{ \Illuminate\Support\Js::from($task->name) }}; taskNote = {{ \Illuminate\Support\Js::from($renderedTaskNote) }}; taskSubtasks = {{ \Illuminate\Support\Js::from($renderedSubtasks) }}"><i class="fa-regular fa-note-sticky mr-1" aria-hidden="true"></i>View notes</x-ui.button>
+                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="$SM.setDataValues($el, { taskName: {{ \Illuminate\Support\Js::from($task->name) }}, taskNote: {{ \Illuminate\Support\Js::from($renderedTaskNote) }}, taskSubtasks: {{ \Illuminate\Support\Js::from($renderedSubtasks) }} })"><i class="fa-regular fa-note-sticky mr-1" aria-hidden="true"></i>View notes</x-ui.button>
                                                         @endif
 
                                                         @if(($task->notes || count($task->subtasks ?? []) > 0) && $taskReminder)
@@ -174,7 +174,7 @@
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
                             <div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold" x-text="taskName"></h3><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="taskNote = null" /></div>
                             <div class="mt-4 text-sm text-gray-700 content" x-html="taskNote"></div>
-                            <template x-for="(subtask, index) in taskSubtasks" :key="`task-note-subtask-${index}`">
+                            <template x-for="(subtask, index) in taskSubtasks" :key="('task-note-subtask-' + (index) + '')">
                                 <section class="mt-5 border-t border-gray-200 pt-4">
                                     <h4 class="font-semibold" x-text="subtask.title"></h4>
                                     <div class="mt-2 text-sm text-gray-700 content" x-html="subtask.content"></div>
@@ -210,7 +210,7 @@
  :noWrapper="true"
  :inline="true"
  x-bind:checked="allItemsChecked()"
- x-bind:aria-checked="allItemsCheckState() === 'mixed' ? 'mixed' : String(allItemsChecked())"
+ x-bind:aria-checked="allItemsCheckState() === 'mixed' ? 'mixed' : $SM.string(allItemsChecked())"
  x-effect="$el.indeterminate = allItemsCheckState() === 'mixed'"
  x-on:change="setAllItemsChecked($event.target.checked)"
  />
@@ -251,7 +251,7 @@
             <div class="mt-4" x-show="!itemsEditMode">
                 <template x-if="kitSummaries.length > 0 || shelfPickRows.length > 0">
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <template x-for="(column, columnIndex) in pickListEntryColumns()" :key="`pick-list-column-${columnIndex}`">
+                        <template x-for="(column, columnIndex) in pickListEntryColumns()" :key="('pick-list-column-' + (columnIndex) + '')">
                             <div class="flex min-w-0 flex-col gap-3">
                                 <template x-for="entry in column" :key="entry.key">
                                     <div x-bind:class="entry.kind === 'component'
@@ -264,7 +264,7 @@
                                                         :noWrapper="true"
                                                         :inline="true"
                                                         x-model="checkedIds"
-                                                        x-bind:value="String(entry.item.key)"
+                                                        x-bind:value="$SM.string(entry.item.key)"
                                                         x-on:change="scheduleAutosave()"
                                                     />
                                                     <span class="min-w-0 flex-1">
@@ -356,7 +356,7 @@
                                             :noLabel="true"
                                             class="mb-0"
                                             x-model="item.quantity_type"
-                                            x-on:change="item.quantity_type = $event.target.value; handleCustomItemChange(index)">
+                                            x-on:change="$SM.setDataValueAndCall($el, 'item.quantity_type', $event.target.value, 'handleCustomItemChange', [index])">
                                             <option value="per_participant">Per Participant</option>
                                             <option value="fixed">Fixed amount</option>
                                         </x-ui.select>
@@ -373,8 +373,8 @@
                                             min="1"
                                             step="1"
                                             x-model="item.quantity_value"
-                                            x-on:input="item.quantity_value = $event.target.value; handleCustomItemChange(index)"
-                                            x-on:blur="normalizeCustomItemQuantity(index); handleCustomItemChange(index)"
+                                            x-on:input="$SM.setDataValueAndCall($el, 'item.quantity_value', $event.target.value, 'handleCustomItemChange', [index])"
+                                            x-on:blur="$SM.callDataMethods($el, [['normalizeCustomItemQuantity', [index]], ['handleCustomItemChange', [index]]])"
                                         />
                                     </td>
                                     <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
@@ -398,9 +398,9 @@
             </div>
 
                 <div class="mt-4 rounded-xl border px-4 py-3 text-sm" x-bind:class="materialBudget.over_budget ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-gray-200 bg-gray-50 text-gray-700'" x-show="shelfPickRows.length || kitSummaries.length">
-                    <strong>Linked material estimate:</strong> <span x-text="'$' + Number(materialBudget.known_cost || 0).toFixed(2)"></span> ex GST
-                    · <span x-text="'$' + Number(materialBudget.per_participant || 0).toFixed(2)"></span> per participant
-                    · <span x-text="'$' + Number(materialBudget.budget || 0).toFixed(2) + ' ' + (materialBudget.budget_label || 'planning allowance')"></span>
+                    <strong>Linked material estimate:</strong> <span x-text="'$' + $SM.number(materialBudget.known_cost || 0).toFixed(2)"></span> ex GST
+                    · <span x-text="'$' + $SM.number(materialBudget.per_participant || 0).toFixed(2)"></span> per participant
+                    · <span x-text="'$' + $SM.number(materialBudget.budget || 0).toFixed(2) + ' ' + (materialBudget.budget_label || 'planning allowance')"></span>
                     <span x-show="materialBudget.over_budget" class="font-semibold"> · Above allowance</span>
                 </div>
             </details>
@@ -440,7 +440,7 @@
             </div>
             </details>
 
-            <details class="group mb-8" x-on:toggle="if ($el.open) initCanvas()">
+            <details class="group mb-8" x-on:toggle="$el.open &amp;&amp; initCanvas()">
                 <summary class="flex cursor-pointer list-none items-center gap-3 [&::-webkit-details-marker]:hidden">
                     <i class="fa-solid fa-chevron-right text-sm text-gray-500 transition-transform group-open:rotate-90"></i>
                     <h2 class="text-lg font-semibold text-gray-900 border-b border-gray-300 flex-1">Drawing</h2>

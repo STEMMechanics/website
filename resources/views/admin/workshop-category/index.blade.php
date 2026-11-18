@@ -5,26 +5,8 @@
 
     <x-container
         class="mt-4"
-        x-data="{
-            deleteOpen: false,
-            deleteAction: '',
-            deleteName: '',
-            deleteCount: 0,
-            openDeleteDialog(action, name, count) {
-                this.deleteAction = action;
-                this.deleteName = name;
-                this.deleteCount = Number(count || 0);
-                this.deleteOpen = true;
-                this.$nextTick(() => this.$refs.reassignCategory?.focus());
-            },
-            closeDeleteDialog() {
-                this.deleteOpen = false;
-                this.deleteAction = '';
-                this.deleteName = '';
-                this.deleteCount = 0;
-            },
-        }"
-        x-on:keydown.escape.window="if (deleteOpen) closeDeleteDialog()"
+        x-data="smCspAdminWorkshopCategoryIndex1"
+        x-on:keydown.escape.window="deleteOpen &amp;&amp; closeDeleteDialog()"
     >
         <x-ui.dynamic-list name="admin-workshop-category-index">
         <x-ui.collection-controls class="my-5" />
@@ -124,4 +106,28 @@
         </div>
     </x-ui.dynamic-list>
 </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopCategoryIndex1', () => ({
+            deleteOpen: false,
+            deleteAction: '',
+            deleteName: '',
+            deleteCount: 0,
+            openDeleteDialog(action, name, count) {
+                this.deleteAction = action;
+                this.deleteName = name;
+                this.deleteCount = Number(count || 0);
+                this.deleteOpen = true;
+                this.$nextTick(() => this.$refs.reassignCategory?.focus());
+            },
+            closeDeleteDialog() {
+                this.deleteOpen = false;
+                this.deleteAction = '';
+                this.deleteName = '';
+                this.deleteCount = 0;
+            },
+        }));
+});
+</script>
 </x-layout>

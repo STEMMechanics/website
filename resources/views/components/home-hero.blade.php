@@ -14,7 +14,7 @@
                         <h2 class="max-w-2xl text-3xl font-bold text-white sm:text-4xl" @if($preview) x-text="hero.heading" @endif>{{ $hero['heading'] }}</h2>
                         <div class="mt-4 max-w-2xl space-y-3 text-white/90">
                             @if($preview)
-                                <template x-for="(paragraph, index) in hero.body.replace(/\r\n?/g, '\n').split(/\n\s*\n/).filter(text => text.trim())" :key="index">
+                                <template x-for="(paragraph, index) in $SM.splitParagraphs(hero.body)" :key="index">
                                     <p class="whitespace-pre-line" x-text="paragraph"></p>
                                 </template>
                             @else

@@ -26,7 +26,122 @@
                 action="{{ route('admin.workshop.files.update', $workshop) }}"
                 enctype="multipart/form-data"
                 class="space-y-4"
-                x-data="{
+                x-data="smCspAdminWorkshopFiles1"
+                x-init="init()"
+                x-ref="workshopFilesForm"
+                x-on:submit.prevent="handleSubmit()"
+            >
+                @csrf
+                @method('PUT')
+
+                <x-ui.input-control type="file"
+                    name="pending_files[]"
+                    multiple
+                    class="hidden"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    x-ref="workshopFilesPendingInput" />
+                <x-ui.media-uploader :page-upload="true"
+                    input-id="workshop_files_pending"
+                    input-ref="workshopFilesPicker"
+                    count="pendingWorkshopFiles().length"
+                    item-label="file item"
+                    empty-text="Drop files here"
+                    description="Upload new files or select files already in the media library."
+                    on-files="addWorkshopPendingFiles"
+                    on-browse-existing="openWorkshopExistingFilePicker"
+                    disabled="workshopFilesUploading"
+                    :showSubmit="false"
+                >
+
+                    <div x-show="workshopFilesUploadError" x-cloak class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="workshopFilesUploadError"></div>
+                </x-ui.media-uploader>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="workshopFilesUploading"
+                        x-cloak
+                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="workshop-files-progress-title"
+                        x-on:keydown.escape.prevent.stop
+                    >
+                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
+                            <div class="mb-4 flex items-center gap-3">
+                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
+                                <div>
+                                    <div id="workshop-files-progress-title" class="text-lg font-semibold text-gray-900">Uploading files</div>
+                                    <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
+                                </div>
+                            </div>
+                            <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700" x-text="workshopFilesUploadMessage || ''"></div>
+                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (workshopFilesUploadProgress) + '%')"></div>
+                            </div>
+                            <div class="mt-2 flex items-center justify-between text-sm font-semibold text-gray-700"><span x-text="('' + (workshopFilesUploadIndex) + ' of ' + (workshopFilesUploadTotal) + '')"></span><span x-text="('' + (workshopFilesUploadProgress) + '%')"></span></div>
+                        </div>
+                    </div>
+                </template>
+            </form>
+        </div>
+
+
+        <x-ui.dynamic-list name="admin-workshop-files">
+<x-ui.collection-controls class="my-5" />
+
+        @if($attachedFiles->isEmpty())
+            <x-none-found item="files" search="{{ request()->get('search') }}" />
+        @else
+            <div x-data="smCspAdminWorkshopFiles2">
+
+                <x-ui.table variant="listing" :mobile-cards="true" class="sm-workshop-media-cards" table-class="w-full">
+                        <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox aria-label="Select all existing files" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="selected.length > 0 && selected.length === allNames.length" x-effect="$el.indeterminate = selected.length > 0 && selected.length < allNames.length" x-on:change="toggleAll($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
+                        <tbody class="bg-white">
+                            @foreach($attachedFiles as $file)
+                                @php($fileVisibility = in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true) ? (string) $file->visibility : 'private')
+                                <tr>
+                                    <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $file->title }}" value="{{ $file->name }}" :small="true" :noWrapper="true" inputClass="mx-auto" x-model="selected" /></td>
+                                    <td data-mobile-primary class="px-3 py-3">
+                                        <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
+                                            <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0" rel="noopener"><img x-data src="{{ $file->thumbnail ?: asset('/thumbnails/unknown.webp') }}" x-on:error.once="$el.src=@js(asset('/thumbnails/unknown.webp'))" alt="{{ $file->title }}" class="h-12 w-16 rounded bg-white object-contain"></a>
+                                            <div class="sm-workshop-media-card-copy min-w-0">
+                                                <div class="sm-workshop-media-card-title font-medium text-gray-900">{{ trim((string) ($file->title ?? '')) !== '' ? $file->title : $file->name }}</div>
+                                                <div class="sm-workshop-media-card-meta">
+                                                    <div class="max-w-xs truncate text-xs text-gray-500">{{ $file->name }}</div>
+                                                    <div class="text-xs text-gray-400"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) ($file->size ?? 0)) }}</x-ui.nonbreaking> · {{ $file->file_type }}</div>
+                                                    <div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize">{{ $file->storageDiskName() }}</span></div>
+                                                    <div class="md:hidden"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
+                                    <td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></td>
+                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-file-actions-'.md5($file->name)" :title="$file->title"><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.action-menu></x-ui.row-actions></td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                </x-ui.table>
+
+                <template x-teleport="body"><div x-show="bulkOpen" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="bulkOpen = false"><div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="bulkOpen = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Bulk edit selected files</h3><div class="text-xs text-gray-500"><span x-text="selected.length"></span> selected</div></div><x-ui.button size="icon-small" aria-label="Close bulk edit" variant="plain" type="button" x-on:click="bulkOpen = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button></div><x-ui.select label="Storage" :name="null" x-model="bulkStorage"><option value="">Leave unchanged</option><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="bulkVisibility"><option value="">Leave unchanged</option><option value="public">Public</option><option value="protected">Protected</option><option value="private">Private</option></x-ui.select><div class="mt-5 flex flex-wrap justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="bulkOpen = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="bulkSaving || (!bulkStorage && !bulkVisibility)" x-on:click="applyBulk()"><span x-show="!bulkSaving">Save changes</span><span x-show="bulkSaving">Saving…</span></x-ui.button></div></div></div></template>
+                <x-ui.list-pagination :paginator="$attachedFiles"><x-slot:actions>
+                <x-ui.selection-toolbar x-bind:data-selected="$SM.string(selected.length > 0)">
+                    <x-slot:count><span x-text="selected.length">0</span></x-slot:count>
+                    <x-slot:clear><x-ui.button variant="plain" x-on:click="selected = []" class="text-sm font-semibold text-primary-color underline underline-offset-4">Clear selection</x-ui.button></x-slot:clear>
+                    <x-ui.bulk-edit-button x-bind:disabled="selected.length === 0" x-on:click="$SM.setDataValues($el, { bulkStorage: '', bulkVisibility: '', bulkOpen: true })" />
+                    <x-ui.button color="outline" x-bind:disabled="selected.length === 0" x-on:click="$SM.navigateTo(zipUrl())">Download ZIP</x-ui.button>
+                </x-ui.selection-toolbar>
+                </x-slot:actions></x-ui.list-pagination>
+            </div>
+        @endif
+
+        </x-ui.dynamic-list>
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopFiles1', () => ({
                     pageUploadDragDepth: 0,
                     stagedWorkshopFiles: @js($attachedFilesValue->map(fn ($file) => [
                         'kind' => 'existing',
@@ -308,7 +423,7 @@
 
                             this.stagedWorkshopFiles.push(placeholder);
                             attachNames.push(fileName);
-                            SM.mediaDetails(fileName, (details) => {
+                            window.SM.mediaDetails(fileName, (details) => {
                                 if (!details || typeof details !== 'object') {
                                     return;
                                 }
@@ -371,7 +486,7 @@
                                         reject(new Error(message || 'The file could not be uploaded.'));
                                     };
 
-                                    SM.upload([item.file], (result) => {
+                                    window.SM.upload([item.file], (result) => {
                                         if (settled) return;
                                         if (!result?.success || !result.files?.[0]?.data?.upload_token) {
                                             rejectOnce(result?.message || 'The file could not be uploaded.');
@@ -437,116 +552,8 @@
                             [...this.stagedWorkshopFiles].filter((item) => item.kind === 'pending').forEach((item) => this.removeWorkshopFileByKey(item.key));
                         }
                     }
-                }"
-                x-init="init()"
-                x-ref="workshopFilesForm"
-                x-on:submit.prevent="handleSubmit()"
-            >
-                @csrf
-                @method('PUT')
-
-                <x-ui.input-control type="file"
-                    name="pending_files[]"
-                    multiple
-                    class="hidden"
-                    tabindex="-1"
-                    aria-hidden="true"
-                    x-ref="workshopFilesPendingInput" />
-                <x-ui.media-uploader :page-upload="true"
-                    input-id="workshop_files_pending"
-                    input-ref="workshopFilesPicker"
-                    count="pendingWorkshopFiles().length"
-                    item-label="file item"
-                    empty-text="Drop files here"
-                    description="Upload new files or select files already in the media library."
-                    on-files="addWorkshopPendingFiles"
-                    on-browse-existing="openWorkshopExistingFilePicker"
-                    disabled="workshopFilesUploading"
-                    :showSubmit="false"
-                >
-
-                    <div x-show="workshopFilesUploadError" x-cloak class="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" x-text="workshopFilesUploadError"></div>
-                </x-ui.media-uploader>
-
-                <template x-teleport="body">
-                    <div
-                        x-show="workshopFilesUploading"
-                        x-cloak
-                        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-labelledby="workshop-files-progress-title"
-                        x-on:keydown.escape.prevent.stop
-                    >
-                        <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl" role="status" aria-live="polite">
-                            <div class="mb-4 flex items-center gap-3">
-                                <i class="fa-solid fa-circle-notch animate-spin text-xl text-primary-color"></i>
-                                <div>
-                                    <div id="workshop-files-progress-title" class="text-lg font-semibold text-gray-900">Uploading files</div>
-                                    <div class="mt-1 text-sm text-gray-500">Please keep this page open until the operation finishes.</div>
-                                </div>
-                            </div>
-                            <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700" x-text="workshopFilesUploadMessage || ''"></div>
-                            <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
-                            </div>
-                            <div class="mt-2 flex items-center justify-between text-sm font-semibold text-gray-700"><span x-text="`${workshopFilesUploadIndex} of ${workshopFilesUploadTotal}`"></span><span x-text="`${workshopFilesUploadProgress}%`"></span></div>
-                        </div>
-                    </div>
-                </template>
-            </form>
-        </div>
-
-
-        <x-ui.dynamic-list name="admin-workshop-files">
-<x-ui.collection-controls class="my-5" />
-
-        @if($attachedFiles->isEmpty())
-            <x-none-found item="files" search="{{ request()->get('search') }}" />
-        @else
-            <div x-data="{ selected: [], allNames: @js($attachedFilesValue->pluck('name')->values()), bulkOpen: false, bulkStorage: '', bulkVisibility: '', bulkSaving: false, toggleAll(checked) { this.selected = checked ? [...this.allNames] : []; }, zipUrl() { const query = new URLSearchParams(); this.selected.forEach((name) => query.append('media_names[]', name)); return @js(route('admin.workshop.files.zip', $workshop)) + '?' + query.toString(); }, async applyBulk() { this.bulkSaving = true; try { await axios.put(@js(route('admin.workshop.files.bulk-update', $workshop)), { media_names: this.selected, storage_disk: this.bulkStorage || null, visibility: this.bulkVisibility || null }, { headers: { Accept: 'application/json' } }); window.location.reload(); } catch (error) { window.SM?.notice?.('Update failed', error.response?.data?.message || 'Could not update selected files.', 'danger'); } finally { this.bulkSaving = false; } } }">
-
-                <x-ui.table variant="listing" :mobile-cards="true" class="sm-workshop-media-cards" table-class="w-full">
-                        <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox aria-label="Select all existing files" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="selected.length > 0 && selected.length === allNames.length" x-effect="$el.indeterminate = selected.length > 0 && selected.length < allNames.length" x-on:change="toggleAll($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
-                        <tbody class="bg-white">
-                            @foreach($attachedFiles as $file)
-                                @php($fileVisibility = in_array((string) ($file->visibility ?? ''), ['private', 'protected', 'public'], true) ? (string) $file->visibility : 'private')
-                                <tr>
-                                    <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $file->title }}" value="{{ $file->name }}" :small="true" :noWrapper="true" inputClass="mx-auto" x-model="selected" /></td>
-                                    <td data-mobile-primary class="px-3 py-3">
-                                        <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
-                                            <a href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" target="_blank" class="sm-workshop-media-card-thumbnail shrink-0" rel="noopener"><img x-data src="{{ $file->thumbnail ?: asset('/thumbnails/unknown.webp') }}" x-on:error.once="$el.src=@js(asset('/thumbnails/unknown.webp'));" alt="{{ $file->title }}" class="h-12 w-16 rounded bg-white object-contain"></a>
-                                            <div class="sm-workshop-media-card-copy min-w-0">
-                                                <div class="sm-workshop-media-card-title font-medium text-gray-900">{{ trim((string) ($file->title ?? '')) !== '' ? $file->title : $file->name }}</div>
-                                                <div class="sm-workshop-media-card-meta">
-                                                    <div class="max-w-xs truncate text-xs text-gray-500">{{ $file->name }}</div>
-                                                    <div class="text-xs text-gray-400"><x-ui.nonbreaking>{{ \App\Helpers::bytesToString((int) ($file->size ?? 0)) }}</x-ui.nonbreaking> · {{ $file->file_type }}</div>
-                                                    <div class="md:hidden text-xs text-gray-500">Storage: <span class="capitalize">{{ $file->storageDiskName() }}</span></div>
-                                                    <div class="md:hidden"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
-                                    <td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></td>
-                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-file-actions-'.md5($file->name)" :title="$file->title"><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.action-menu></x-ui.row-actions></td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                </x-ui.table>
-
-                <template x-teleport="body"><div x-show="bulkOpen" x-cloak class="fixed inset-0 z-100 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="bulkOpen = false"><div class="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl" x-on:click.outside="bulkOpen = false"><div class="mb-5 flex justify-between"><div><h3 class="text-lg font-semibold">Bulk edit selected files</h3><div class="text-xs text-gray-500"><span x-text="selected.length"></span> selected</div></div><x-ui.button size="icon-small" aria-label="Close bulk edit" variant="plain" type="button" x-on:click="bulkOpen = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button></div><x-ui.select label="Storage" :name="null" x-model="bulkStorage"><option value="">Leave unchanged</option><option value="media">Media</option><option value="archive">Archive</option></x-ui.select><x-ui.select label="Visibility" :name="null" x-model="bulkVisibility"><option value="">Leave unchanged</option><option value="public">Public</option><option value="protected">Protected</option><option value="private">Private</option></x-ui.select><div class="mt-5 flex flex-wrap justify-end gap-2"><x-ui.button type="button" color="outline" x-on:click="bulkOpen = false">Cancel</x-ui.button><x-ui.button type="button" x-bind:disabled="bulkSaving || (!bulkStorage && !bulkVisibility)" x-on:click="applyBulk()"><span x-show="!bulkSaving">Save changes</span><span x-show="bulkSaving">Saving…</span></x-ui.button></div></div></div></template>
-                <x-ui.list-pagination :paginator="$attachedFiles"><x-slot:actions>
-                <x-ui.selection-toolbar x-bind:data-selected="String(selected.length > 0)">
-                    <x-slot:count><span x-text="selected.length">0</span></x-slot:count>
-                    <x-slot:clear><x-ui.button variant="plain" x-on:click="selected = []" class="text-sm font-semibold text-primary-color underline underline-offset-4">Clear selection</x-ui.button></x-slot:clear>
-                    <x-ui.bulk-edit-button x-bind:disabled="selected.length === 0" x-on:click="bulkStorage = ''; bulkVisibility = ''; bulkOpen = true" />
-                    <x-ui.button color="outline" x-bind:disabled="selected.length === 0" x-on:click="window.location.href = zipUrl()">Download ZIP</x-ui.button>
-                </x-ui.selection-toolbar>
-                </x-slot:actions></x-ui.list-pagination>
-            </div>
-        @endif
-
-        </x-ui.dynamic-list>
-    </x-container>
+                }));
+    Alpine.data('smCspAdminWorkshopFiles2', () => ({ selected: [], allNames: @js($attachedFilesValue->pluck('name')->values()), bulkOpen: false, bulkStorage: '', bulkVisibility: '', bulkSaving: false, toggleAll(checked) { this.selected = checked ? [...this.allNames] : []; }, zipUrl() { const query = new URLSearchParams(); this.selected.forEach((name) => query.append('media_names[]', name)); return @js(route('admin.workshop.files.zip', $workshop)) + '?' + query.toString(); }, async applyBulk() { this.bulkSaving = true; try { await axios.put(@js(route('admin.workshop.files.bulk-update', $workshop)), { media_names: this.selected, storage_disk: this.bulkStorage || null, visibility: this.bulkVisibility || null }, { headers: { Accept: 'application/json' } }); window.location.reload(); } catch (error) { window.SM?.notice?.('Update failed', error.response?.data?.message || 'Could not update selected files.', 'danger'); } finally { this.bulkSaving = false; } } }));
+});
+</script>
 </x-layout>

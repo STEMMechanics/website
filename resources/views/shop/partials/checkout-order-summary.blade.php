@@ -50,11 +50,11 @@
                     <h3 class="text-sm font-semibold text-gray-900">Items in your order</h3>
                     <p class="mt-1 text-xs text-gray-500">Review and adjust quantities before payment.</p>
                 </div>
-                <div class="text-xs font-medium text-gray-500 hidden sm:block" x-text="`${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'}`">{{ $resolvedItemCount }} items</div>
+                <div class="text-xs font-medium text-gray-500 hidden sm:block" x-text="('' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $resolvedItemCount }})) + ' item' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $resolvedItemCount }}) === 1 ? '' : 's') + '')">{{ $resolvedItemCount }} items</div>
             </div>
 
             <div class="mt-4 space-y-3">
-                <template x-for="line in cartState.lines" :key="`summary-${line.key}`">
+                <template x-for="line in cartState.lines" :key="('summary-' + (line.key) + '')">
                     <div class="rounded-2xl border border-gray-200 p-3">
                         <div class="flex gap-3">
                             <img :src="line.product.image_url" alt="Product image" :alt="line.display_title" class="h-14 w-14 rounded-xl bg-gray-100 object-cover" />
@@ -72,14 +72,14 @@
                                 </div>
 
                                 <div class="mt-3 flex items-center justify-between gap-3">
-                                    <div class="hidden sm:block text-xs text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                    <div class="hidden sm:block text-xs text-gray-500" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                                     <div class="flex items-center gap-2">
                                         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
                                             <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                 x-bind:disabled="busyLineKey === line.key || isSubmitting"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)" size="icon-small">-</x-ui.button>
+                                                x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 1) - 1, line.max_quantity)" size="icon-small">-</x-ui.button>
                                             <x-ui.input-control
                                                 type="number"
                                                 min="0"
@@ -91,8 +91,8 @@
                                             <x-ui.button variant="plain"
                                                 type="button"
                                                 class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyLineKey === line.key || isSubmitting || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)" size="icon-small">+</x-ui.button>
+                                                x-bind:disabled="busyLineKey === line.key || isSubmitting || $SM.number(line.quantity || 0) >= $SM.number(line.max_quantity || 99)"
+                                                x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 0) + 1, line.max_quantity)" size="icon-small">+</x-ui.button>
                                         </div>
                                         <x-ui.button variant="plain"
                                             type="button"
@@ -112,13 +112,13 @@
 
     <div class="{{ $resolvedShowLineItems ? 'mt-5 border-t border-gray-200 pt-5' : 'mt-4' }} space-y-3 text-sm text-gray-700">
         <div class="flex items-center justify-between gap-4">
-            <span x-text="`Subtotal (${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }})} item${Number(cartState?.summary?.item_count || {{ $resolvedItemCount }}) === 1 ? '' : 's'})`">Subtotal ({{ $resolvedItemCount }} item{{ $resolvedItemCount === 1 ? '' : 's' }})</span>
-            <span class="font-semibold text-gray-900" x-text="formatMoney(cartState?.summary?.subtotal || 0)">${{ number_format((float) ($resolvedSummary['subtotal'] ?? 0), 2) }}</span>
+            <span x-text="('Subtotal (' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $resolvedItemCount }})) + ' item' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $resolvedItemCount }}) === 1 ? '' : 's') + ')')">Subtotal ({{ $resolvedItemCount }} item{{ $resolvedItemCount === 1 ? '' : 's' }})</span>
+            <span class="font-semibold text-gray-900" x-text="formatMoney($SM.get(cartState, 'summary.subtotal') || 0)">${{ number_format((float) ($resolvedSummary['subtotal'] ?? 0), 2) }}</span>
         </div>
 
         <div class="flex items-center justify-between gap-4">
             <span x-text="checkoutShippingLabel()">{{ $shippingLabel }}</span>
-            <span class="font-semibold text-gray-900" x-text="requiresManualQuote() ? '--' : (canCheckout() ? (Number(cartState?.summary?.shipping || 0) === 0 ? 'Free' : formatMoney(cartState?.summary?.shipping)) : 'Manual quote')">
+            <span class="font-semibold text-gray-900" x-text="requiresManualQuote() ? '--' : (canCheckout() ? ($SM.number($SM.get(cartState, 'summary.shipping') || 0) === 0 ? 'Free' : formatMoney($SM.get(cartState, 'summary.shipping'))) : 'Manual quote')">
                 @if($requiresManualQuote)
                     --
                 @elseif(!$canCheckout)
@@ -131,21 +131,21 @@
             </span>
         </div>
 
-        <div x-show="Number(cartState?.summary?.discount ?? {{ (float) ($resolvedSummary['discount'] ?? 0) }}) > 0" x-cloak class="flex items-center justify-between gap-4 text-emerald-700">
+        <div x-show="$SM.number($SM.get(cartState, 'summary.discount', {{ (float) ($resolvedSummary['discount'] ?? 0) }})) > 0" x-cloak class="flex items-center justify-between gap-4 text-emerald-700">
             <span x-text="discountLabel()">{{ $resolvedCouponCode !== '' ? 'Discount ('.$resolvedCouponCode.')' : 'Discount' }}</span>
-            <span class="font-semibold" x-text="`- ${formatMoney(cartState?.summary?.discount ?? 0)}`">- ${{ number_format((float) ($resolvedSummary['discount'] ?? 0), 2) }}</span>
+            <span class="font-semibold" x-text="('- ' + (formatMoney($SM.get(cartState, 'summary.discount', 0))) + '')">- ${{ number_format((float) ($resolvedSummary['discount'] ?? 0), 2) }}</span>
         </div>
 
         <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between gap-4">
                 <span class="text-lg font-bold text-gray-900">Total</span>
-                <span class="text-right text-2xl font-bold text-gray-900" x-text="requiresManualQuote() ? '--' : (cartState?.summary?.total !== null && cartState?.summary?.total !== undefined ? formatMoney(cartState.summary.total) : 'Unavailable')">
+                <span class="text-right text-2xl font-bold text-gray-900" x-text="requiresManualQuote() ? '--' : ($SM.get(cartState, 'summary.total') !== null && $SM.get(cartState, 'summary.total') !== undefined ? formatMoney(cartState.summary.total) : 'Unavailable')">
                     {{ $requiresManualQuote ? '--' : ($resolvedSummary['total'] !== null ? '$'.number_format((float) $resolvedSummary['total'], 2) : 'Unavailable') }}
                 </span>
             </div>
             <div class="mt-2 flex items-center justify-between gap-4 text-sm text-gray-500">
                 <span>GST Included</span>
-                <span x-text="formatMoney(cartState?.summary?.gst || 0)">${{ number_format((float) ($resolvedSummary['gst'] ?? 0), 2) }}</span>
+                <span x-text="formatMoney($SM.get(cartState, 'summary.gst') || 0)">${{ number_format((float) ($resolvedSummary['gst'] ?? 0), 2) }}</span>
             </div>
         </div>
     </div>

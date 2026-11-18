@@ -14,6 +14,12 @@ window.SM.stockReceiptExpenseEditor = (supplier = '', expenseId = '', expenses =
     get linkedExpense() {
         return this.catalog.find((expense) => String(expense.id) === this.expenseId) || null;
     },
+    linkedExpenseSummary() {
+        return this.linkedExpense ? this.linkedExpense.summary || '' : '';
+    },
+    linkedExpenseTitle() {
+        return this.linkedExpenseSummary();
+    },
     get matches() {
         const query = this.query.trim().toLowerCase();
 
@@ -26,6 +32,9 @@ window.SM.stockReceiptExpenseEditor = (supplier = '', expenseId = '', expenses =
         this.menuWidth = Math.min(width, window.innerWidth - 16);
         this.menuTop = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 320));
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
+    },
+    positionIfOpen(element) {
+        if (this.open) this.position(element);
     },
     browse(element) {
         this.position(element);
@@ -56,6 +65,9 @@ window.SM.stockReceiptExpenseEditor = (supplier = '', expenseId = '', expenses =
         if (!this.matches.length) return;
 
         this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step));
+    },
+    chooseSelected() {
+        if (this.matches[this.selected]) this.choose(this.matches[this.selected]);
     },
     choose(expense) {
         this.expenseId = expense?.id ? String(expense.id) : '';

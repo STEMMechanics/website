@@ -30,7 +30,7 @@
                 <td data-mobile-actions class="text-center! whitespace-nowrap">
                     <x-ui.row-actions :menu="false">
                         <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
-                        <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="SM.confirm('Archive sponsorship amount?', 'This removes it from checkout and keeps existing sponsorship records intact. You can restore it later.', 'Archive amount', confirmed => { if (confirmed) $el.submit() })">
+                        <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Archive sponsorship amount?', 'This removes it from checkout and keeps existing sponsorship records intact. You can restore it later.', 'Archive amount')">
                             @csrf @method('DELETE')
                             <x-ui.row-action type="submit" label="Archive" icon="fa-trash-can" tone="danger" />
                         </form>
@@ -65,7 +65,7 @@
                                 <x-ui.row-actions :menu="false">
                                     <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit or restore sponsorship amount" href="{{ route('admin.sponsorship.option.edit', $option) }}" />
                                     @if((int) $option->sponsorships_count === 0)
-                                        <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="SM.confirm('Delete archived amount permanently?', 'This amount has no sponsorship history and will be removed permanently.', 'Delete amount', confirmed => { if (confirmed) $el.submit() })">
+                                        <form method="POST" action="{{ route('admin.sponsorship.option.destroy', $option) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Delete archived amount permanently?', 'This amount has no sponsorship history and will be removed permanently.', 'Delete amount')">
                                             @csrf @method('DELETE')
                                             <x-ui.row-action type="submit" label="Delete" icon="fa-trash-can" tone="danger" />
                                         </form>

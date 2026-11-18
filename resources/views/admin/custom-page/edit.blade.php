@@ -67,7 +67,7 @@
             <x-ui.editor-actions>
                 @if($editing)
                     <x-ui.button color="outline" href="{{ url($page->path) }}" target="_blank">View Page</x-ui.button>
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

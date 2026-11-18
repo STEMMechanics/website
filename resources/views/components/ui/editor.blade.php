@@ -21,7 +21,7 @@
     @endif
     <div
         x-data="editor($store[@js($name.'_content')], @js(route('custom-page.link-options')), @js($editorOptions))"
-        x-on:sm-editor-set-content.window="if (($event.detail?.name || '') === @js($name)) { if ($event.detail?.append) { appendExternalContent($event.detail?.html || '') } else { setExternalContent($event.detail?.html || '', { focusEnd: !!$event.detail?.focusEnd }) } }"
+        x-on:sm-editor-set-content.window="handleExternalContent($event, @js($name))"
         data-has-error="{{ $hasError ? 'true' : 'false' }}"
         class="{{ twMerge(['editor','mt-1'], $attributes->get('class')) }}">
         <template x-if="isLoaded()">
@@ -29,7 +29,7 @@
                 class="menu"
                 role="toolbar"
                 aria-label="{{ $editorOptions['label'] }} formatting"
-                x-init="$nextTick(() => SM.initToolbar($el))"
+                x-init="$SM.nextTickToolbar($el)"
             >
                 <x-ui.button variant="plain"
                     x-on:click.prevent="setParagraph()"
@@ -133,25 +133,25 @@
                         title="Alignment"
                         aria-label="Alignment"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="closeEditorDropdown($el)" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active': isActive({ textAlign: 'left' }, updatedAt) || isActive({ textAlign: 'center' }, updatedAt) || isActive({ textAlign: 'right' }, updatedAt) || isActive({ textAlign: 'justify' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'left' }, updatedAt) || isActive({ textAlign: 'center' }, updatedAt) || isActive({ textAlign: 'right' }, updatedAt) || isActive({ textAlign: 'justify' }, updatedAt)">
                         <i class="fa-solid fa-align-left" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
                     </x-ui.button>
                     <div class="editor-toolbar-dropdown__panel" x-show="open" x-transition.origin.top.left @click.outside="open = false">
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="setTextAlign('left'); open = false" x-bind:class="{ 'is-active' : isActive({ textAlign: 'left' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'left' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'setTextAlign', ['left'])" x-bind:class="{ 'is-active' : isActive({ textAlign: 'left' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'left' }, updatedAt)">
                             <i class="fa-solid fa-align-left" aria-hidden="true"></i>
                             <span>Left</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="setTextAlign('center'); open = false" x-bind:class="{ 'is-active' : isActive({ textAlign: 'center' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'center' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'setTextAlign', ['center'])" x-bind:class="{ 'is-active' : isActive({ textAlign: 'center' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'center' }, updatedAt)">
                             <i class="fa-solid fa-align-center" aria-hidden="true"></i>
                             <span>Center</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="setTextAlign('right'); open = false" x-bind:class="{ 'is-active' : isActive({ textAlign: 'right' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'right' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'setTextAlign', ['right'])" x-bind:class="{ 'is-active' : isActive({ textAlign: 'right' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'right' }, updatedAt)">
                             <i class="fa-solid fa-align-right" aria-hidden="true"></i>
                             <span>Right</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="setTextAlign('justify'); open = false" x-bind:class="{ 'is-active' : isActive({ textAlign: 'justify' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'justify' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'setTextAlign', ['justify'])" x-bind:class="{ 'is-active' : isActive({ textAlign: 'justify' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'justify' }, updatedAt)">
                             <i class="fa-solid fa-align-justify" aria-hidden="true"></i>
                             <span>Justify</span>
                         </x-ui.button>
@@ -246,57 +246,57 @@
                         title="Table tools"
                         aria-label="Table tools"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="closeEditorDropdown($el)" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active' : isActive('table', updatedAt) }" x-bind:aria-pressed="isActive('table', updatedAt)">
                         <i class="fa-solid fa-table" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
                     </x-ui.button>
                     <div class="editor-toolbar-dropdown__panel editor-toolbar-dropdown__panel--wide" x-show="open" x-transition.origin.top.left @click.outside="open = false">
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="insertTable(); open = false" x-bind:class="{ 'is-active' : isActive('table', updatedAt) }" x-bind:aria-pressed="isActive('table', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'insertTable', [])" x-bind:class="{ 'is-active' : isActive('table', updatedAt) }" x-bind:aria-pressed="isActive('table', updatedAt)">
                             <i class="fa-solid fa-table" aria-hidden="true"></i>
                             <span>Insert table</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="addColumnBefore(); open = false" x-bind:disabled="!canTable('addColumnBefore', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'addColumnBefore', [])" x-bind:disabled="!canTable('addColumnBefore', updatedAt)">
                             <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
                             <span>Add column before</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="addColumnAfter(); open = false" x-bind:disabled="!canTable('addColumnAfter', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'addColumnAfter', [])" x-bind:disabled="!canTable('addColumnAfter', updatedAt)">
                             <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                             <span>Add column after</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="deleteColumn(); open = false" x-bind:disabled="!canTable('deleteColumn', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'deleteColumn', [])" x-bind:disabled="!canTable('deleteColumn', updatedAt)">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                             <span>Delete column</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="addRowBefore(); open = false" x-bind:disabled="!canTable('addRowBefore', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'addRowBefore', [])" x-bind:disabled="!canTable('addRowBefore', updatedAt)">
                             <i class="fa-solid fa-arrow-up" aria-hidden="true"></i>
                             <span>Add row before</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="addRowAfter(); open = false" x-bind:disabled="!canTable('addRowAfter', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'addRowAfter', [])" x-bind:disabled="!canTable('addRowAfter', updatedAt)">
                             <i class="fa-solid fa-arrow-down" aria-hidden="true"></i>
                             <span>Add row after</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="deleteRow(); open = false" x-bind:disabled="!canTable('deleteRow', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'deleteRow', [])" x-bind:disabled="!canTable('deleteRow', updatedAt)">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                             <span>Delete</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleHeaderRow(); open = false" x-bind:disabled="!canTable('toggleHeaderRow', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleHeaderRow', [])" x-bind:disabled="!canTable('toggleHeaderRow', updatedAt)">
                             <i class="fa-solid fa-heading" aria-hidden="true"></i>
                             <span>Toggle header row</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleHeaderColumn(); open = false" x-bind:disabled="!canTable('toggleHeaderColumn', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleHeaderColumn', [])" x-bind:disabled="!canTable('toggleHeaderColumn', updatedAt)">
                             <i class="fa-solid fa-heading" aria-hidden="true"></i>
                             <span>Toggle header column</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="mergeCells(); open = false" x-bind:disabled="!canTable('mergeCells', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'mergeCells', [])" x-bind:disabled="!canTable('mergeCells', updatedAt)">
                             <i class="fa-solid fa-object-group" aria-hidden="true"></i>
                             <span>Merge cells</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="splitCell(); open = false" x-bind:disabled="!canTable('splitCell', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'splitCell', [])" x-bind:disabled="!canTable('splitCell', updatedAt)">
                             <i class="fa-solid fa-table-cells" aria-hidden="true"></i>
                             <span>Split cell</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="deleteTable(); open = false" x-bind:disabled="!canTable('deleteTable', updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'deleteTable', [])" x-bind:disabled="!canTable('deleteTable', updatedAt)">
                             <i class="fa-solid fa-trash" aria-hidden="true"></i>
                             <span>Delete table</span>
                         </x-ui.button>
@@ -420,7 +420,7 @@
                 </x-ui.button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <x-ui.button variant="plain"
-                    x-on:click.prevent="clearNodes();unsetAllMarks()"
+                    x-on:click.prevent="clearFormatting()"
                     title="Clear formatting"
                     aria-label="Clear formatting">
                     <i class="fa-solid fa-text-slash" aria-hidden="true"></i>
@@ -459,29 +459,29 @@
                         title="Notice boxes"
                         aria-label="Notice boxes"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="closeEditorDropdown($el)" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active': isActive('box', { type: 'success' }, updatedAt) || isActive('box', { type: 'info' }, updatedAt) || isActive('box', { type: 'warning' }, updatedAt) || isActive('box', { type: 'danger' }, updatedAt) || isActive('box', { type: 'bug' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'success' }, updatedAt) || isActive('box', { type: 'info' }, updatedAt) || isActive('box', { type: 'warning' }, updatedAt) || isActive('box', { type: 'danger' }, updatedAt) || isActive('box', { type: 'bug' }, updatedAt)">
                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
                     </x-ui.button>
                     <div class="editor-toolbar-dropdown__panel" x-show="open" x-transition.origin.top.left @click.outside="open = false">
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleBox({ type: 'success' }); open = false" x-bind:class="{ 'is-active': isActive('box', { type: 'success' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'success' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleBox', [{ type: 'success' }])" x-bind:class="{ 'is-active': isActive('box', { type: 'success' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'success' }, updatedAt)">
                             <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
                             <span>Success</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleBox({ type: 'info' }); open = false" x-bind:class="{ 'is-active': isActive('box', { type: 'info' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'info' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleBox', [{ type: 'info' }])" x-bind:class="{ 'is-active': isActive('box', { type: 'info' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'info' }, updatedAt)">
                             <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                             <span>Info</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleBox({ type: 'warning' }); open = false" x-bind:class="{ 'is-active': isActive('box', { type: 'warning' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'warning' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleBox', [{ type: 'warning' }])" x-bind:class="{ 'is-active': isActive('box', { type: 'warning' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'warning' }, updatedAt)">
                             <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
                             <span>Warning</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleBox({ type: 'danger' }); open = false" x-bind:class="{ 'is-active': isActive('box', { type: 'danger' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'danger' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleBox', [{ type: 'danger' }])" x-bind:class="{ 'is-active': isActive('box', { type: 'danger' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'danger' }, updatedAt)">
                             <i class="fa-solid fa-circle-xmark" aria-hidden="true"></i>
                             <span>Danger</span>
                         </x-ui.button>
-                        <x-ui.button variant="plain" type="button" x-on:click.prevent="toggleBox({ type: 'bug' }); open = false" x-bind:class="{ 'is-active': isActive('box', { type: 'bug' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'bug' }, updatedAt)">
+                        <x-ui.button variant="plain" type="button" x-on:click.prevent="runToolbarAction($el, 'toggleBox', [{ type: 'bug' }])" x-bind:class="{ 'is-active': isActive('box', { type: 'bug' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'bug' }, updatedAt)">
                             <i class="fa-solid fa-bug" aria-hidden="true"></i>
                             <span>Bug</span>
                         </x-ui.button>

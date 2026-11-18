@@ -16,10 +16,10 @@
 
 <div
     x-id="['stock-receipt-supplier', 'stock-receipt-expenses', 'stock-receipt-supplier-help']"
-    x-data="SM.stockReceiptExpenseEditor(@js($initialSupplier), @js($initialExpenseId), @js($expenses), @js($scope))"
+    x-data="$SM.stockReceiptExpenseEditor(@js($initialSupplier), @js($initialExpenseId), @js($expenses), @js($scope))"
     x-on:keydown.escape.window="open = false"
-    x-on:resize.window="if (open) position($refs.expenseTrigger)"
-    x-on:scroll.window="if (open) position($refs.expenseTrigger)"
+    x-on:resize.window="positionIfOpen($refs.expenseTrigger)"
+    x-on:scroll.window="positionIfOpen($refs.expenseTrigger)"
 >
     <label class="block text-sm pl-1" x-bind:for="$id('stock-receipt-supplier')">Supplier or expense</label>
     <div class="relative mt-1 flex items-center">
@@ -44,9 +44,9 @@
             x-on:click="clearValue()" size="icon-small">
             <i class="fa-solid fa-xmark" aria-hidden="true"></i>
         </x-ui.button>
-        <div x-cloak x-show="linkedExpense" class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 py-1 pl-3 pr-1.5 text-sm text-slate-800" x-bind:title="linkedExpense?.summary">
+        <div x-cloak x-show="linkedExpense" class="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 py-1 pl-3 pr-1.5 text-sm text-slate-800" x-bind:title="linkedExpenseTitle()">
             <i class="fa-solid fa-link shrink-0 text-xs text-sky-600" aria-hidden="true"></i>
-            <span class="min-w-0 flex-1 truncate leading-5" x-text="linkedExpense?.summary"></span>
+            <span class="min-w-0 flex-1 truncate leading-5" x-text="linkedExpenseSummary()"></span>
             <x-ui.button variant="plain" type="button" class="rounded-md text-slate-500 hover:bg-white hover:text-slate-900" aria-label="Change linked expense" title="Change linked expense" x-on:click="browse($el)" size="icon-small">
                 <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
             </x-ui.button>
@@ -93,7 +93,7 @@
                 x-on:input="selected = 0"
                 x-on:keydown.arrow-down.prevent.stop="move(1)"
                 x-on:keydown.arrow-up.prevent.stop="move(-1)"
-                x-on:keydown.enter.prevent.stop="if (matches[selected]) choose(matches[selected])"
+                x-on:keydown.enter.prevent.stop="chooseSelected()"
             />
             <div class="mt-2 max-h-64 overflow-y-auto" role="listbox" x-bind:id="$id('stock-receipt-expenses')">
                 <template x-for="(expense, expenseIndex) in matches" :key="expense.id">

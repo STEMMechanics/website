@@ -43,7 +43,7 @@
                     <input type="hidden" name="{{ $name }}" :value="selectedValue">
                 </template>
                 <x-ui.button variant="plain" :disabled="$disabled" x-on:click="open = !open" x-bind:aria-expanded="open" aria-haspopup="true" :button-attributes="$controlAttributes" class="{{ twMerge(['flex min-h-11 w-full items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-2 text-left text-sm focus:border-indigo-300 focus:outline-none focus:ring-indigo-300 disabled:bg-gray-100'], $selectClass) }}">
-                    <span x-text="selected.length ? options.filter(option => selected.includes(option.value)).map(option => option.label).join(', ') : 'Select options'"></span>
+                    <span x-text="selected.length ? $SM.selectedOptionLabels(options, selected) : 'Select options'"></span>
                     <i class="fa-solid fa-caret-down ml-3 text-lg text-gray-700" aria-hidden="true"></i>
                 </x-ui.button>
                 <div x-cloak x-show="open" class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-xl">

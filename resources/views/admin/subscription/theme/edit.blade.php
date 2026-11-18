@@ -31,7 +31,7 @@
             </div>
             <x-ui.editor-actions>
                 <x-ui.button type="submit">Save Theme</x-ui.button>
-                @if($theme->exists)<x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete newsletter theme?', 'This removes the theme from future newsletters.', '{{ route('admin.subscription.theme.destroy', $theme) }}')">Delete</x-ui.button>@endif
+                @if($theme->exists)<x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete newsletter theme?', 'This removes the theme from future newsletters.', '{{ route('admin.subscription.theme.destroy', $theme) }}')">Delete</x-ui.button>@endif
             </x-ui.editor-actions>
         </form>
     </x-container>

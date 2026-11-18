@@ -117,6 +117,7 @@ window.SM.commitWorkshopSpacing = row => {
 window.SM.normalizeWorkshopSpacing = window.SM.commitWorkshopSpacing;
 window.SM.currentGstRate = () => Number(typeof document !== 'undefined' ? document.querySelector?.('meta[name="gst-rate"]')?.content ?? 0.10 : 0.10);
 window.SM.lineTaxRate = item => item.gst_applicable === false ? 0 : Number(item.tax_rate ?? window.SM.currentGstRate());
+window.SM.linkedOptionLabel = option => option && option.label ? option.label : '';
 window.SM.gstRateForDate = date => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return window.SM.currentGstRate();
     const schedule = JSON.parse(typeof document !== 'undefined' ? document.querySelector?.('meta[name="gst-rates"]')?.content || '[]' : '[]');
@@ -255,6 +256,18 @@ window.SM.priceRoundingSummary = items => {
         first: pending[0]?.item ?? adjusted[0]?.item ?? null,
     };
 };
+window.SM.priceRoundingReview = items => ({
+    get roundingSummary() {
+        return window.SM.priceRoundingSummary(items || []);
+    },
+});
+window.SM.gstRateNotice = items => ({
+    get previousRates() {
+        const currentRate = window.SM.currentGstRate();
+        return [...new Set((items || []).map(item => window.SM.lineTaxRate(item))
+            .filter(rate => rate > 0 && Math.abs(rate - currentRate) > 0.00000001))];
+    },
+});
 window.SM.lineAmounts = item => {
     const qty = Number(item.quantity || 0), rate = window.SM.lineTaxRate(item);
     const inclusive = item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price;
@@ -384,6 +397,9 @@ window.SM.hydrateMultiTravelLine = item => {
         row.travel_hours_user_changed ??= !!row.details_json?.travel?.hours_user_changed;
     });
     return item;
+};
+window.SM.hydrateMultiWorkshopLine = item => {
+    item.workshops ??= JSON.parse(JSON.stringify(item.details_json?.multi_workshop?.rows || []));
 };
 window.SM.addTravelRow = item => {
     window.SM.hydrateMultiTravelLine(item);
@@ -545,6 +561,9 @@ window.SM.initializeWorkshopText = item => {
     item.details_json ??= {};
     item.details_json.workshop_notes_mode = 'template';
     delete item.details_json.generated_workshop_notes;
+};
+window.SM.initializeWorkshopTextIfEditable = (item, isLocked) => {
+    if (!isLocked) window.SM.initializeWorkshopText(item);
 };
 window.SM.workshopNotesPreview = (item, catalog = []) => {
     const rows = item.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [item];
@@ -764,6 +783,54 @@ window.SM.workshopFundingEditor = (item, catalog, billingLocked = false, allowSp
         if (Number(this.item.workshop_seats || 0) === value) return;
         this.item.workshop_seats = value;
         this.$nextTick(() => this.$dispatch('workshop-line-changed'));
+    },
+    syncAllocationInputs() {
+        const detail = {
+            id: this.item.details_json.workshop.linked_workshop_id,
+            participants: Number(this.seatValue || 0),
+            hours: Number(this.item.workshop_hours ?? this.item.details_json.workshop.hours ?? 0),
+        };
+        this.$nextTick(() => this.$dispatch('workshop-allocation-inputs', detail));
+    },
+    positionDescriptionIfOpen() {
+        if (this.open) this.position(this.$refs.workshopDescription, this.menuWidth);
+    },
+    positionSeatsIfOpen() {
+        if (this.menuOpen) this.position(this.$refs.seatsTrigger, 240);
+    },
+    toggleSeatsMenu(element) {
+        this.position(element, 240);
+        this.menuOpen = !this.menuOpen;
+    },
+    updateDescriptionAndDispatch(element) {
+        this.editDescription(element);
+        this.$dispatch('workshop-line-changed');
+    },
+    handleArrowDown(element) {
+        if (!this.open) this.browse(element);
+        else this.move(1);
+    },
+    handleEnter(event) {
+        if (!this.open) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (this.matches[this.selected]) {
+            this.choose(this.matches[this.selected]);
+            this.$dispatch('workshop-line-changed');
+        }
+        this.open = false;
+    },
+    chooseAndDispatch(option) {
+        this.choose(option);
+        this.$dispatch('workshop-line-changed');
+    },
+    closeAndFocusDescription() {
+        this.open = false;
+        this.$refs.workshopDescription.focus();
+    },
+    setSeatsAndDispatch(basis) {
+        this.setSeats(basis);
+        this.$dispatch('workshop-line-changed');
     },
     get basisLabel() { return { manual: 'Manual seats', capacity: 'Workshop capacity', tickets: 'Registered tickets', attendance: 'Attendance count' }[this.item.details_json.workshop.allocation_basis]; },
     get matches() {

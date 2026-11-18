@@ -9,12 +9,12 @@
     $invoiceNet = app(\App\Services\Finance\FinancePlanner::class)->cents($invoice->subtotal_amount);
     $receivedNet = app(\App\Services\Finance\FinancePlanner::class)->income([$invoice->id])['net'];
 @endphp
-<x-finance.panel title="Cost centre allocation" x-data="SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::from(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
+<x-finance.panel title="Cost centre allocation" x-data="$SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::from(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
     <x-slot:actions>
         <div class="flex items-center gap-2" x-show="scope === 'invoice'">
             @if(!$invoiceAllocation['warning'])<x-finance.allocation-calculator-button :invoice="$invoice" />@endif
             @if($invoice->lines->contains('kind', 'product'))
-                <form method="POST" action="{{ route('admin.product-allocation.apply', $invoice) }}" class="flex" x-data x-on:submit.prevent="window.SM.confirm('Apply current defaults', 'Replace this invoice allocation, including any manual override, with the current product and pricing defaults?', 'Apply defaults', confirmed => { if (confirmed) $el.submit() })">
+                <form method="POST" action="{{ route('admin.product-allocation.apply', $invoice) }}" class="flex" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Apply current defaults', 'Replace this invoice allocation, including any manual override, with the current product and pricing defaults?', 'Apply defaults')">
                     @csrf
                     <x-ui.button type="submit" color="outline" class="size-10 p-0!" aria-label="Apply current product allocations" title="Apply current product allocations"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                 </form>
@@ -27,7 +27,7 @@
         <dl class="mb-6 grid gap-x-6 gap-y-4 sm:grid-cols-2 xl:grid-cols-4" aria-live="polite">
             <div><dt class="text-sm text-slate-600">Invoice total (ex GST)</dt><dd class="mt-1 text-xl font-semibold tabular-nums" x-text="money(income)"></dd></div>
             <div><dt class="text-sm text-slate-600">Combined allocation (ex GST)</dt><dd class="mt-1 text-xl font-semibold tabular-nums" x-text="money(total)"></dd></div>
-            <div><dt class="text-sm text-slate-600" x-text="income < total ? 'Shortfall (ex GST)' : 'Unallocated (ex GST)'"></dt><dd class="mt-1 text-xl font-semibold tabular-nums" x-bind:class="total > income ? 'text-red-700' : 'text-slate-900'" x-text="money(Math.abs(income - total))"></dd></div>
+            <div><dt class="text-sm text-slate-600" x-text="income < total ? 'Shortfall (ex GST)' : 'Unallocated (ex GST)'"></dt><dd class="mt-1 text-xl font-semibold tabular-nums" x-bind:class="total > income ? 'text-red-700' : 'text-slate-900'" x-text="money($SM.abs(income - total))"></dd></div>
             <div><dt class="text-sm text-slate-600">Received (ex GST)</dt><dd class="mt-1 text-xl font-semibold tabular-nums">${{ number_format($receivedNet / 100, 2) }}</dd></div>
         </dl>
         <nav class="sm-preset-views mb-6" role="tablist" aria-label="Allocation sections">

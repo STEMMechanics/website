@@ -19,7 +19,7 @@
                         </form>
                         @php($deleteBlocked = (int) ($defaultVersionId ?? 0) === $version->id || in_array($version->id, $usedVersionIds ?? []))
                         <x-ui.row-action type="button" label="{{ $deleteBlocked ? 'Cannot delete a default or in-use allocation plan' : 'Delete allocation plan' }}" icon="fa-trash" tone="danger" :disabled="$deleteBlocked"
-                            x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete allocation plan?', 'Delete this unused allocation plan? This cannot be undone.', '{{ route('admin.cost-centre.version.destroy', $version->id) }}')" />
+                            x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete allocation plan?', 'Delete this unused allocation plan? This cannot be undone.', '{{ route('admin.cost-centre.version.destroy', $version->id) }}')" />
                     </x-ui.row-actions></td>
                 </tr>
             @endforeach

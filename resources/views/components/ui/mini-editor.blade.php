@@ -5,7 +5,7 @@
     x-modelable="content"
     {{ $attributes->merge(['class' => 'overflow-hidden rounded-lg border border-gray-300 bg-white']) }}
 >
-    <div data-mini-editor-toolbar role="toolbar" aria-label="{{ $label }} formatting" x-init="$nextTick(() => SM.initToolbar($el))" class="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
+    <div data-mini-editor-toolbar role="toolbar" aria-label="{{ $label }} formatting" x-init="$SM.nextTickToolbar($el)" class="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
         <x-ui.button variant="plain" type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:aria-pressed="isActive('bold')" x-bind:class="isActive('bold') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleBold()" title="Bold" aria-label="Bold"><i class="fa-solid fa-bold" aria-hidden="true"></i></x-ui.button>
         <x-ui.button variant="plain" type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:aria-pressed="isActive('italic')" x-bind:class="isActive('italic') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleItalic()" title="Italic" aria-label="Italic"><i class="fa-solid fa-italic" aria-hidden="true"></i></x-ui.button>
         <x-ui.button variant="plain" type="button" class="rounded px-2 py-1 text-sm hover:bg-gray-200" x-bind:aria-pressed="isActive('underline')" x-bind:class="isActive('underline') ? 'bg-gray-200 text-primary-color' : ''" x-on:click="toggleUnderline()" title="Underline" aria-label="Underline"><i class="fa-solid fa-underline" aria-hidden="true"></i></x-ui.button>

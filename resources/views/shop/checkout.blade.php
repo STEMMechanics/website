@@ -125,18 +125,18 @@
                             <div class="font-semibold">Stock availability changed</div>
                             <div class="mt-1">Review these updates before moving to payment.</div>
                             <div class="mt-3 space-y-2">
-                                <template x-for="notice in cartState.inventory_change_notices" :key="`${notice.type}-${notice.key}`">
+                                <template x-for="notice in cartState.inventory_change_notices" :key="('' + (notice.type) + '-' + (notice.key) + '')">
                                     <div class="rounded-xl border border-amber-200 bg-white/80 px-3 py-2" x-text="notice.message"></div>
                                 </template>
                             </div>
                         </div>
 
-{{--                        <div x-show="Boolean(cartState?.summary?.contains_preorder)" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">--}}
+{{--                        <div x-show="$SM.boolean($SM.get(cartState, 'summary.contains_preorder'))" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">--}}
 {{--                            <div class="font-semibold">Pre-order items in your cart</div>--}}
 {{--                            <div class="mt-1">Your order will ship once these items become available.</div>--}}
 {{--                        </div>--}}
 
-{{--                        <div x-show="Boolean(cartState?.summary?.contains_backorder)" x-cloak class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">--}}
+{{--                        <div x-show="$SM.boolean($SM.get(cartState, 'summary.contains_backorder'))" x-cloak class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">--}}
 {{--                            <div class="font-semibold">Split shipment items in your cart</div>--}}
 {{--                            <div class="mt-1">Any quantity above available stock will move into a later shipment unless you choose to consolidate it.</div>--}}
 {{--                        </div>--}}
@@ -185,7 +185,7 @@
                                             <option value="{{ $stateCode }}" @selected($selectedBillingState === $stateCode)>{{ $stateLabel }}</option>
                                         @endforeach
                                     </x-ui.select>
-                                    <x-ui.input name="billing_postcode" label="Postcode" :value="$prefill['billing_postcode']" required maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$el.value = $el.value.replace(/\D+/g, '').slice(0, 4)" />
+                                    <x-ui.input name="billing_postcode" label="Postcode" :value="$prefill['billing_postcode']" required maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$SM.limitNumericInput($el, 4)" />
                                     <x-ui.input name="billing_country" label="Country" :value="$prefill['billing_country']" readonly="true" required class="mb-0" />
                                 </div>
                             </div>
@@ -221,7 +221,7 @@
                                             <option value="{{ $stateCode }}" @selected($selectedShippingState === $stateCode)>{{ $stateLabel }}</option>
                                         @endforeach
                                     </x-ui.select>
-                                    <x-ui.input name="shipping_postcode" label="Postcode" :value="$prefill['shipping_postcode']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$el.value = $el.value.replace(/\D+/g, '').slice(0, 4)" />
+                                    <x-ui.input name="shipping_postcode" label="Postcode" :value="$prefill['shipping_postcode']" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" maxlength="4" inputmode="numeric" pattern="\d{4}" x-on:input="$SM.limitNumericInput($el, 4)" />
                                     <x-ui.input name="shipping_country" label="Country" :value="$prefill['shipping_country']" x-model="shippingCountry" readonly="true" x-bind:required="needsShippingAddress() && !shippingSameAsBilling" x-bind:disabled="!needsShippingAddress() || shippingSameAsBilling" class="mb-0" />
                                 </div>
                             </div>
@@ -232,7 +232,7 @@
                                 <div>
                                     <h4 class="text-lg font-bold text-gray-900">List of items</h4>
                                 </div>
-                                <div class="text-sm font-medium text-gray-500" x-text="`${Number(cartState?.summary?.item_count || {{ $itemCount }})} item${Number(cartState?.summary?.item_count || {{ $itemCount }}) === 1 ? '' : 's'}`">{{ $itemCount }} items</div>
+                                <div class="text-sm font-medium text-gray-500" x-text="('' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $itemCount }})) + ' item' + ($SM.number($SM.get(cartState, 'summary.item_count') || {{ $itemCount }}) === 1 ? '' : 's') + '')">{{ $itemCount }} items</div>
                             </div>
 
                             <div class="mt-5 space-y-4">
@@ -257,7 +257,7 @@
                                             </div>
 
                                             <div class="flex items-center justify-between gap-4 lg:justify-end">
-                                                <div class="hidden text-xs text-gray-500 xl:block" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                                <div class="hidden text-xs text-gray-500 xl:block" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                                                 <div class="flex items-center gap-2">
                                                     <span class="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Qty</span>
                                                     <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
@@ -265,7 +265,7 @@
                                                             type="button"
                                                             class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
                                                             x-bind:disabled="busyLineKey === line.key || isSubmitting"
-                                                            x-on:click="changeCartQuantity(line.key, Number(line.quantity || 1) - 1, line.max_quantity)" size="icon-small">-</x-ui.button>
+                                                            x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 1) - 1, line.max_quantity)" size="icon-small">-</x-ui.button>
                                                         <x-ui.input-control
                                                             type="number"
                                                             min="0"
@@ -277,8 +277,8 @@
                                                         <x-ui.button variant="plain"
                                                             type="button"
                                                             class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                            x-bind:disabled="busyLineKey === line.key || isSubmitting || Number(line.quantity || 0) >= Number(line.max_quantity || 99)"
-                                                            x-on:click="changeCartQuantity(line.key, Number(line.quantity || 0) + 1, line.max_quantity)" size="icon-small">+</x-ui.button>
+                                                            x-bind:disabled="busyLineKey === line.key || isSubmitting || $SM.number(line.quantity || 0) >= $SM.number(line.max_quantity || 99)"
+                                                            x-on:click="changeCartQuantity(line.key, $SM.number(line.quantity || 0) + 1, line.max_quantity)" size="icon-small">+</x-ui.button>
                                                     </div>
                                                 </div>
                                                 <div class="min-w-18 text-right">
@@ -315,7 +315,7 @@
                                             <span class="block">
                                                 <span class="block text-sm font-semibold text-gray-900" x-text="method.name"></span>
                                                 <span x-show="method.description" class="mt-0.5 block text-xs text-gray-500" x-text="method.description"></span>
-                                                <span x-show="method.delivery_estimate_label" class="mt-1 block text-xs font-medium text-gray-600" x-text="`ETA ${method.delivery_estimate_label}`"></span>
+                                                <span x-show="method.delivery_estimate_label" class="mt-1 block text-xs font-medium text-gray-600" x-text="('ETA ' + (method.delivery_estimate_label) + '')"></span>
                                             </span>
                                         </span>
                                         <span class="text-sm font-semibold text-gray-900" x-text="shippingMethodAmountLabel(method)"></span>
@@ -408,7 +408,7 @@
                             <div class="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $message }}</div>
                         @enderror
 
-                        <div x-show="Boolean(cartState?.summary?.contains_digital)" x-cloak class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                        <div x-show="$SM.boolean($SM.get(cartState, 'summary.contains_digital'))" x-cloak class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                             Digital downloads unlock automatically after payment.
                         </div>
 
@@ -467,8 +467,8 @@
                                     error=""
                                     x-model="paymentMethod"
                                     x-on:change="onPaymentMethodChange()"
-                                    x-on:mousedown="if (isSubmitting || checkoutStep !== 'payment') { $event.preventDefault() }"
-                                    x-on:keydown="if (isSubmitting || checkoutStep !== 'payment') { $event.preventDefault() }">
+                                    x-on:mousedown="$SM.preventIf($event, isSubmitting || checkoutStep !== 'payment')"
+                                    x-on:keydown="$SM.preventIf($event, isSubmitting || checkoutStep !== 'payment')">
                                     @if($canUseAccountTerms)
                                         <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
                                     @endif

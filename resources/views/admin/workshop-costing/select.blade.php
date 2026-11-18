@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast title="Workshop costings" description="Choose a pricing plan to view its workshop costings." />
 
-    <dialog x-data x-init="$nextTick(() => $el.showModal())" x-on:cancel.prevent="window.location.href = '{{ route('admin.cost-centre.allocations') }}'" class="w-full max-w-lg rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/60">
+    <dialog x-data x-init="$SM.nextTickShowModal($el)" x-on:cancel.prevent="$SM.navigateTo('{{ route('admin.cost-centre.allocations') }}')" class="w-full max-w-lg rounded-2xl p-0 shadow-2xl backdrop:bg-slate-900/60">
         <form method="GET" action="{{ route('admin.workshop-costing.pdf') }}" class="space-y-5 p-6">
             <div>
                 <h1 class="text-xl font-semibold text-slate-900">View workshop costings</h1>

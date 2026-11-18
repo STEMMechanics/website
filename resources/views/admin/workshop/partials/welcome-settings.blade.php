@@ -1,12 +1,4 @@
-<div class="my-6" x-show="registration === 'tickets'" x-data="{
-    welcomeEnabled: @js((bool) old('welcome_enabled', $workshopModel?->welcome_enabled ?? false)),
-    welcomeFiles: @js(old('welcome_files', $workshopModel?->files('welcome_attachments')->pluck('name')->all() ?? [])),
-    pickWelcomeFiles() {
-        SMMediaPicker.open(this.welcomeFiles, { allow_multiple: true, allow_uploads: true, public_usable_only: false, title: 'Welcome email attachments' }, result => {
-            this.welcomeFiles = [...new Set((Array.isArray(result) ? result : [result]).filter(Boolean))];
-        });
-    }
-}">
+<div class="my-6" x-show="registration === 'tickets'" x-data="smCspAdminWorkshopPartialsWelcomeSettings1">
     <x-ui.collapsible-section title="Welcome email" variant="product" :open="$errors->hasAny(['welcome_subject', 'welcome_body', 'welcome_send_at', 'welcome_files'])">
         <x-slot:summary><span x-text="welcomeEnabled ? 'Scheduled joining instructions' : 'Not enabled'"></span></x-slot:summary>
         <input type="hidden" name="welcome_enabled" x-bind:value="welcomeEnabled ? 1 : 0">
@@ -41,7 +33,7 @@
                     <x-ui.button color="outline" :href="route('admin.workshop.welcome.preview', $workshopModel)" target="_blank">Preview saved email</x-ui.button>
                     <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="send">Send now</x-ui.button>
                     @if($welcomeCounts->get('sent', 0))
-                        <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="resend" x-on:click.prevent="const button = $el; const result = await SM.confirm('Resend welcome email?', 'The saved email will be sent again to all active ticket contacts.', 'Resend'); if (result?.isConfirmed) button.form.requestSubmit(button)" color="outline">Resend to active contacts</x-ui.button>
+                        <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="resend" x-on:click.prevent="$SM.confirmSubmitButton($el, 'Resend welcome email?', 'The saved email will be sent again to all active ticket contacts.', 'Resend')" color="outline">Resend to active contacts</x-ui.button>
                     @endif
                     @if($welcomeCounts->get('failed', 0))
                         <x-ui.button type="submit" form="send-workshop-welcome" name="action" value="retry" color="outline">Retry failed emails</x-ui.button>
@@ -51,3 +43,17 @@
         </div>
     </x-ui.collapsible-section>
 </div>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopPartialsWelcomeSettings1', () => ({
+    welcomeEnabled: @js((bool) old('welcome_enabled', $workshopModel?->welcome_enabled ?? false)),
+    welcomeFiles: @js(old('welcome_files', $workshopModel?->files('welcome_attachments')->pluck('name')->all() ?? [])),
+    pickWelcomeFiles() {
+        SMMediaPicker.open(this.welcomeFiles, { allow_multiple: true, allow_uploads: true, public_usable_only: false, title: 'Welcome email attachments' }, result => {
+            this.welcomeFiles = [...new Set((Array.isArray(result) ? result : [result]).filter(Boolean))];
+        });
+    }
+}));
+});
+</script>

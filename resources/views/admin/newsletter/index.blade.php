@@ -8,7 +8,7 @@
 
     <x-mast :tabs="$newsletterTabs" description="Prepare the next newsletter, choose products and send a preview.">Newsletter
         <x-slot:actions>
-                    <form class="w-full" method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="SM.confirm('Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                    <form class="w-full" method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter')">
                         @csrf
                         <x-ui.button color="mast" type="submit">Send All Now</x-ui.button>
                     </form>
@@ -62,19 +62,19 @@
                     @error('hero_cta')<p class="col-span-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <p class="mb-4 text-xs text-gray-500">The wand replaces all three fields with a draft based on this newsletter’s selected workshops and store items. The refresh arrows suggest one field at a time.</p>
-                <input x-data form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" x-on:input="SMNewsletterPhotoPreview('header')">
+                <input x-data form="newsletter-content-form" type="hidden" id="newsletter-header-image" name="hero_image_name" value="{{ old('hero_image_name', $storePromotion->hero_image_name ?? '') }}" x-on:input="$SM.callGlobal('SMNewsletterPhotoPreview', ['header'])">
                 <div class="relative rounded-xl border border-slate-200 p-4">
                     <p class="mb-3 text-sm font-medium">Header image</p>
-                    <x-ui.button x-data type="button" variant="plain" id="newsletter-header-image-remove" class="absolute right-3 top-3 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800" x-on:click="document.getElementById('newsletter-header-image').value = ''; SMNewsletterPhotoPreview('header')" aria-label="Reset header image to default" title="Reset header image to default" :hidden="!filled(old('hero_image_name', $storePromotion->hero_image_name ?? ''))" size="icon-small"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button x-data type="button" variant="plain" id="newsletter-header-image-remove" class="absolute right-3 top-3 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-800" x-on:click="$SM.resetNewsletterImage('newsletter-header-image', 'header')" aria-label="Reset header image to default" title="Reset header image to default" :hidden="!filled(old('hero_image_name', $storePromotion->hero_image_name ?? ''))" size="icon-small"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></x-ui.button>
                     <img id="newsletter-header-image-preview" data-default-src="{{ $defaultHeroImage ?? '' }}" @if($currentStoreSelection['hero_image_url'] ?? null) src="{{ $currentStoreSelection['hero_image_url'] }}" @else hidden @endif alt="Selected header image" class="mb-3 h-32 w-full rounded-lg object-cover">
                     <div class="flex justify-center">
-                        <x-ui.button x-data type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" x-on:click="SMNewsletterChoosePhoto('header')"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose header image</x-ui.button>
+                        <x-ui.button x-data type="button" variant="plain" class="border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-none hover:bg-slate-100 hover:text-slate-800" x-on:click="$SM.callGlobal('SMNewsletterChoosePhoto', ['header'])"><i class="fa-solid fa-arrow-up-from-bracket mr-2" aria-hidden="true"></i>Choose header image</x-ui.button>
                     </div>
                     <p class="mt-2 text-xs text-slate-500">The default image is chosen from the newsletter’s products or workshops. Reset removes your override when you save.</p>
                     @error('hero_image_name')<p class="mt-2 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
                 <div class="mt-5 flex justify-end gap-3">
-                    <x-ui.button x-data type="button" color="outline" x-on:click="SMNewsletterCloseEditor($el.closest('dialog'))">Cancel</x-ui.button>
+                    <x-ui.button x-data type="button" color="outline" x-on:click="$SM.callGlobal('SMNewsletterCloseEditor', [$el.closest('dialog')])">Cancel</x-ui.button>
                     <x-ui.button type="submit" form="newsletter-content-form">Save header</x-ui.button>
                 </div>
             </div>
@@ -84,7 +84,7 @@
         @endphp
         <div data-newsletter-canvas class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-8">
             <header class="relative mb-8 overflow-hidden rounded-xl bg-slate-900 p-6 text-white sm:p-9">
-                <x-ui.button x-data type="button" variant="plain" class="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-900 shadow" x-on:click="SMNewsletterOpenEditor('newsletter-header-editor')" aria-label="Edit newsletter header" title="Edit newsletter header"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
+                <x-ui.button x-data type="button" variant="plain" class="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-900 shadow" x-on:click="$SM.callGlobal('SMNewsletterOpenEditor', ['newsletter-header-editor'])" aria-label="Edit newsletter header" title="Edit newsletter header"><i class="fa-solid fa-pencil" aria-hidden="true"></i></x-ui.button>
                 <div class="grid gap-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)]">
                 <div>
                 <img src="{{ asset('/logo-dark.png') }}" alt="STEMMechanics" class="mb-6 h-9 w-auto">
@@ -275,6 +275,18 @@
 
     window.SMNewsletterApplyTheme = async function (form, sectionIndex, select) {
         return window.SMNewsletterUpdateSection(form, sectionIndex, 'apply_theme', String(sectionIndex), select);
+    };
+
+    window.SMNewsletterHandleThemeChange = function (select, sectionIndex) {
+        const form = select.form;
+        if (select.value === 'custom') {
+            window.SMNewsletterOpenCustom(form, sectionIndex, select);
+            return;
+        }
+        const mode = select.value === 'disabled' ? 'disabled' : 'managed';
+        form.querySelector(`[data-theme-mode=\"${sectionIndex}\"]`).value = mode;
+        form.querySelector(`[data-theme-id=\"${sectionIndex}\"]`).value = mode === 'managed' ? select.value.replace('theme:', '') : '';
+        window.SMNewsletterApplyTheme(form, sectionIndex, select);
     };
 
     window.SMNewsletterUpdateSection = async function (form, sectionIndex, actionName, actionValue, control) {

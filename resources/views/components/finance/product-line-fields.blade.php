@@ -4,28 +4,10 @@
             x-id="['store-product-input', 'store-product-options', 'store-product-hint']"
             x-init="productSearchState(item)"
             x-on:keydown.escape.window="closeProductSuggestions(item)"
-            x-on:resize.window="if (productSearchState(item).open && productSearchState(item).activeId === $id('store-product-input')) positionProductSuggestions(item, document.getElementById($id('store-product-input')))"
-            x-on:scroll.window.capture="if (productSearchState(item).open && productSearchState(item).activeId === $id('store-product-input')) positionProductSuggestions(item, document.getElementById($id('store-product-input')))"
-            x-on:pointerdown.window="
-                if (productSearchState(item).open && productSearchState(item).activeId === $id('store-product-input')) {
-                    const target = $event.target;
-                    const menu = document.getElementById($id('store-product-options'));
-                    const input = document.getElementById($id('store-product-input'));
-                    if (!(target instanceof Node) || (!(input instanceof Node) || !input.contains(target)) && (!(menu instanceof Node) || !menu.contains(target))) {
-                        closeProductSuggestions(item, $id('store-product-input'));
-                    }
-                }
-            "
-            x-on:focusin.window="
-                if (productSearchState(item).open && productSearchState(item).activeId === $id('store-product-input')) {
-                    const target = $event.target;
-                    const menu = document.getElementById($id('store-product-options'));
-                    const input = document.getElementById($id('store-product-input'));
-                    if (!(target instanceof Node) || (!(input instanceof Node) || !input.contains(target)) && (!(menu instanceof Node) || !menu.contains(target))) {
-                        closeProductSuggestions(item, $id('store-product-input'));
-                    }
-                }
-            "
+            x-on:resize.window="$SM.positionProductSuggestionsIfOpen($el, item, $id('store-product-input'), $id('store-product-input'))"
+            x-on:scroll.window.capture="$SM.positionProductSuggestionsIfOpen($el, item, $id('store-product-input'), $id('store-product-input'))"
+            x-on:pointerdown.window="$SM.closeProductSuggestionsOnOutside($el, $event, item, $id('store-product-input'), $id('store-product-options'), $id('store-product-input'))"
+            x-on:focusin.window="$SM.closeProductSuggestionsOnOutside($el, $event, item, $id('store-product-input'), $id('store-product-options'), $id('store-product-input'))"
         >
             <label class="mb-1 block pl-1 text-sm" x-bind:for="$id('store-product-input')">Store product <span class="text-red-600" aria-hidden="true">*</span></label>
             <x-ui.input-control
@@ -89,15 +71,15 @@
                         </x-ui.button>
                     </template>
                     <p x-show="!productSuggestions(item).length" class="px-3 py-2 text-sm text-slate-500">
-                        <span x-show="String(productSearchState(item).query || '').trim()" x-cloak>No store products match this search.</span>
-                        <span x-show="!String(productSearchState(item).query || '').trim()">Type a product name or SKU to search.</span>
+                        <span x-show="$SM.string(productSearchState(item).query || '').trim()" x-cloak>No store products match this search.</span>
+                        <span x-show="!$SM.string(productSearchState(item).query || '').trim()">Type a product name or SKU to search.</span>
                     </p>
                 </div>
             </template>
         </div>
 
         <div x-show="variantOptions(item).length > 0">
-            <x-ui.select label="Variant" aria-label="Product variant" x-model="item.source_variant_id" x-on:change="item.source_variant_id = $event.target.value; applyProductSelection(index)">
+            <x-ui.select label="Variant" aria-label="Product variant" x-model="item.source_variant_id" x-on:change="$SM.searchProductVariantChanged($el, item, $event.target.value, index)">
                 <template x-for="variant in variantOptions(item)" :key="variant.id"><option :value="String(variant.id)" x-text="variant.name"></option></template>
             </x-ui.select>
         </div>

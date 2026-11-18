@@ -54,7 +54,7 @@
         @endif
         <x-ui.dynamic-list name="admin-workshop-index" :show-presets="$view === 'list'">
 
-        <div x-on:open-workshop-materials.window="openDialog()" x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
+        <div x-on:open-workshop-materials.window="openDialog()" x-data="smCspAdminWorkshopIndex1">
 
                     <div class="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
                         @if($view === 'month')
@@ -85,7 +85,7 @@
                     aria-modal="true"
                     aria-labelledby="materials-summary-dialog-title"
                     @click.self="closeDialog()"
-                    @keydown.escape.window="if (open) { closeDialog() }"
+                    @keydown.escape.window="$SM.callDataMethodWhen($el, open, 'closeDialog')"
                 >
                     <div class="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                         <div class="border-b border-gray-200 px-6 py-5">
@@ -239,7 +239,7 @@
 
             <div
                 class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block"
-                x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
+                x-on:mouseover="hoveredWorkshop = $SM.closestDataValue($event.target, '[data-workshop-key]', 'workshopKey')"
                 x-on:mouseleave="hoveredWorkshop = null"
             >
                 <x-ui.table variant="plain" table-class="min-w-245 w-full table-fixed border-collapse">
@@ -401,10 +401,10 @@
                                     <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
                                     <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
-                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
+                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
                                     @endif
                                     <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" href="{{ route('admin.workshop.duplicate', $workshop) }}" />
-                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />
                                     </x-ui.row-actions>
                                 </td>
                             </tr>
@@ -432,6 +432,12 @@
         </x-ui.dynamic-list>
         <x-ui.bulk-editor id="workshop-bulk-edit-dialog" title="Bulk edit workshops" loader-id="workshop-bulk-loader" list="admin-workshop-index" selection-key="admin-workshop-bulk-selection" selection-field="workshop_ids[]" />
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopIndex1', () => ({ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }));
+});
+</script>
 </x-layout>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

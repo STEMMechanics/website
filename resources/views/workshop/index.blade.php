@@ -160,36 +160,8 @@
                 <x-container class="mt-6">
                     <div
                         class="mx-auto hidden w-full overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block"
-                        x-data="{
-                            hoveredWorkshop: null,
-                            calendarResizeHandler: null,
-                            syncCalendarLaneHeights() {
-                                this.$el.querySelectorAll('tbody tr').forEach((row) => {
-                                    const lanes = new Map();
-
-                                    row.querySelectorAll('[data-calendar-lane]').forEach((element) => {
-                                        const lane = element.dataset.calendarLane;
-                                        lanes.set(lane, [...(lanes.get(lane) ?? []), element]);
-                                    });
-
-                                    lanes.forEach((elements) => {
-                                        elements.forEach((element) => element.style.height = 'auto');
-                                        const height = Math.max(...elements.map((element) => element.getBoundingClientRect().height));
-                                        elements.forEach((element) => element.style.height = `${Math.ceil(height)}px`);
-                                    });
-                                });
-                            },
-                            init() {
-                                this.calendarResizeHandler = () => this.syncCalendarLaneHeights();
-                                this.$nextTick(() => this.syncCalendarLaneHeights());
-                                window.addEventListener('resize', this.calendarResizeHandler);
-                                document.fonts?.ready.then(() => this.syncCalendarLaneHeights());
-                            },
-                            destroy() {
-                                window.removeEventListener('resize', this.calendarResizeHandler);
-                            },
-                        }"
-                        x-on:mouseover="hoveredWorkshop = $event.target.closest('[data-workshop-key]')?.dataset.workshopKey ?? null"
+                        x-data="smCspWorkshopIndex1"
+                        x-on:mouseover="hoveredWorkshop = $SM.closestDataValue($event.target, '[data-workshop-key]', 'workshopKey')"
                         x-on:mouseleave="hoveredWorkshop = null"
                     >
                         <x-ui.table variant="plain" table-class="min-w-245 w-full table-fixed border-collapse">
@@ -320,4 +292,38 @@
         @endif
 
     </section>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspWorkshopIndex1', () => ({
+                            hoveredWorkshop: null,
+                            calendarResizeHandler: null,
+                            syncCalendarLaneHeights() {
+                                this.$el.querySelectorAll('tbody tr').forEach((row) => {
+                                    const lanes = new Map();
+
+                                    row.querySelectorAll('[data-calendar-lane]').forEach((element) => {
+                                        const lane = element.dataset.calendarLane;
+                                        lanes.set(lane, [...(lanes.get(lane) ?? []), element]);
+                                    });
+
+                                    lanes.forEach((elements) => {
+                                        elements.forEach((element) => element.style.height = 'auto');
+                                        const height = Math.max(...elements.map((element) => element.getBoundingClientRect().height));
+                                        elements.forEach((element) => element.style.height = `${Math.ceil(height)}px`);
+                                    });
+                                });
+                            },
+                            init() {
+                                this.calendarResizeHandler = () => this.syncCalendarLaneHeights();
+                                this.$nextTick(() => this.syncCalendarLaneHeights());
+                                window.addEventListener('resize', this.calendarResizeHandler);
+                                document.fonts?.ready.then(() => this.syncCalendarLaneHeights());
+                            },
+                            destroy() {
+                                window.removeEventListener('resize', this.calendarResizeHandler);
+                            },
+                        }));
+});
+</script>
 </x-layout>

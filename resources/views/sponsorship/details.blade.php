@@ -14,7 +14,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('sponsor.details.save') }}" class="mt-6" x-data="{ country: @js(old('country', $details['country'] ?? 'Australia')), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }">
+            <form method="POST" action="{{ route('sponsor.details.save') }}" class="mt-6" x-data="smCspSponsorshipDetails1">
                 @csrf
                 <div class="grid gap-x-4 sm:grid-cols-2">
                     <x-ui.input type="email" name="email" label="Email address" :value="old('email', $details['email'] ?? '')" autocomplete="email" maxlength="255" required />
@@ -47,4 +47,10 @@
             </form>
         </section>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspSponsorshipDetails1', () => ({ country: @js(old('country', $details['country'] ?? 'Australia')), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }));
+});
+</script>
 </x-layout>

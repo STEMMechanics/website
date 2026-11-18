@@ -3,7 +3,7 @@
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
             @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at']])
-            <div class="flex-1 min-w-0" x-data="SM.workshopSuggestions(@js(['availability' => $availability, 'participantCount' => count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'], 'bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]))">
+            <div class="flex-1 min-w-0" x-data="$SM.workshopSuggestions(@js(['availability' => $availability, 'participantCount' => count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'], 'bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]))">
             <div class="mb-3 flex items-center gap-3">
                 <x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" />
                 <h2 class="text-2xl font-bold">More workshops</h2>

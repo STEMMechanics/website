@@ -33,41 +33,7 @@
         method="GET"
         action="{{ route('admin.workshop.coverage') }}"
         class="mb-6 overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm"
-        x-data="{
-        organisationSearch: '',
-        activeResultIndex: 0,
-        organisations: @js($organisationOptions),
-        selected: @js($selectedOrganisations),
-        get results() {
-            const term = this.organisationSearch.trim().toLowerCase();
-            if (term.length < 2) return [];
-            return this.organisations
-                .filter(organisation => !this.selected.some(selected => selected.id === organisation.id))
-                .filter(organisation => organisation.label.toLowerCase().includes(term))
-                .slice(0, 25);
-        },
-        add(organisation) {
-            if (!organisation) return;
-            this.selected.push(organisation);
-            this.organisationSearch = '';
-            this.activeResultIndex = 0;
-        },
-        remove(id) {
-            this.selected = this.selected.filter(organisation => organisation.id !== id);
-        },
-        moveResult(direction) {
-            if (this.results.length === 0) return;
-            this.activeResultIndex = (this.activeResultIndex + direction + this.results.length) % this.results.length;
-        },
-        chooseActiveResult() {
-            if (this.organisationSearch.trim().length < 2 || this.results.length === 0) return;
-            this.add(this.results[this.activeResultIndex] || this.results[0]);
-        },
-        closeResults() {
-            this.organisationSearch = '';
-            this.activeResultIndex = 0;
-        }
-    }"
+        x-data="smCspAdminWorkshopPartialsMatrixFilters1"
 >
     <x-ui.query-inputs :values="request()->only(['list_sort', 'list_direction'])" />
     <div class="flex flex-col gap-4 p-4">
@@ -85,7 +51,7 @@
                         x-on:input="activeResultIndex = 0"
                         x-on:keydown.down.prevent="moveResult(1)"
                         x-on:keydown.up.prevent="moveResult(-1)"
-                        x-on:keydown.enter="if (organisationSearch.trim().length >= 2) { $event.preventDefault(); chooseActiveResult(); }"
+                        x-on:keydown.enter="$SM.preventAndCallWhen($el, $event, organisationSearch.trim().length >= 2, 'chooseActiveResult')"
                         x-on:keydown.escape.prevent="closeResults()"
                         autocomplete="off"
                         placeholder="Search and add organisations"
@@ -108,7 +74,7 @@
                                 x-bind:class="{ 'bg-sky-50': index === activeResultIndex }"
                                 x-on:mouseenter="activeResultIndex = index"
                                 x-on:click="add(organisation)"
-                                x-effect="if (index === activeResultIndex) $el.scrollIntoView({ block: 'nearest' })"
+                                x-effect="$SM.scrollIntoViewWhen($el, index === activeResultIndex)"
                                 role="option"
                                 x-bind:aria-selected="index === activeResultIndex"
                         >
@@ -125,7 +91,7 @@
             <div class="mt-3 flex flex-wrap gap-2" x-show="selected.length > 0">
                 <template x-for="(organisation, index) in selected" :key="organisation.id">
                     <x-ui.badge color="sky" size="sm" class="max-w-full py-1 pl-3 pr-1.5 font-normal">
-                        <input type="hidden" x-bind:name="`organisation_ids[${index}]`" :value="organisation.id">
+                        <input type="hidden" x-bind:name="('organisation_ids[' + (index) + ']')" :value="organisation.id">
                         <span class="truncate" x-text="organisation.label"></span>
                         <x-ui.button variant="plain"
                                 type="button"
@@ -163,3 +129,43 @@
         <x-ui.button type="submit">Build matrix</x-ui.button>
     </div>
 </form>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopPartialsMatrixFilters1', () => ({
+        organisationSearch: '',
+        activeResultIndex: 0,
+        organisations: @js($organisationOptions),
+        selected: @js($selectedOrganisations),
+        get results() {
+            const term = this.organisationSearch.trim().toLowerCase();
+            if (term.length < 2) return [];
+            return this.organisations
+                .filter(organisation => !this.selected.some(selected => selected.id === organisation.id))
+                .filter(organisation => organisation.label.toLowerCase().includes(term))
+                .slice(0, 25);
+        },
+        add(organisation) {
+            if (!organisation) return;
+            this.selected.push(organisation);
+            this.organisationSearch = '';
+            this.activeResultIndex = 0;
+        },
+        remove(id) {
+            this.selected = this.selected.filter(organisation => organisation.id !== id);
+        },
+        moveResult(direction) {
+            if (this.results.length === 0) return;
+            this.activeResultIndex = (this.activeResultIndex + direction + this.results.length) % this.results.length;
+        },
+        chooseActiveResult() {
+            if (this.organisationSearch.trim().length < 2 || this.results.length === 0) return;
+            this.add(this.results[this.activeResultIndex] || this.results[0]);
+        },
+        closeResults() {
+            this.organisationSearch = '';
+            this.activeResultIndex = 0;
+        }
+    }));
+});
+</script>

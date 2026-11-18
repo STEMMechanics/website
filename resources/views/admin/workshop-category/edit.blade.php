@@ -43,30 +43,7 @@
             id="workshop-category-form"
             method="POST"
             action="{{ route('admin.workshop-category.'.(isset($category) ? 'update' : 'store'), $category ?? []) }}"
-            x-data="{
-                name: @js(old('name', $category->name ?? '')),
-                slug: @js(old('slug', $category->slug ?? '')),
-                slugTouched: @js(trim((string) old('slug', $category->slug ?? '')) !== ''),
-                slugify(value) {
-                    return String(value || '')
-                        .toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^a-z0-9]+/g, '-')
-                        .replace(/^-+|-+$/g, '')
-                        .replace(/-{2,}/g, '-');
-                },
-                syncSlugFromName() {
-                    if (this.slugTouched || String(this.slug || '').trim() !== '') {
-                        return;
-                    }
-
-                    this.slug = this.slugify(this.name);
-                },
-                handleSlugInput() {
-                    this.slugTouched = String(this.slug || '').trim() !== '';
-                },
-            }"
+            x-data="smCspAdminWorkshopCategoryEdit1"
         >
             @isset($category)
                 @method('PUT')
@@ -142,7 +119,7 @@
                     method="POST"
                     action="{{ route('admin.workshop-category.destroy', $category) }}"
                     x-data
-                    x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete category?', 'Are you sure you want to delete this category? Workshops must be detached first.', $el)"
+                    x-on:submit.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete category?', 'Are you sure you want to delete this category? Workshops must be detached first.', $el)"
                 >
                     @csrf
                     @method('DELETE')
@@ -153,4 +130,33 @@
             <x-ui.button type="submit" form="workshop-category-form">Save</x-ui.button>
         </x-ui.editor-actions>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopCategoryEdit1', () => ({
+                name: @js(old('name', $category->name ?? '')),
+                slug: @js(old('slug', $category->slug ?? '')),
+                slugTouched: @js(trim((string) old('slug', $category->slug ?? '')) !== ''),
+                slugify(value) {
+                    return String(value || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                        .replace(/-{2,}/g, '-');
+                },
+                syncSlugFromName() {
+                    if (this.slugTouched || String(this.slug || '').trim() !== '') {
+                        return;
+                    }
+
+                    this.slug = this.slugify(this.name);
+                },
+                handleSlugInput() {
+                    this.slugTouched = String(this.slug || '').trim() !== '';
+                },
+            }));
+});
+</script>
 </x-layout>

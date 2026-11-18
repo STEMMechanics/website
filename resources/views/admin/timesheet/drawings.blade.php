@@ -1,4 +1,4 @@
-<div x-data="SM.drawingTypePicker(@js($purpose), @js($drawingTotals))" class="grid items-start gap-5 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
+<div x-data="$SM.drawingTypePicker(@js($purpose), @js($drawingTotals))" class="grid items-start gap-5 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)]">
 <div class="space-y-4">
 <x-finance.panel title="Record drawing">
     <x-ui.select name="drawing_type" label="Drawing type" :value="$purpose" x-model="purpose" x-on:change="changeType()"><option value="time">Owner remuneration</option><option value="contribution">Return of contributions</option></x-ui.select>

@@ -22,18 +22,18 @@
     x-id="['product-item-options', 'product-item-input', 'product-item-help']"
     @if($usesCatalogExpression)
         @if($usesItemNameSuggestionsExpression)
-            x-data="SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
+            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
         @else
-            x-data="SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, @js($itemNameSuggestions), {{ $selectionExpression }})"
+            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, @js($itemNameSuggestions), {{ $selectionExpression }})"
         @endif
     @else
-        x-data="SM.productItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions), {{ $selectionExpression }})"
+        x-data="$SM.productItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions), {{ $selectionExpression }})"
     @endif
-    x-init="if (linkedProduct && !model.item_name) model.item_name = linkedProduct.name"
+    x-init="initializeModel()"
     x-effect="model = {{ $model }}"
     x-on:keydown.escape.window="close()"
-    x-on:resize.window="if (open) position($refs.productItemInput, menuWidth)"
-    x-on:scroll.window="if (open) position($refs.productItemInput, menuWidth)"
+    x-on:resize.window="positionIfOpen($refs.productItemInput, menuWidth)"
+    x-on:scroll.window="positionIfOpen($refs.productItemInput, menuWidth)"
     {{ $attributes->merge(['class' => 'relative']) }}
 >
     @if(is_string($label) && trim($label) !== '')
@@ -47,10 +47,10 @@
             label="Open linked item in a new tab"
             x-show="linkedProduct"
             class="absolute left-1 z-10 rounded-md text-xs text-sky-600 hover:text-sky-800"
-            x-bind:href="linkedProduct?.url"
-            x-bind:disabled="!linkedProduct?.url"
-            x-bind:title="'Open ' + (linkedProduct?.name || 'linked item') + ' in a new tab'"
-            x-bind:aria-label="'Open ' + (linkedProduct?.name || 'linked item') + ' in a new tab'"
+            x-bind:href="linkedProductUrl()"
+            x-bind:disabled="!linkedProductUrl()"
+            x-bind:title="linkedProductLinkTitle()"
+            x-bind:aria-label="linkedProductLinkTitle()"
             x-on:click="close()"
             target="_blank"
         />

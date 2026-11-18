@@ -1,40 +1,12 @@
 @props(['faqs' => []])
 
 <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
-    x-data="{
-        faqs: @js(array_values($faqs)),
-        nextKey: 0,
-        openKey: null,
-        init() {
-            this.faqs = this.faqs.map(faq => ({ ...faq, _key: this.nextKey++, show_on_index: [true, 1, '1'].includes(faq.show_on_index) }));
-        },
-        addFaq() {
-            const faq = { _key: this.nextKey++, question: '', answer: '', show_on_index: false };
-            this.faqs.push(faq);
-            this.openKey = faq._key;
-            this.$nextTick(() => this.$refs.rows.lastElementChild?.querySelector('input[type=text]')?.focus());
-        },
-        moveFaq(index, direction) {
-            const target = index + direction;
-            if (target >= 0 && target < this.faqs.length) {
-                const item = this.faqs.splice(index, 1)[0];
-                this.faqs.splice(target, 0, item);
-            }
-        },
-        removeFaq(key) {
-            if (this.faqs.length <= 1) return;
-            SM.confirm('Remove FAQ?', 'This question will be removed when you save the content.', 'Remove', confirmed => {
-                if (!confirmed) return;
-                this.faqs = this.faqs.filter(faq => faq._key !== key);
-                if (this.openKey === key) this.openKey = null;
-            });
-        }
-    }">
+    x-data="$SM.faqEditor(@js(array_values($faqs)))">
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <div class="flex items-center gap-2">
                 <h2 class="text-xl font-bold text-gray-900">FAQs</h2>
-                <x-ui.badge color="gray" x-text="`${faqs.length} ${faqs.length === 1 ? 'question' : 'questions'}`" />
+                <x-ui.badge color="gray" x-text="faqs.length + ' ' + (faqs.length === 1 ? 'question' : 'questions')" />
             </div>
             <p class="mt-1 text-sm text-gray-600">Edit questions, change their order and choose which appear on the landing page.</p>
         </div>
@@ -53,12 +25,12 @@
 
     <div x-ref="rows" class="divide-y divide-gray-200 overflow-hidden rounded-xl border border-gray-200">
         <template x-for="(faq, index) in faqs" :key="faq._key">
-            <div class="bg-white" x-on:invalid.capture.prevent="openKey = faq._key; $nextTick(() => $event.target.focus())">
+            <div class="bg-white" x-on:invalid.capture.prevent="$SM.openFaqOnInvalid($el, faq._key, $event)">
                 <div class="flex flex-wrap items-center gap-3 p-4 hover:bg-gray-50">
                     <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-3 text-left focus-visible:outline-primary-color"
                         x-on:click="openKey = openKey === faq._key ? null : faq._key"
                         x-bind:aria-expanded="openKey === faq._key"
-                        x-bind:aria-controls="`faq-editor-${faq._key}`">
+                        x-bind:aria-controls="'faq-editor-' + faq._key">
                         <i class="fa-solid mt-1 w-3 shrink-0 text-slate-500" x-bind:class="openKey === faq._key ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
                         <span class="min-w-0">
                             <span class="block wrap-break-word text-sm font-semibold text-gray-900" x-text="faq.question || 'Untitled question'"></span>
@@ -74,18 +46,18 @@
                         </div>
                     </div>
                 </div>
-                <div x-show="openKey === faq._key" x-cloak x-bind:id="`faq-editor-${faq._key}`" class="space-y-4 border-t border-gray-200 bg-gray-50 p-4 sm:p-5">
+                <div x-show="openKey === faq._key" x-cloak x-bind:id="'faq-editor-' + faq._key" class="space-y-4 border-t border-gray-200 bg-gray-50 p-4 sm:p-5">
                     <label class="block">
                         <span class="mb-1 block text-sm font-medium text-gray-700">Question</span>
-                        <x-ui.input-control x-model="faq.question" x-bind:name="`faqs[${index}][question]`" required />
+                        <x-ui.input-control x-model="faq.question" x-bind:name="'faqs[' + index + '][question]'" required />
                     </label>
                     <label class="block">
                         <span class="mb-1 block text-sm font-medium text-gray-700">Answer</span>
-                        <x-ui.textarea-control rows="5" x-model="faq.answer" x-bind:name="`faqs[${index}][answer]`" required />
+                        <x-ui.textarea-control rows="5" x-model="faq.answer" x-bind:name="'faqs[' + index + '][answer]'" required />
                     </label>
                     <label class="flex items-center gap-2 text-sm text-gray-700">
-                        <input type="hidden" x-bind:name="`faqs[${index}][show_on_index]`" value="0">
-                        <x-ui.checkbox bare small value="1" x-model="faq.show_on_index" x-bind:name="`faqs[${index}][show_on_index]`" />
+                        <input type="hidden" x-bind:name="'faqs[' + index + '][show_on_index]'" value="0">
+                        <x-ui.checkbox bare small value="1" x-model="faq.show_on_index" x-bind:name="'faqs[' + index + '][show_on_index]'" />
                         <span>Also show on the landing page</span>
                     </label>
                     <p class="text-xs text-gray-500">Changes are applied when you save the content below.</p>

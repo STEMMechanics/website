@@ -6,35 +6,7 @@
     <x-container class="mt-4">
         <x-ui.dynamic-list name="admin-invoice-index">
         <div
-            x-data="{
-            invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
-            invoiceEmailAction: {{ json_encode((string) session('invoice-email-action', '')) }},
-            invoiceEmailInvoiceNumber: {{ json_encode((string) session('invoice-email-invoice-number', '')) }},
-            invoiceEmailRecipientEmails: {{ json_encode((string) old('recipient_emails', session('invoice-email-recipient-emails', ''))) }},
-            invoiceEmailSubjectLine: {{ json_encode((string) old('subject_line', session('invoice-email-subject-line', ''))) }},
-            invoiceEmailCcEmails: {{ json_encode((string) old('cc_emails', session('invoice-email-cc-emails', ''))) }},
-            invoiceEmailMessage: {{ json_encode((string) old('email_message', session('invoice-email-message', ''))) }},
-            invoiceEmailTemplateOnly: false,
-            invoiceEmailSubjectOpen: false,
-            invoiceEmailCcOpen: false,
-            invoiceEmailHelpOpen: false,
-            openInvoiceEmailModal(payload) {
-                this.invoiceEmailAction = payload?.action || '';
-                this.invoiceEmailInvoiceNumber = payload?.invoice_number || '';
-                this.invoiceEmailRecipientEmails = payload?.recipient_emails || '';
-                this.invoiceEmailSubjectLine = payload?.subject_line || '';
-                this.invoiceEmailCcEmails = payload?.cc_emails || '';
-                this.invoiceEmailMessage = payload?.email_message || '';
-                this.invoiceEmailModalOpen = true;
-                this.invoiceEmailHelpOpen = false;
-                this.invoiceEmailSubjectOpen = false;
-                this.invoiceEmailCcOpen = false;
-            },
-            closeInvoiceEmailModal() {
-                this.invoiceEmailModalOpen = false;
-                this.invoiceEmailHelpOpen = false;
-            },
-        }"
+            x-data="smCspAdminInvoiceIndex1"
         >
         <x-ui.collection-controls class="my-5 first:mt-5" />
 
@@ -132,26 +104,7 @@
                                 @if($canAcceptPayment)
                                     <x-ui.row-action label="Copy payment link" icon="fa-solid fa-link" tone="neutral"
                                         x-data
-                                        x-on:click.prevent="
-                                            fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                                method: 'POST',
-                                                headers: {
-                                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                    'Accept': 'application/json'
-                                                }
-                                            })
-                                            .then(response => response.json())
-                                            .then(data => {
-                                                if (!data || !data.url) {
-                                                    throw new Error('Unable to generate payment link.');
-                                                }
-                                                SM.copyToClipboard(data.url);
-                                                SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                            })
-                                            .catch((error) => {
-                                                SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                            });
-                                        "
+                                        x-on:click.prevent="$SM.copyInvoicePaymentLink('{{ route('admin.invoice.payment-link', $invoice) }}', '{{ csrf_token() }}')"
                                      />
                                 @endif
                             @endif
@@ -159,7 +112,7 @@
                                 <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                     type="button"
                                     x-data
-                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
+                                    x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
                                  />
                             @else
                                 @if($canCancelInvoice)
@@ -169,7 +122,7 @@
                                     <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                         type="button"
                                         x-data
-                                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
+                                        x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                      />
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}">
@@ -181,7 +134,7 @@
                                 @if($canWriteOffInvoice)
                                     <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                         type="button"
-                                        x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                        x-on:click.prevent="$SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                      />
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}">
@@ -302,33 +255,14 @@
                                             @if($canAcceptPayment)
                                                 <x-ui.row-action label="Copy payment link" icon="fa-solid fa-link" tone="neutral"
                                                     x-data
-                                                    x-on:click.prevent="
-                                                    fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
-                                                        method: 'POST',
-                                                        headers: {
-                                                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                                            'Accept': 'application/json'
-                                                        }
-                                                    })
-                                                    .then(response => response.json())
-                                                    .then(data => {
-                                                        if (!data || !data.url) {
-                                                            throw new Error('Unable to generate payment link.');
-                                                        }
-                                                        SM.copyToClipboard(data.url);
-                                                        SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
-                                                    })
-                                                    .catch((error) => {
-                                                        SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
-                                                    });
-                                            " />
+                                                    x-on:click.prevent="$SM.copyInvoicePaymentLink('{{ route('admin.invoice.payment-link', $invoice) }}', '{{ csrf_token() }}')" />
                                             @endif
                                         @endif
                                         @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
                                             <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                                 type="button"
                                                 x-data
-                                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
+                                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
                                              />
                                         @else
                                             @if($canCancelInvoice)
@@ -338,7 +272,7 @@
                                                 <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                                     type="button"
                                                     x-data
-                                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
+                                                    x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                                  />
                                             @else
                                                 <x-ui.row-action label="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}" icon="fa-solid fa-ban" tone="warning"
@@ -351,7 +285,7 @@
                                             @if($canWriteOffInvoice)
                                                 <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                                     type="button"
-                                                    x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                                    x-on:click.prevent="$SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                                  />
                                             @else
                                                 <x-ui.row-action label="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}" icon="fa-solid fa-file-circle-minus" tone="neutral"
@@ -415,6 +349,40 @@
 
     <x-ui.record-dialog />
 <x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit invoices" loader-id="finance-bulk-loader" list="admin-invoice-index" selection-key="admin-invoice-allocation-selection" selection-field="ids[]" />
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminInvoiceIndex1', () => ({
+            invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
+            invoiceEmailAction: @js((string) session('invoice-email-action', '')),
+            invoiceEmailInvoiceNumber: @js((string) session('invoice-email-invoice-number', '')),
+            invoiceEmailRecipientEmails: @js((string) old('recipient_emails', session('invoice-email-recipient-emails', ''))),
+            invoiceEmailSubjectLine: @js((string) old('subject_line', session('invoice-email-subject-line', ''))),
+            invoiceEmailCcEmails: @js((string) old('cc_emails', session('invoice-email-cc-emails', ''))),
+            invoiceEmailMessage: @js((string) old('email_message', session('invoice-email-message', ''))),
+            invoiceEmailTemplateOnly: false,
+            invoiceEmailSubjectOpen: false,
+            invoiceEmailCcOpen: false,
+            invoiceEmailHelpOpen: false,
+            openInvoiceEmailModal(payload) {
+                this.invoiceEmailAction = payload?.action || '';
+                this.invoiceEmailInvoiceNumber = payload?.invoice_number || '';
+                this.invoiceEmailRecipientEmails = payload?.recipient_emails || '';
+                this.invoiceEmailSubjectLine = payload?.subject_line || '';
+                this.invoiceEmailCcEmails = payload?.cc_emails || '';
+                this.invoiceEmailMessage = payload?.email_message || '';
+                this.invoiceEmailModalOpen = true;
+                this.invoiceEmailHelpOpen = false;
+                this.invoiceEmailSubjectOpen = false;
+                this.invoiceEmailCcOpen = false;
+            },
+            closeInvoiceEmailModal() {
+                this.invoiceEmailModalOpen = false;
+                this.invoiceEmailHelpOpen = false;
+            },
+        }));
+});
+</script>
 </x-layout>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

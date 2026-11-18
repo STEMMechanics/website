@@ -34,7 +34,7 @@
                                     <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger"
 
                                         x-data
-                                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this custom page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')"
+                                        x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this custom page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')"
                                      />
                                 </x-ui.row-actions>
                             </td>

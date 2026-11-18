@@ -16,6 +16,12 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
 
         return this.catalog.find((option) => String(option.id) === stockItemId) || null;
     },
+    linkedStockItemName() {
+        return this.linkedStockItem ? this.linkedStockItem.name || '' : '';
+    },
+    initializeModel() {
+        if (this.linkedStockItem && !this.model.item_name) this.model.item_name = this.linkedStockItem.name;
+    },
     get matches() {
         const query = this.query.trim().toLowerCase();
         const currentStockItemId = String(this.model?.stock_item_id ?? '');
@@ -67,6 +73,9 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
         this.menuMaxHeight = Math.max(96, Math.min(320, window.innerHeight - this.menuTop - 8));
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
     },
+    positionIfOpen(element, width) {
+        if (this.open) this.position(element, width);
+    },
     editDescription(element) {
         const value = String(element.value || '');
         this.model.item_name = value;
@@ -97,6 +106,14 @@ window.SM.stockItemLinkEditor = (model, catalog = [], itemNameSuggestions = []) 
         if (!this.matches.length) return;
 
         this.selected = Math.max(0, Math.min(this.matches.length - 1, this.selected + step));
+    },
+    handleArrowDown(element) {
+        if (!this.open) {
+            this.browse(element);
+            return;
+        }
+
+        this.move(1);
     },
     handleEnter(event) {
         if (!this.open) return;

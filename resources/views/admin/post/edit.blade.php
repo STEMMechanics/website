@@ -61,7 +61,7 @@
             </div>
             <x-ui.editor-actions>
                 @isset($post)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this post? This action cannot be undone', '{{ route('admin.post.destroy', $post) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this post? This action cannot be undone', '{{ route('admin.post.destroy', $post) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

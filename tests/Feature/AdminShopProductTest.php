@@ -71,10 +71,10 @@ class AdminShopProductTest extends TestCase
         $productForm = $document->getElementById('product-form');
 
         $this->assertInstanceOf(\DOMElement::class, $productForm);
-        $this->assertStringContainsString('productAiContext()', $productForm->getAttribute('x-data'));
-        $this->assertStringContainsString('init()', $productForm->getAttribute('x-data'));
-        $this->assertStringContainsString('{sku}', $productForm->getAttribute('x-data'));
+        $this->assertSame('smCspAdminShopProductEdit1', $productForm->getAttribute('x-data'));
         $response
+            ->assertSee('$SM.jsonStringify(productAiContext())', false)
+            ->assertSee('sku: String(this.baseSku', false)
             ->assertDontSeeText('Improve product copy')
             ->assertSee('aria-label="Improve product copy with AI"', false)
             ->assertSee('aria-label="Draft a short product warning"', false)

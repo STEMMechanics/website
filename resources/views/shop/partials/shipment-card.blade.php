@@ -12,12 +12,12 @@
         </div>
     </div>
 
-    <template x-if="Array.isArray(shipment.items) && shipment.items.length > 0">
+    <template x-if="$SM.isArray(shipment.items) && shipment.items.length > 0">
         <ul class="mt-3 list-disc space-y-2 border-t border-gray-200 pl-5 pt-3 text-xs text-gray-600">
-            <template x-for="item in shipment.items" :key="`${shipment.key}-${item.display_title}-${item.quantity}`">
+            <template x-for="item in shipment.items" :key="('' + (shipment.key) + '-' + (item.display_title) + '-' + (item.quantity) + '')">
                 <li>
                     <div>
-                        <div class="font-medium text-gray-800" x-text="`${item.display_title} x ${item.quantity}`"></div>
+                        <div class="font-medium text-gray-800" x-text="('' + (item.display_title) + ' x ' + (item.quantity) + '')"></div>
                     </div>
                 </li>
             </template>

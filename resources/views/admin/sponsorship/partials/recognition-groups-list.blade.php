@@ -11,7 +11,7 @@
                     <x-ui.row-actions :menu="false">
                         <x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" data-record-editor data-record-title="Edit business sponsor group" href="{{ route('admin.sponsorship.group.edit', $level) }}" />
                         @if($level->enabled)
-                            <form method="POST" action="{{ route('admin.sponsorship.group.destroy', $level) }}" x-data x-on:submit.prevent="SM.confirm('Remove public group?', 'Sponsors in this group will no longer appear under this recognition category. Existing sponsorship records are kept.', 'Remove group', confirmed => { if (confirmed) $el.submit() })">
+                            <form method="POST" action="{{ route('admin.sponsorship.group.destroy', $level) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Remove public group?', 'Sponsors in this group will no longer appear under this recognition category. Existing sponsorship records are kept.', 'Remove group')">
                                 @csrf @method('DELETE')
                                 <x-ui.row-action type="submit" label="Remove" icon="fa-trash-can" tone="danger" />
                             </form>

@@ -224,10 +224,306 @@
             id="product-form"
             class="product-editor"
             x-on:sm-product-specifications-ai.window="mergeAiProductDetails($event.detail.details)"
-            x-on:invalid.capture="let section = $event.target.closest('details'); while (section) { section.open = true; section = section.parentElement.closest('details'); }"
+            x-on:invalid.capture="$SM.openAncestorDetails($event.target)"
             method="POST"
             action="{{ route('admin.shop.product.'.(isset($product) ? 'update' : 'store'), $product ?? []) }}"
-            x-data="{
+            x-data="smCspAdminShopProductEdit1"
+        >
+            @csrf
+            <input type="hidden" name="variant_editor" value="1">
+            @isset($product)
+                @method('PUT')
+            @endisset
+
+            <x-ui.collapsible-section title="Product" variant="product" :open="true">
+                <x-slot:summary><span x-text="title || 'Product information'"></span></x-slot:summary>
+                <div class="product-editor__fields">
+                    <x-ui.select name="product_type" label="Product Type" x-model="productType">
+                        @foreach(\App\Models\Product::PRODUCT_TYPES as $type)
+                            <option value="{{ $type }}">{{ \App\Models\Product::productTypeLabel($type) }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.select name="status" label="Status" x-model="status">
+                        @foreach(\App\Models\Product::STATUSES as $status)
+                            <option value="{{ $status }}" @selected(old('status', $product->status ?? \App\Models\Product::STATUS_DRAFT) === $status)>{{ \App\Models\Product::statusLabel($status) }}</option>
+                        @endforeach
+                    </x-ui.select>
+                    <x-ui.input name="title" label="Title" :value="$product->title ?? ''" x-model="title" x-on:blur="handleTitleInput()" />
+                    <x-ui.input name="slug" label="Slug" :value="$product->slug ?? ''" x-model="slug" x-on:input="handleSlugInput()" />
+                    <x-ui.input name="subtitle" label="Subtitle" :value="$product->subtitle ?? ''" class="md:col-span-2" />
+                    <x-ui.input id="material-sku" name="sku" label="SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" x-show="productType === 'material'" x-cloak :disabled="$editorProductType !== \App\Models\Product::PRODUCT_TYPE_MATERIAL" x-bind:disabled="productType !== 'material'" required info="Required. Used to identify this material." />
+                    <div class="flex flex-wrap items-start gap-6">
+                        <x-ui.input name="sort_order" label="Sort Order" type="number" min="0" :value="$product->sort_order ?? 0" class="mb-0 w-24" />
+                        <div class="pt-7" x-show="productType !== 'material'" x-cloak>
+                            <x-ui.checkbox name="is_featured" label="Featured product" :checked="(bool) old('is_featured', $product->is_featured ?? false)" noWrapper x-model="isFeatured" x-bind:disabled="productType === 'material' || status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'" />
+                        </div>
+                    </div>
+                </div>
+            </x-ui.collapsible-section>
+
+            <x-ui.collapsible-section title="Categories" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ $categories->whereIn('id', $selectedCategoryIds)->pluck('name')->implode(', ') ?: 'No categories selected' }}</x-slot:summary>
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-xs text-gray-500">Assign any number of managed categories to this product.</p>
+                        </div>
+                        <x-ui.button href="{{ route('admin.shop.category.index') }}" color="outline" size="small" class="shrink-0">Manage Categories</x-ui.button>
+                    </div>
+
+                    @if(($categories ?? collect())->isEmpty())
+                        <p class="mt-3 text-sm text-gray-600">Create product categories first, then come back and assign them here.</p>
+                    @else
+                        <div class="mt-4 product-editor__fields">
+                            @foreach($categories as $category)
+                                @php
+                                    $categoryId = (string) $category->id;
+                                    $isSelected = in_array($categoryId, $selectedCategoryIds, true);
+                                @endphp
+                                <div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
+                                    <x-ui.checkbox
+ id="category-{{ $category->id }}"
+ name="category_ids[]"
+ value="{{ $category->id }}"
+ :checked="$isSelected"
+ noWrapper
+ inputClass="mt-0.5"
+ />
+                                    <label for="category-{{ $category->id }}" class="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                                            <i class="{{ $category->iconClass() }}"></i>
+                                        </span>
+                                        <span class="min-w-0">
+                                            <span class="block font-medium text-gray-900">{{ $category->name }}</span>
+                                            <span class="block text-xs text-gray-500">{{ $category->slug }}</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+            </x-ui.collapsible-section>
+            <x-ui.collapsible-section title="Description" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ \Illuminate\Support\Str::limit(strip_tags($product->short_description ?? $productDescription), 90) ?: 'No description added' }}</x-slot:summary>
+                <x-ui.input name="short_description" label="Short Description" :value="$product->short_description ?? ''" />
+                <x-ui.editor name="description" label="Description" :value="$productDescription">
+                    <x-slot:toolbar>
+                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-copy" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Improving product copy…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(productAiContext())" data-ai-fill-scope="#product-form" data-ai-fill-fields="title,short_description,description" data-ai-editor-field="description" data-ai-editor-format="product-description" :disabled="blank(config('services.openai.api_key'))" aria-label="Improve product copy with AI" title="Improve product copy with AI" size="icon-small">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                        </x-ui.button>
+                    </x-slot:toolbar>
+                </x-ui.editor>
+                <x-ui.input
+                    type="textarea"
+                    name="search_terms"
+                    label="Search Terms"
+                    :value="$product->search_terms ?? ''"
+                    rows="3"
+                    info="Alternative names and related words, separated by spaces or commas. Used by site search and product-page metadata; not shown in the product description."
+                />
+
+                <div class="mb-4">
+                    <div class="mb-1 flex items-center justify-between gap-2">
+                        <label for="caution_message" class="flex items-center text-sm pl-1">Product Warning</label>
+                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-warning" data-ai-kind="warning" data-ai-result-key="warning" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Checking product warning…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(productAiContext())" :disabled="blank(config('services.openai.api_key'))" aria-label="Draft a short product warning" title="Draft a short warning if the product details support one" size="icon-small">
+                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                        </x-ui.button>
+                    </div>
+                    <x-ui.input
+                        name="caution_message"
+                        type="textarea"
+                        rows="3"
+                        noLabel="true"
+                        :value="$product->caution_message ?? ''"
+                        info="Optional. Displayed to customers with a caution icon."
+                        placeholder="Not suitable for children under 3 years."
+                        class="mb-0"
+                    />
+                </div>
+            </x-ui.collapsible-section>
+            <x-ui.collapsible-section title="Specifications" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary><span x-text="$SM.countWithAnyProperty(productDetails, ['key', 'value']) + ' product details'"></span></x-slot:summary>
+                    <div class="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age. Values may include <code>{sku}</code>, which follows the selected variant.</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-specifications" data-ai-kind="specifications" data-ai-result-key="product_details" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Drafting product specifications…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(productAiContext())" :disabled="blank(config('services.openai.api_key'))" aria-label="Create or update specifications with AI" title="Create or update supported specifications with AI">
+                                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
+                            </x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addProductDetail()">Add Detail</x-ui.button>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white" x-show="productDetails.length > 0" x-cloak>
+                        <x-ui.table variant="plain" table-class="w-full table-fixed border-collapse">
+                            <thead class="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                <tr>
+                                    <th class="w-2/5 px-3 py-2">Detail</th>
+                                    <th class="px-3 py-2">Value</th>
+                                    <th class="w-28 px-2 py-2"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <template x-for="(detail, index) in productDetails" :key="index">
+                                    <tr>
+                                        <td class="border-r border-gray-200 p-0">
+                                            <x-ui.input-control type="text" x-bind:name="('product_details[' + (index) + '][key]')" x-model="detail.key" x-on:blur="productDetails = normalizeBaseProductDetails(productDetails)" x-bind:readonly="$SM.string(detail.key || '').trim().toLowerCase() === 'sku'" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Detail name" />
+                                        </td>
+                                        <td class="border-r border-gray-200 p-0">
+                                            <x-ui.input-control type="text" x-bind:name="'product_details[' + index + '][value]'" x-model="detail.value" x-bind:readonly="$SM.string(detail.key || '').trim().toLowerCase() === 'sku'" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)" />
+                                        </td>
+                                        <td class="p-0 text-center">
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0 || $SM.string(detail.key || '').trim().toLowerCase() === 'sku'" title="Move detail up" aria-label="Move detail up">
+                                                <i class="fa-solid fa-arrow-up text-xs" aria-hidden="true"></i>
+                                            </x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="!$SM.canMoveProductDetail(productDetails, detail, index)" title="Move detail down" aria-label="Move detail down">
+                                                <i class="fa-solid fa-arrow-down text-xs" aria-hidden="true"></i>
+                                            </x-ui.button>
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="removeProductDetail(index)" x-bind:disabled="$SM.string(detail.key || '').trim().toLowerCase() === 'sku'" x-bind:title="$SM.string(detail.key || '').trim().toLowerCase() === 'sku' ? 'SKU is always kept last' : 'Remove detail'" title="Remove detail" aria-label="Remove detail">
+                                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
+                                            </x-ui.button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </x-ui.table>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-500" x-show="productDetails.length === 0">No structured details added.</p>
+            </x-ui.collapsible-section>
+            @include('admin.shop.product.materials-and-recipe')
+
+            <x-ui.collapsible-section title="Variants" x-show="productType !== 'material'" x-cloak titleExpression="productType === 'digital' ? 'Licence Tiers' : 'Variants'" variant="product" :open="!isset($product) || $errors->any()" data-product-price-inventory>
+                <x-slot:summary><span x-text="$SM.countTruthy(variants, 'is_active') + ' active option' + ($SM.countTruthy(variants, 'is_active') === 1 ? '' : 's')"></span></x-slot:summary>
+                <x-slot:actions>
+                    <x-ui.button type="button" color="primary-outline" size="small" x-on:click.stop.prevent="$SM.callAndOpenDetails($el, 'addVariant')" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add tier' : 'Add variant'">Add variant</x-ui.button>
+                </x-slot:actions>
+                <p x-show="isPhysicalProduct()" x-cloak class="text-sm text-gray-600">Choose an active base variant as the default option. Each pack size, colour or option can override the shared defaults.</p>
+                <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Choose one active tier as the default.</p>
+
+                <div class="space-y-3" x-show="isPhysicalProduct()" x-cloak>
+                    <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" x-bind:disabled="!isPhysicalProduct()" noWrapper="true" />
+                    <div x-show="sharedInventory" x-cloak class="space-y-3">
+                        <p class="text-xs text-gray-600">Count individual units once for all variants. For example, 50 units can make five 10-packs or twenty-five 2-packs.</p>
+                        <div class="product-editor__fields">
+                            <x-ui.input id="shared-inventory-quantity" name="inventory_quantity" label="Individual units in stock" type="number" min="0" step="1" x-model="baseInventoryQuantity" :value="old('inventory_quantity', $product->inventory_quantity ?? '')" :disabled="!$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="!sharedInventory || !isPhysicalProduct()" info="Shared by every pack size. Leave blank to stop tracking stock, or enter 0 when sold out." />
+                            <x-ui.input id="shared-low-stock-threshold" name="low_stock_threshold" label="Low-stock alert threshold" labelInfo="(individual units)" type="number" min="1" step="1" x-model="baseLowStockThreshold" :value="old('low_stock_threshold', isset($product) ? ($product->low_stock_threshold ?? '') : 5)" :disabled="!$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="!sharedInventory || !isPhysicalProduct()" info="Emails a warning when the shared stock reaches this count. Leave blank to disable." />
+                        </div>
+                    </div>
+                    @if(isset($product) && $product->low_stock_alert_sent_at)
+                        <p class="text-xs text-gray-500">Last low-stock alert: {{ $product->low_stock_alert_sent_at->format('M j, Y g:i a') }}</p>
+                    @endif
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Shared defaults</h3>
+                    <p class="text-sm text-gray-600">Defaults apply when a variant has no override. Default item costs and units are set in Purchase costs and pricing.</p>
+                    <div class="product-editor__fields">
+                        <x-ui.input name="sku" label="Product code" x-model="baseSku" x-on:input="handleBaseSkuInput()" :value="$product->sku ?? ''" x-bind:disabled="productType === 'material'" info="Identifies the product group. Each selling variant also has its own SKU." />
+                        <x-ui.input name="price" label="Fallback selling price" labelInfo="(inc GST)" x-bind:readonly="automaticPricing" moneyFormat="true" x-model="basePrice" />
+                        <div x-show="!sharedInventory" x-cloak>
+                            <x-ui.input name="low_stock_threshold" label="Default low-stock threshold" type="number" min="1" step="1" x-model="baseLowStockThreshold" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Packs per variant. Individual variants can override this threshold." />
+                        </div>
+                    </div>
+                    @if($hasCalculatedShipping)
+                        <div class="space-y-3 border-t border-gray-200 pt-4" x-show="isPhysicalProduct()" x-cloak>
+                            <h3 class="text-sm font-semibold text-gray-900">Packaging defaults</h3>
+                            <div class="product-editor__compact-fields">
+                                <x-ui.input name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedLength" class="w-40" />
+                                <x-ui.input name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedWidth" class="w-40" />
+                                <x-ui.input name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedHeight" class="w-40" />
+                                <x-ui.input name="weight_grams" label="Packed Weight" labelInfo="(g)" type="number" min="0" x-model="basePackedWeight" class="w-40" />
+                            </div>
+                            <x-ui.checkbox name="box_only" label="Requires rigid parcel shipping" x-model="boxOnly" class="mb-0" />
+                            <x-product-postage-preview />
+                        </div>
+                    @endif
+                </div>
+
+                @error('variants')<p class="text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
+                <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !$SM.hasValue(variants, 'is_active', true)" x-cloak>Activate a variant or change this product to draft or archived.</p>
+                <p class="text-sm text-red-700" role="alert" x-show="variantCopyError" x-text="variantCopyError" x-cloak></p>
+
+                <div class="space-y-4">
+                    <template x-for="{ variant, index } in orderedVariantRows()" :key="variant.editor_key">
+                        <x-ui.collapsible-section title="Variant" titleExpression="displayVariantName(variant, index)" variant="product" x-bind:open="variant.open" x-on:toggle="variant.open = $el.open" class="product-variant" x-bind:class="{ 'product-variant--inactive': !variant.is_active }">
+                            <x-slot:summary>
+                                <span x-text="formatAud(variantSalePrice(variant)) + (isPhysicalProduct() ? ' · ' + (variant.inventory_units || 1) + ' per pack' : '')"></span>
+                                <span x-show="variant.is_base" class="ml-2 font-semibold text-sky-800">Base</span>
+                                <span x-show="!variant.is_active" class="ml-2 text-gray-500">Inactive</span>
+                            </x-slot:summary>
+                            <x-slot:actions>
+                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, -1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, -1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-up" label="Move variant up" x-bind:title="variantMoveDisabledReason(variant, -1) || 'Move variant up'" x-bind:disabled="!!variantMoveDisabledReason(variant, -1)" x-on:click.stop.prevent="moveVariant(index, -1)" />
+                                </span>
+                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, 1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, 1) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-down" label="Move variant down" x-bind:title="variantMoveDisabledReason(variant, 1) || 'Move variant down'" x-bind:disabled="!!variantMoveDisabledReason(variant, 1)" x-on:click.stop.prevent="moveVariant(index, 1)" />
+                                </span>
+                                <x-ui.button variant="text" color="secondary" size="icon-small" icon="copy" label="Duplicate variant" x-bind:disabled="duplicatingVariantKey !== null" x-bind:aria-busy="duplicatingVariantKey === variant.editor_key" x-on:click.stop.prevent="duplicateVariant(index)" />
+                                <span class="inline-flex" x-bind:title="variantDeletionDisabledReason(variant) || null" x-bind:tabindex="variantDeletionDisabledReason(variant) ? 0 : null" x-on:click.stop.prevent>
+                                    <x-ui.button variant="text" color="danger" size="icon-small" icon="trash" label="Delete variant" x-bind:title="variantDeletionDisabledReason(variant) || 'Delete variant'" x-bind:disabled="!!variantDeletionDisabledReason(variant)" x-on:click.stop.prevent="removeVariant(index)" />
+                                </span>
+                            </x-slot:actions>
+                            @include('admin.shop.product.variant-fields')
+                        </x-ui.collapsible-section>
+                    </template>
+                </div>
+            </x-ui.collapsible-section>
+
+            <div x-show="productType !== 'material'" x-cloak>@include('admin.shop.product.allocation-matrix')</div>
+
+            <x-ui.collapsible-section title="Images and Downloads" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ isset($product) ? (($product->hero_media_name ? 'Hero image · ' : '').$product->galleryMedia->count().' gallery images') : 'Product images and digital files' }}</x-slot:summary>
+                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-slate-600">
+                    Digital products ignore parcel packing and shipping fields, unlock their download files after payment, and can use licence tiers when you want to sell different usage rights.
+                </div>
+                <x-ui.media label="Hero Image" name="hero_media_name" value="{{ $product->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
+                <x-ui.gallery name="gallery_files" label="Gallery" value="{{ $galleryFilesValue }}" editor="true" />
+                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak>
+                    <x-ui.filelist name="download_files" label="Digital Download Files" :value="$downloadFilesValue" editor="true" />
+                </div>
+            </x-ui.collapsible-section>
+
+            <x-ui.collapsible-section title="Admin Notes" variant="product" :open="!isset($product) || $errors->any()">
+                <x-slot:summary>{{ filled($product->private_notes ?? null) ? 'Private notes added' : 'No private notes' }}</x-slot:summary>
+                <x-ui.input type="textarea" name="private_notes" label="Private Notes" :value="$product->private_notes ?? ''" info="Only visible in admin." class="mb-0" />
+            </x-ui.collapsible-section>
+
+            <x-ui.editor-actions>
+                @isset($product)
+                    <div data-editor-delete class="flex shrink-0 gap-3">
+                        @if(! $product->store_order_items_exists)
+                            <x-ui.button type="button" color="danger" class="" aria-label="Delete Product" title="Delete Product"
+                                x-data
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')" size="icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                        @endif
+                        @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                            <x-ui.button type="submit" color="outline" form="restore-product-form" class="" aria-label="Restore as Draft" title="Restore as Draft" size="icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></x-ui.button>
+                        @else
+                            <x-ui.button type="submit" color="outline" form="archive-product-form" class="" aria-label="Archive Product" title="Archive Product" size="icon"><i class="fa-solid fa-box-archive" aria-hidden="true"></i></x-ui.button>
+                        @endif
+                    </div>
+                @endisset
+                <x-ui.button type="submit" class="ml-auto min-h-11 px-4">Save Product</x-ui.button>
+            </x-ui.editor-actions>
+        </form>
+        @isset($product)
+            @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
+                <form id="restore-product-form" method="POST" action="{{ route('admin.shop.product.restore', $product) }}">
+                    @csrf
+                    @method('PATCH')
+                </form>
+            @else
+                <form id="archive-product-form" method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product')">
+                    @csrf
+                    @method('PATCH')
+                </form>
+            @endif
+        @endisset
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminShopProductEdit1', () => ({
                 ...SM.productMaterials(@js($materialsConfig)),
                 ...SM.allocationRemainder(@js(json_decode(old('allocation_remainder_json', json_encode($product->allocation_remainder ?? null)), true)), @js(app(\App\Services\Finance\ProductCostAllocation::class)->defaultRemainder())),
                 ...SM.productVariantEditor({ copySkuUrl: @js(route('admin.shop.product.variant-copy-sku')), csrf: @js(csrf_token()) }),
@@ -285,7 +581,7 @@
                     return Number.isFinite(price) ? price : null;
                 },
                 defaultBaseOptionLabel() {
-                    return this.productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Home' : 'Base';
+                    return this.productType === '@js(\App\Models\Product::PRODUCT_TYPE_DIGITAL)' ? 'Home' : 'Base';
                 },
                 baseOptionDisplayName() {
                     return 'Shared allocation defaults';
@@ -466,7 +762,7 @@
                         awaiting_fulfilment: 0,
                         reserved_quantity: 0,
                         allow_backorder: false,
-                        backorder_shipping_estimate_type: '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}',
+                        backorder_shipping_estimate_type: '@js(\App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC)',
                         backorder_shipping_estimate: '',
                         backorder_shipping_offset_days: '',
                         sort_order: this.variants.length,
@@ -684,307 +980,17 @@
                     this.syncSlugFromTitle();
                     this.syncBaseSkuFromSlug();
                     this.$watch('productType', (value) => {
-                        if (value === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}') {
+                        if (value === '@js(\App\Models\Product::PRODUCT_TYPE_DIGITAL)') {
                             this.allowBackorder = false;
                         }
                     });
                     this.$watch('status', (value) => {
-                        if (value !== '{{ \App\Models\Product::STATUS_ACTIVE }}') {
+                        if (value !== '@js(\App\Models\Product::STATUS_ACTIVE)') {
                             this.isFeatured = false;
                         }
                     });
                 },
-            }"
-        >
-            @csrf
-            <input type="hidden" name="variant_editor" value="1">
-            @isset($product)
-                @method('PUT')
-            @endisset
-
-            <x-ui.collapsible-section title="Product" variant="product" :open="true">
-                <x-slot:summary><span x-text="title || 'Product information'"></span></x-slot:summary>
-                <div class="product-editor__fields">
-                    <x-ui.select name="product_type" label="Product Type" x-model="productType">
-                        @foreach(\App\Models\Product::PRODUCT_TYPES as $type)
-                            <option value="{{ $type }}">{{ \App\Models\Product::productTypeLabel($type) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.select name="status" label="Status" x-model="status">
-                        @foreach(\App\Models\Product::STATUSES as $status)
-                            <option value="{{ $status }}" @selected(old('status', $product->status ?? \App\Models\Product::STATUS_DRAFT) === $status)>{{ \App\Models\Product::statusLabel($status) }}</option>
-                        @endforeach
-                    </x-ui.select>
-                    <x-ui.input name="title" label="Title" :value="$product->title ?? ''" x-model="title" x-on:blur="handleTitleInput()" />
-                    <x-ui.input name="slug" label="Slug" :value="$product->slug ?? ''" x-model="slug" x-on:input="handleSlugInput()" />
-                    <x-ui.input name="subtitle" label="Subtitle" :value="$product->subtitle ?? ''" class="md:col-span-2" />
-                    <x-ui.input id="material-sku" name="sku" label="SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" x-show="productType === 'material'" x-cloak :disabled="$editorProductType !== \App\Models\Product::PRODUCT_TYPE_MATERIAL" x-bind:disabled="productType !== 'material'" required info="Required. Used to identify this material." />
-                    <div class="flex flex-wrap items-start gap-6">
-                        <x-ui.input name="sort_order" label="Sort Order" type="number" min="0" :value="$product->sort_order ?? 0" class="mb-0 w-24" />
-                        <div class="pt-7" x-show="productType !== 'material'" x-cloak>
-                            <x-ui.checkbox name="is_featured" label="Featured product" :checked="(bool) old('is_featured', $product->is_featured ?? false)" noWrapper x-model="isFeatured" x-bind:disabled="productType === 'material' || status !== '{{ \App\Models\Product::STATUS_ACTIVE }}'" />
-                        </div>
-                    </div>
-                </div>
-            </x-ui.collapsible-section>
-
-            <x-ui.collapsible-section title="Categories" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary>{{ $categories->whereIn('id', $selectedCategoryIds)->pluck('name')->implode(', ') ?: 'No categories selected' }}</x-slot:summary>
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p class="text-xs text-gray-500">Assign any number of managed categories to this product.</p>
-                        </div>
-                        <x-ui.button href="{{ route('admin.shop.category.index') }}" color="outline" size="small" class="shrink-0">Manage Categories</x-ui.button>
-                    </div>
-
-                    @if(($categories ?? collect())->isEmpty())
-                        <p class="mt-3 text-sm text-gray-600">Create product categories first, then come back and assign them here.</p>
-                    @else
-                        <div class="mt-4 product-editor__fields">
-                            @foreach($categories as $category)
-                                @php
-                                    $categoryId = (string) $category->id;
-                                    $isSelected = in_array($categoryId, $selectedCategoryIds, true);
-                                @endphp
-                                <div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
-                                    <x-ui.checkbox
- id="category-{{ $category->id }}"
- name="category_ids[]"
- value="{{ $category->id }}"
- :checked="$isSelected"
- noWrapper
- inputClass="mt-0.5"
- />
-                                    <label for="category-{{ $category->id }}" class="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
-                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
-                                            <i class="{{ $category->iconClass() }}"></i>
-                                        </span>
-                                        <span class="min-w-0">
-                                            <span class="block font-medium text-gray-900">{{ $category->name }}</span>
-                                            <span class="block text-xs text-gray-500">{{ $category->slug }}</span>
-                                        </span>
-                                    </label>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-            </x-ui.collapsible-section>
-            <x-ui.collapsible-section title="Description" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary>{{ \Illuminate\Support\Str::limit(strip_tags($product->short_description ?? $productDescription), 90) ?: 'No description added' }}</x-slot:summary>
-                <x-ui.input name="short_description" label="Short Description" :value="$product->short_description ?? ''" />
-                <x-ui.editor name="description" label="Description" :value="$productDescription">
-                    <x-slot:toolbar>
-                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-copy" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Improving product copy…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(productAiContext())" data-ai-fill-scope="#product-form" data-ai-fill-fields="title,short_description,description" data-ai-editor-field="description" data-ai-editor-format="product-description" :disabled="blank(config('services.openai.api_key'))" aria-label="Improve product copy with AI" title="Improve product copy with AI" size="icon-small">
-                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                        </x-ui.button>
-                    </x-slot:toolbar>
-                </x-ui.editor>
-                <x-ui.input
-                    type="textarea"
-                    name="search_terms"
-                    label="Search Terms"
-                    :value="$product->search_terms ?? ''"
-                    rows="3"
-                    info="Alternative names and related words, separated by spaces or commas. Used by site search and product-page metadata; not shown in the product description."
-                />
-
-                <div class="mb-4">
-                    <div class="mb-1 flex items-center justify-between gap-2">
-                        <label for="caution_message" class="flex items-center text-sm pl-1">Product Warning</label>
-                        <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-warning" data-ai-kind="warning" data-ai-result-key="warning" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Checking product warning…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(productAiContext())" :disabled="blank(config('services.openai.api_key'))" aria-label="Draft a short product warning" title="Draft a short warning if the product details support one" size="icon-small">
-                            <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                        </x-ui.button>
-                    </div>
-                    <x-ui.input
-                        name="caution_message"
-                        type="textarea"
-                        rows="3"
-                        noLabel="true"
-                        :value="$product->caution_message ?? ''"
-                        info="Optional. Displayed to customers with a caution icon."
-                        placeholder="Not suitable for children under 3 years."
-                        class="mb-0"
-                    />
-                </div>
-            </x-ui.collapsible-section>
-            <x-ui.collapsible-section title="Specifications" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary><span x-text="productDetails.filter(detail => detail.key || detail.value).length + ' product details'"></span></x-slot:summary>
-                    <div class="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                            <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age. Values may include <code>{sku}</code>, which follows the selected variant.</p>
-                        </div>
-                        <div class="flex shrink-0 items-center gap-2">
-                            <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded-lg text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-action="product-specifications" data-ai-kind="specifications" data-ai-result-key="product_details" data-ai-widget-target="#product-ai-toast" data-ai-processing-message="Drafting product specifications…" data-ai-url="{{ route('admin.ai.products.draft') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#product-form" data-ai-fields="title,short_description,description,caution_message" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(productAiContext())" :disabled="blank(config('services.openai.api_key'))" aria-label="Create or update specifications with AI" title="Create or update supported specifications with AI">
-                                <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
-                            </x-ui.button>
-                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addProductDetail()">Add Detail</x-ui.button>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white" x-show="productDetails.length > 0" x-cloak>
-                        <x-ui.table variant="plain" table-class="w-full table-fixed border-collapse">
-                            <thead class="bg-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                <tr>
-                                    <th class="w-2/5 px-3 py-2">Detail</th>
-                                    <th class="px-3 py-2">Value</th>
-                                    <th class="w-28 px-2 py-2"><span class="sr-only">Actions</span></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                <template x-for="(detail, index) in productDetails" :key="index">
-                                    <tr>
-                                        <td class="border-r border-gray-200 p-0">
-                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][key]`" x-model="detail.key" x-on:blur="productDetails = normalizeBaseProductDetails(productDetails)" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Detail name" />
-                                        </td>
-                                        <td class="border-r border-gray-200 p-0">
-                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)" />
-                                        </td>
-                                        <td class="p-0 text-center">
-                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0 || String(detail.key || '').trim().toLowerCase() === 'sku'" title="Move detail up" aria-label="Move detail up">
-                                                <i class="fa-solid fa-arrow-up text-xs" aria-hidden="true"></i>
-                                            </x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="index >= productDetails.filter(row => String(row.key || '').trim().toLowerCase() !== 'sku').length - 1 || String(detail.key || '').trim().toLowerCase() === 'sku'" title="Move detail down" aria-label="Move detail down">
-                                                <i class="fa-solid fa-arrow-down text-xs" aria-hidden="true"></i>
-                                            </x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="removeProductDetail(index)" x-bind:disabled="String(detail.key || '').trim().toLowerCase() === 'sku'" x-bind:title="String(detail.key || '').trim().toLowerCase() === 'sku' ? 'SKU is always kept last' : 'Remove detail'" title="Remove detail" aria-label="Remove detail">
-                                                <i class="fa-solid fa-trash text-xs" aria-hidden="true"></i>
-                                            </x-ui.button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </x-ui.table>
-                    </div>
-                    <p class="mt-4 text-sm text-gray-500" x-show="productDetails.length === 0">No structured details added.</p>
-            </x-ui.collapsible-section>
-            @include('admin.shop.product.materials-and-recipe')
-
-            <x-ui.collapsible-section title="Variants" x-show="productType !== 'material'" x-cloak titleExpression="productType === 'digital' ? 'Licence Tiers' : 'Variants'" variant="product" :open="!isset($product) || $errors->any()" data-product-price-inventory>
-                <x-slot:summary><span x-text="variants.filter(variant => variant.is_active).length + ' active option' + (variants.filter(variant => variant.is_active).length === 1 ? '' : 's')"></span></x-slot:summary>
-                <x-slot:actions>
-                    <x-ui.button type="button" color="primary-outline" size="small" x-on:click.stop.prevent="addVariant(); $el.closest('details').open = true" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add tier' : 'Add variant'">Add variant</x-ui.button>
-                </x-slot:actions>
-                <p x-show="isPhysicalProduct()" x-cloak class="text-sm text-gray-600">Choose an active base variant as the default option. Each pack size, colour or option can override the shared defaults.</p>
-                <p x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-gray-600">Digital variants act as licence tiers. Choose one active tier as the default.</p>
-
-                <div class="space-y-3" x-show="isPhysicalProduct()" x-cloak>
-                    <x-ui.checkbox name="shared_inventory" label="Share stock across all packs and variants" x-model="sharedInventory" :checked="old('shared_inventory', $product->shared_inventory ?? false)" x-bind:disabled="!isPhysicalProduct()" noWrapper="true" />
-                    <div x-show="sharedInventory" x-cloak class="space-y-3">
-                        <p class="text-xs text-gray-600">Count individual units once for all variants. For example, 50 units can make five 10-packs or twenty-five 2-packs.</p>
-                        <div class="product-editor__fields">
-                            <x-ui.input id="shared-inventory-quantity" name="inventory_quantity" label="Individual units in stock" type="number" min="0" step="1" x-model="baseInventoryQuantity" :value="old('inventory_quantity', $product->inventory_quantity ?? '')" :disabled="!$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="!sharedInventory || !isPhysicalProduct()" info="Shared by every pack size. Leave blank to stop tracking stock, or enter 0 when sold out." />
-                            <x-ui.input id="shared-low-stock-threshold" name="low_stock_threshold" label="Low-stock alert threshold" labelInfo="(individual units)" type="number" min="1" step="1" x-model="baseLowStockThreshold" :value="old('low_stock_threshold', isset($product) ? ($product->low_stock_threshold ?? '') : 5)" :disabled="!$editorSharedInventory || !$editorIsPhysical" x-bind:disabled="!sharedInventory || !isPhysicalProduct()" info="Emails a warning when the shared stock reaches this count. Leave blank to disable." />
-                        </div>
-                    </div>
-                    @if(isset($product) && $product->low_stock_alert_sent_at)
-                        <p class="text-xs text-gray-500">Last low-stock alert: {{ $product->low_stock_alert_sent_at->format('M j, Y g:i a') }}</p>
-                    @endif
-                </div>
-
-                <div class="space-y-4">
-                    <h3 class="text-sm font-semibold text-gray-900">Shared defaults</h3>
-                    <p class="text-sm text-gray-600">Defaults apply when a variant has no override. Default item costs and units are set in Purchase costs and pricing.</p>
-                    <div class="product-editor__fields">
-                        <x-ui.input name="sku" label="Product code" x-model="baseSku" x-on:input="handleBaseSkuInput()" :value="$product->sku ?? ''" x-bind:disabled="productType === 'material'" info="Identifies the product group. Each selling variant also has its own SKU." />
-                        <x-ui.input name="price" label="Fallback selling price" labelInfo="(inc GST)" x-bind:readonly="automaticPricing" moneyFormat="true" x-model="basePrice" />
-                        <div x-show="!sharedInventory" x-cloak>
-                            <x-ui.input name="low_stock_threshold" label="Default low-stock threshold" type="number" min="1" step="1" x-model="baseLowStockThreshold" x-bind:disabled="sharedInventory || !isPhysicalProduct()" info="Packs per variant. Individual variants can override this threshold." />
-                        </div>
-                    </div>
-                    @if($hasCalculatedShipping)
-                        <div class="space-y-3 border-t border-gray-200 pt-4" x-show="isPhysicalProduct()" x-cloak>
-                            <h3 class="text-sm font-semibold text-gray-900">Packaging defaults</h3>
-                            <div class="product-editor__compact-fields">
-                                <x-ui.input name="length_mm" label="Packed Length" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedLength" class="w-40" />
-                                <x-ui.input name="width_mm" label="Packed Width" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedWidth" class="w-40" />
-                                <x-ui.input name="height_mm" label="Packed Height" labelInfo="(mm)" type="number" min="1" max="10000" x-model="basePackedHeight" class="w-40" />
-                                <x-ui.input name="weight_grams" label="Packed Weight" labelInfo="(g)" type="number" min="0" x-model="basePackedWeight" class="w-40" />
-                            </div>
-                            <x-ui.checkbox name="box_only" label="Requires rigid parcel shipping" x-model="boxOnly" class="mb-0" />
-                            <x-product-postage-preview />
-                        </div>
-                    @endif
-                </div>
-
-                @error('variants')<p class="text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
-                <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !variants.some(variant => variant.is_active)" x-cloak>Activate a variant or change this product to draft or archived.</p>
-                <p class="text-sm text-red-700" role="alert" x-show="variantCopyError" x-text="variantCopyError" x-cloak></p>
-
-                <div class="space-y-4">
-                    <template x-for="{ variant, index } in orderedVariantRows()" :key="variant.editor_key">
-                        <x-ui.collapsible-section title="Variant" titleExpression="displayVariantName(variant, index)" variant="product" x-bind:open="variant.open" x-on:toggle="variant.open = $el.open" class="product-variant" x-bind:class="{ 'product-variant--inactive': !variant.is_active }">
-                            <x-slot:summary>
-                                <span x-text="formatAud(variantSalePrice(variant)) + (isPhysicalProduct() ? ' · ' + (variant.inventory_units || 1) + ' per pack' : '')"></span>
-                                <span x-show="variant.is_base" class="ml-2 font-semibold text-sky-800">Base</span>
-                                <span x-show="!variant.is_active" class="ml-2 text-gray-500">Inactive</span>
-                            </x-slot:summary>
-                            <x-slot:actions>
-                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, -1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, -1) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-up" label="Move variant up" x-bind:title="variantMoveDisabledReason(variant, -1) || 'Move variant up'" x-bind:disabled="!!variantMoveDisabledReason(variant, -1)" x-on:click.stop.prevent="moveVariant(index, -1)" />
-                                </span>
-                                <span class="inline-flex" x-bind:title="variantMoveDisabledReason(variant, 1) || null" x-bind:tabindex="variantMoveDisabledReason(variant, 1) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="secondary" size="icon-small" icon="arrow-down" label="Move variant down" x-bind:title="variantMoveDisabledReason(variant, 1) || 'Move variant down'" x-bind:disabled="!!variantMoveDisabledReason(variant, 1)" x-on:click.stop.prevent="moveVariant(index, 1)" />
-                                </span>
-                                <x-ui.button variant="text" color="secondary" size="icon-small" icon="copy" label="Duplicate variant" x-bind:disabled="duplicatingVariantKey !== null" x-bind:aria-busy="duplicatingVariantKey === variant.editor_key" x-on:click.stop.prevent="duplicateVariant(index)" />
-                                <span class="inline-flex" x-bind:title="variantDeletionDisabledReason(variant) || null" x-bind:tabindex="variantDeletionDisabledReason(variant) ? 0 : null" x-on:click.stop.prevent>
-                                    <x-ui.button variant="text" color="danger" size="icon-small" icon="trash" label="Delete variant" x-bind:title="variantDeletionDisabledReason(variant) || 'Delete variant'" x-bind:disabled="!!variantDeletionDisabledReason(variant)" x-on:click.stop.prevent="removeVariant(index)" />
-                                </span>
-                            </x-slot:actions>
-                            @include('admin.shop.product.variant-fields')
-                        </x-ui.collapsible-section>
-                    </template>
-                </div>
-            </x-ui.collapsible-section>
-
-            <div x-show="productType !== 'material'" x-cloak>@include('admin.shop.product.allocation-matrix')</div>
-
-            <x-ui.collapsible-section title="Images and Downloads" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary>{{ isset($product) ? (($product->hero_media_name ? 'Hero image · ' : '').$product->galleryMedia->count().' gallery images') : 'Product images and digital files' }}</x-slot:summary>
-                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak class="text-sm text-slate-600">
-                    Digital products ignore parcel packing and shipping fields, unlock their download files after payment, and can use licence tiers when you want to sell different usage rights.
-                </div>
-                <x-ui.media label="Hero Image" name="hero_media_name" value="{{ $product->hero_media_name ?? '' }}" allow_uploads="true" public_usable_only="true" />
-                <x-ui.gallery name="gallery_files" label="Gallery" value="{{ $galleryFilesValue }}" editor="true" />
-                <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}'" x-cloak>
-                    <x-ui.filelist name="download_files" label="Digital Download Files" :value="$downloadFilesValue" editor="true" />
-                </div>
-            </x-ui.collapsible-section>
-
-            <x-ui.collapsible-section title="Admin Notes" variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary>{{ filled($product->private_notes ?? null) ? 'Private notes added' : 'No private notes' }}</x-slot:summary>
-                <x-ui.input type="textarea" name="private_notes" label="Private Notes" :value="$product->private_notes ?? ''" info="Only visible in admin." class="mb-0" />
-            </x-ui.collapsible-section>
-
-            <x-ui.editor-actions>
-                @isset($product)
-                    <div data-editor-delete class="flex shrink-0 gap-3">
-                        @if(! $product->store_order_items_exists)
-                            <x-ui.button type="button" color="danger" class="" aria-label="Delete Product" title="Delete Product"
-                                x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')" size="icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
-                        @endif
-                        @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
-                            <x-ui.button type="submit" color="outline" form="restore-product-form" class="" aria-label="Restore as Draft" title="Restore as Draft" size="icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></x-ui.button>
-                        @else
-                            <x-ui.button type="submit" color="outline" form="archive-product-form" class="" aria-label="Archive Product" title="Archive Product" size="icon"><i class="fa-solid fa-box-archive" aria-hidden="true"></i></x-ui.button>
-                        @endif
-                    </div>
-                @endisset
-                <x-ui.button type="submit" class="ml-auto min-h-11 px-4">Save Product</x-ui.button>
-            </x-ui.editor-actions>
-        </form>
-        @isset($product)
-            @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
-                <form id="restore-product-form" method="POST" action="{{ route('admin.shop.product.restore', $product) }}">
-                    @csrf
-                    @method('PATCH')
-                </form>
-            @else
-                <form id="archive-product-form" method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
-                    @csrf
-                    @method('PATCH')
-                </form>
-            @endif
-        @endisset
-    </x-container>
+            }));
+});
+</script>
 </x-layout>

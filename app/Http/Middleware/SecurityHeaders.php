@@ -48,7 +48,7 @@ class SecurityHeaders
         }
 
         if (config('security.csp_report_only', true)) {
-            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-{$nonce}'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
+            $response->headers->set('Content-Security-Policy-Report-Only', "script-src 'self' 'nonce-{$nonce}' 'strict-dynamic'; object-src 'none'; base-uri 'self'; report-uri /security/csp-reports");
         }
 
         // Hide PHP runtime/version details from response headers.

@@ -21,163 +21,9 @@
 
         <div
             data-sent-sms-root
-            x-data="{
-                sendSmsOpen: @js(old('recipient') !== null || old('message') !== null || old('reference') !== null || $errors->any()),
-                smsRecipients: @js(old('recipient', '')),
-                smsMessage: @js(old('message', '')),
-                recipientError: '',
-                csrfToken: document.querySelector('meta[name=&quot;csrf-token&quot;]')?.content || '',
-                smsStats: {
-                    characters: 0,
-                    recipients: 0,
-                    segments: 0,
-                    totalMessages: 0,
-                    label: '0 characters • 0 numbers • 0 estimated messages',
-                },
-                gsmBasicCharacters: new Set(Array.from(`@£$¥èéùìòÇ
-Øø
-ÅåΔ_ΦΓΛΩΠΨΣΘΞ !&quot;#¤%&amp;'()*+,-./0123456789:;&lt;=&gt;?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà`)),
-                gsmExtendedCharacters: new Set(Array.from(`^{}\\[~]|€`)),
-                countRecipients(value) {
-                    return String(value || '')
-                        .split(';')
-                        .map((item) => item.trim())
-                        .filter((item) => item !== '')
-                        .length;
-                },
-                validateRecipient(value) {
-                    const trimmed = String(value || '').trim();
-                    if (trimmed === '') {
-                        return false;
-                    }
-
-                    const normalized = trimmed.replace(/[^\d+]/g, '');
-
-                    if (normalized.startsWith('+')) {
-                        return /^\+\d{8,15}$/.test(normalized);
-                    }
-
-                    if (/^04\d{8}$/.test(normalized)) {
-                        return true;
-                    }
-
-                    if (/^61\d{9}$/.test(normalized)) {
-                        return true;
-                    }
-
-                    if (/^4\d{8}$/.test(normalized)) {
-                        return true;
-                    }
-
-                    return false;
-                },
-                validateRecipients(field) {
-                    const raw = String(this.smsRecipients || '').trim();
-                    const invalid = raw === ''
-                        ? []
-                        : raw.split(';')
-                            .map((item) => item.trim())
-                            .filter((item) => item !== '')
-                            .filter((item) => !this.validateRecipient(item));
-
-                    this.recipientError = invalid.length === 0
-                        ? ''
-                        : `Invalid number${invalid.length === 1 ? '' : 's'}: ${invalid.join(', ')}`;
-
-                    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
-                        field.setCustomValidity(this.recipientError);
-                        field.reportValidity();
-                    }
-                },
-                countGsmUnits(message) {
-                    let units = 0;
-                    for (const character of Array.from(message || '')) {
-                        if (this.gsmBasicCharacters.has(character)) {
-                            units += 1;
-                            continue;
-                        }
-
-                        if (this.gsmExtendedCharacters.has(character)) {
-                            units += 2;
-                            continue;
-                        }
-
-                        return null;
-                    }
-
-                    return units;
-                },
-                messageStats() {
-                    const message = String(this.smsMessage || '');
-                    const characters = Array.from(message).length;
-                    const recipients = this.countRecipients(this.smsRecipients);
-
-                    if (characters === 0 || recipients === 0) {
-                        return {
-                            characters,
-                            recipients,
-                            segments: 0,
-                            totalMessages: 0,
-                            label: `${characters} characters • ${recipients} ${recipients === 1 ? 'number' : 'numbers'} • 0 estimated messages`,
-                        };
-                    }
-
-                    const gsmUnits = this.countGsmUnits(message);
-                    const segments = gsmUnits === null
-                        ? (characters <= 70 ? 1 : Math.ceil(characters / 67))
-                        : (gsmUnits <= 160 ? 1 : Math.ceil(gsmUnits / 153));
-                    const totalMessages = recipients * segments;
-
-                    return {
-                        characters,
-                        recipients,
-                        segments,
-                        totalMessages,
-                        label: `${characters} characters • ${recipients} ${recipients === 1 ? 'number' : 'numbers'} • ${totalMessages} estimated ${totalMessages === 1 ? 'message' : 'messages'}`,
-                    };
-                },
-                async acknowledgeReply(reply) {
-                    if (!reply || reply.busy || reply.acknowledged) {
-                        return;
-                    }
-
-                    reply.busy = true;
-
-                    try {
-                        const response = await fetch(reply.ackUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                                'X-CSRF-TOKEN': this.csrfToken,
-                                'X-Requested-With': 'XMLHttpRequest',
-                            },
-                            body: new URLSearchParams({
-                                _method: 'PATCH',
-                            }).toString(),
-                        });
-
-                        const payload = await response.json().catch(() => ({}));
-
-                        if (!response.ok || payload.ok !== true) {
-                            throw new Error(payload.message || 'Unable to acknowledge reply.');
-                        }
-
-                        reply.acknowledged = true;
-                    } catch (error) {
-                        const message = error instanceof Error ? error.message : 'Unable to acknowledge reply.';
-                        if (window.SM && typeof window.SM.notice === 'function') {
-                            window.SM.notice('Acknowledge failed', message, 'danger');
-                        } else {
-                            console.error(message);
-                        }
-                    } finally {
-                        reply.busy = false;
-                    }
-                },
-            }"
-            x-init="smsStats = messageStats(); $watch('smsRecipients', () => smsStats = messageStats()); $watch('smsMessage', () => smsStats = messageStats())"
-            @keydown.escape.window="if (sendSmsOpen) sendSmsOpen = false"
+            x-data="smCspAdminServerSentSms1"
+            x-init="init()"
+            x-on:keydown.escape.window="closeOnEscape()"
         >
             <div class="my-4 flex items-center justify-between gap-4">
                 <div class="min-w-0">
@@ -522,7 +368,7 @@
                                         :value="old('recipient')"
                                         info="Multiple numbers can be used, separated by ;"
                                         placeholder="+61400111222; +61400987654"
-                                        x-on:input="smsRecipients = $event.target.value; recipientError = ''"
+                                        x-on:input="updateRecipients($event.target.value)"
                                         x-on:blur="validateRecipients($event.target)"
                                     />
                                     <div x-cloak x-show="recipientError !== ''" class="-mt-2 text-xs text-red-600" x-text="recipientError"></div>
@@ -563,4 +409,176 @@
 
         </x-ui.dynamic-list>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminServerSentSms1', () => ({
+                sendSmsOpen: @js(old('recipient') !== null || old('message') !== null || old('reference') !== null || $errors->any()),
+                smsRecipients: @js(old('recipient', '')),
+                smsMessage: @js(old('message', '')),
+                recipientError: '',
+                csrfToken: document.querySelector('meta[name="csrf-token"]')?.content || '',
+                smsStats: {
+                    characters: 0,
+                    recipients: 0,
+                    segments: 0,
+                    totalMessages: 0,
+                    label: '0 characters • 0 numbers • 0 estimated messages',
+                },
+                init() {
+                    this.smsStats = this.messageStats();
+                    this.$watch('smsRecipients', () => this.smsStats = this.messageStats());
+                    this.$watch('smsMessage', () => this.smsStats = this.messageStats());
+                },
+                updateRecipients(value) {
+                    this.smsRecipients = value;
+                    this.recipientError = '';
+                },
+                closeOnEscape() {
+                    if (this.sendSmsOpen) this.sendSmsOpen = false;
+                },
+                gsmBasicCharacters: new Set(Array.from(`@£$¥èéùìòÇ
+Øø
+ÅåΔ_ΦΓΛΩΠΨΣΘΞ !"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà`)),
+                gsmExtendedCharacters: new Set(Array.from(`^{}\\[~]|€`)),
+                countRecipients(value) {
+                    return String(value || '')
+                        .split(';')
+                        .map((item) => item.trim())
+                        .filter((item) => item !== '')
+                        .length;
+                },
+                validateRecipient(value) {
+                    const trimmed = String(value || '').trim();
+                    if (trimmed === '') {
+                        return false;
+                    }
+
+                    const normalized = trimmed.replace(/[^\d+]/g, '');
+
+                    if (normalized.startsWith('+')) {
+                        return /^\+\d{8,15}$/.test(normalized);
+                    }
+
+                    if (/^04\d{8}$/.test(normalized)) {
+                        return true;
+                    }
+
+                    if (/^61\d{9}$/.test(normalized)) {
+                        return true;
+                    }
+
+                    if (/^4\d{8}$/.test(normalized)) {
+                        return true;
+                    }
+
+                    return false;
+                },
+                validateRecipients(field) {
+                    const raw = String(this.smsRecipients || '').trim();
+                    const invalid = raw === ''
+                        ? []
+                        : raw.split(';')
+                            .map((item) => item.trim())
+                            .filter((item) => item !== '')
+                            .filter((item) => !this.validateRecipient(item));
+
+                    this.recipientError = invalid.length === 0
+                        ? ''
+                        : `Invalid number${invalid.length === 1 ? '' : 's'}: ${invalid.join(', ')}`;
+
+                    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) {
+                        field.setCustomValidity(this.recipientError);
+                        field.reportValidity();
+                    }
+                },
+                countGsmUnits(message) {
+                    let units = 0;
+                    for (const character of Array.from(message || '')) {
+                        if (this.gsmBasicCharacters.has(character)) {
+                            units += 1;
+                            continue;
+                        }
+
+                        if (this.gsmExtendedCharacters.has(character)) {
+                            units += 2;
+                            continue;
+                        }
+
+                        return null;
+                    }
+
+                    return units;
+                },
+                messageStats() {
+                    const message = String(this.smsMessage || '');
+                    const characters = Array.from(message).length;
+                    const recipients = this.countRecipients(this.smsRecipients);
+
+                    if (characters === 0 || recipients === 0) {
+                        return {
+                            characters,
+                            recipients,
+                            segments: 0,
+                            totalMessages: 0,
+                            label: `${characters} characters • ${recipients} ${recipients === 1 ? 'number' : 'numbers'} • 0 estimated messages`,
+                        };
+                    }
+
+                    const gsmUnits = this.countGsmUnits(message);
+                    const segments = gsmUnits === null
+                        ? (characters <= 70 ? 1 : Math.ceil(characters / 67))
+                        : (gsmUnits <= 160 ? 1 : Math.ceil(gsmUnits / 153));
+                    const totalMessages = recipients * segments;
+
+                    return {
+                        characters,
+                        recipients,
+                        segments,
+                        totalMessages,
+                        label: `${characters} characters • ${recipients} ${recipients === 1 ? 'number' : 'numbers'} • ${totalMessages} estimated ${totalMessages === 1 ? 'message' : 'messages'}`,
+                    };
+                },
+                async acknowledgeReply(reply) {
+                    if (!reply || reply.busy || reply.acknowledged) {
+                        return;
+                    }
+
+                    reply.busy = true;
+
+                    try {
+                        const response = await fetch(reply.ackUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                                'X-CSRF-TOKEN': this.csrfToken,
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: new URLSearchParams({
+                                _method: 'PATCH',
+                            }).toString(),
+                        });
+
+                        const payload = await response.json().catch(() => ({}));
+
+                        if (!response.ok || payload.ok !== true) {
+                            throw new Error(payload.message || 'Unable to acknowledge reply.');
+                        }
+
+                        reply.acknowledged = true;
+                    } catch (error) {
+                        const message = error instanceof Error ? error.message : 'Unable to acknowledge reply.';
+                        if (window.SM && typeof window.SM.notice === 'function') {
+                            window.SM.notice('Acknowledge failed', message, 'danger');
+                        } else {
+                            console.error(message);
+                        }
+                    } finally {
+                        reply.busy = false;
+                    }
+                },
+            }));
+});
+</script>
 </x-layout>

@@ -14,12 +14,12 @@
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <div class="font-semibold" :class="run.status === 'failed' ? 'text-red-900' : (run.status === 'completed' ? 'text-green-900' : 'text-sky-950')" x-text="operationLabel(run.type)"></div>
-                        <div class="mt-1 text-sm" :class="run.status === 'failed' ? 'text-red-800' : (run.status === 'completed' ? 'text-green-800' : 'text-sky-800')" x-text="run.status === 'failed' ? run.error_message : run.message"></div>
+                        <div class="mt-1 text-sm" :class="run.status === 'failed' ? 'text-red-800' : (run.status === 'completed' ? 'text-green-800' : 'text-sky-800')" x-text="run.status === 'failed' ? $SM.get(run, 'error_message') : run.message"></div>
                     </div>
                     <span class="text-xs font-semibold uppercase tracking-wide" x-text="run.status"></span>
                 </div>
                 <div x-show="!run.finished" class="mt-3 h-2.5 overflow-hidden rounded-full bg-white/80">
-                    <div class="h-full rounded-full bg-sky-600 transition-all duration-700" :class="run.status === 'running' ? 'animate-pulse' : ''" :style="`width: ${Math.max(5, Number(run.progress || 0))}%`"></div>
+                    <div class="h-full rounded-full bg-sky-600 transition-all duration-700" :class="run.status === 'running' ? 'animate-pulse' : ''" :style="('width: ' + (Math.max(5, Number(run.progress || 0))) + '%')"></div>
                 </div>
             </div>
         </template>

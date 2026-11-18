@@ -19,7 +19,7 @@
             });
             $config = ['options' => $equipmentOptions, 'selected' => (object) old('quantities', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['quantity'] ?? 0])->all()), 'variants' => (object) old('variants', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['variant_id'] ?? ''])->all()), 'quantity' => 0, 'ticketPrice' => 0, 'regularPrice' => 0, 'earlyBirdRemaining' => null];
         @endphp
-        <form x-data="SM.workshopEquipmentCheckout(@js($config))" method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
+        <form x-data="$SM.workshopEquipmentCheckout(@js($config))" method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
             @csrf
             <dl class="mb-5 space-y-2 text-sm" aria-live="polite">
                 <div class="flex justify-between"><dt>Tickets</dt><dd>{{ money($ticketAmount) }}</dd></div>
@@ -45,7 +45,7 @@
                                 <div class="mt-2">
                                     <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" :stack-details="true" x-show="!variants[{{ $product->id }}]" />
                                     @foreach($product->purchasableVariants() as $variant)
-                                        <x-stock-indicator :tone="$product->availabilityTone($variant)" :label="$product->availabilityLabel('F jS', $variant)" :stack-details="true" x-show="String(variants[{{ $product->id }}]) === '{{ $variant->id }}'" x-cloak />
+                                        <x-stock-indicator :tone="$product->availabilityTone($variant)" :label="$product->availabilityLabel('F jS', $variant)" :stack-details="true" x-show="$SM.string(variants[{{ $product->id }}]) === '{{ $variant->id }}'" x-cloak />
                                     @endforeach
                                 </div>
                             </div>

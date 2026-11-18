@@ -54,7 +54,7 @@
                                                     <x-ui.row-action label="Public recognition" icon="fa-solid fa-pen-to-square" tone="neutral" x-on:click="$refs.recognitionDialog.showModal()" />
                                                 @endif
                                                 @if($canCancel)
-                                                    <form method="POST" action="{{ route('sponsor.manage.cancel', $sponsorship->id) }}" class="contents" x-on:submit.prevent="SM.confirm(@js($sponsorship->billing_method === 'invoice' ? 'Cancel future monthly sponsorship invoices?' : 'Cancel future monthly sponsorship payments?'), @js($sponsorship->billing_method === 'invoice' ? 'No new invoices will be sent. Any invoice already issued can still be paid.' : 'No new recurring payments will be scheduled after the current billing period.'), 'Cancel sponsorship', confirmed => { if (confirmed) $el.submit() })">
+                                                    <form method="POST" action="{{ route('sponsor.manage.cancel', $sponsorship->id) }}" class="contents" x-on:submit.prevent="$SM.confirmAndSubmit($el, @js($sponsorship->billing_method === 'invoice' ? 'Cancel future monthly sponsorship invoices?' : 'Cancel future monthly sponsorship payments?'), @js($sponsorship->billing_method === 'invoice' ? 'No new invoices will be sent. Any invoice already issued can still be paid.' : 'No new recurring payments will be scheduled after the current billing period.'), 'Cancel sponsorship')">
                                                         @csrf
                                                         <x-ui.row-action type="submit" label="Cancel" icon="fa-solid fa-ban" tone="danger" />
                                                     </form>
@@ -131,7 +131,7 @@
             </section>
 
             @if($recognitionSponsorshipIds !== [])
-                <dialog x-ref="recognitionDialog" class="m-auto max-h-[90vh] w-[min(42rem,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" x-init="$nextTick(() => { if (@js($errors->hasAny(['recognition_public', 'sponsor_type', 'display_name', 'website_url', 'logo']))) $refs.recognitionDialog.showModal() })">
+                <dialog x-ref="recognitionDialog" class="m-auto max-h-[90vh] w-[min(42rem,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" x-init="$SM.initializeDialog($el, {{ $errors->hasAny(['recognition_public', 'sponsor_type', 'display_name', 'website_url', 'logo']) ? 'true' : 'false' }})">
                     <div class="flex items-start justify-between gap-4 border-b border-slate-200 p-5 sm:p-6">
                         <div>
                             <h2 class="text-xl font-semibold text-gray-900">Public recognition</h2>

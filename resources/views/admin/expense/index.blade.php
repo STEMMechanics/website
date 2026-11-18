@@ -99,7 +99,7 @@
                                 <x-ui.row-action :label="$expense->receipt_document_path ? 'Attachment missing' : 'No attachment'" icon="fa-solid fa-paperclip" disabled />
                             @endif
                             <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
-                            <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
+                            <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
                                 @method('DELETE')
                                 @csrf
                                 <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="submit" />
@@ -158,7 +158,7 @@
                                             <x-ui.row-action :label="$expense->receipt_document_path ? 'Attachment missing' : 'No attachment'" icon="fa-solid fa-paperclip" disabled />
                                         @endif
                                         <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.expense.edit', $expense) }}" />
-                                        <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
+                                        <form method="POST" action="{{ route('admin.expense.destroy', $expense) }}" x-data x-on:submit.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', $el)">
                                             @method('DELETE')
                                             @csrf
                                             <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="submit" />

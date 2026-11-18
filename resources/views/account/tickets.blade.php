@@ -1,47 +1,7 @@
 <x-layout>
     <x-mast>{{ $pageTitle ?? 'My Tickets' }}</x-mast>
 
-    <x-container x-data="{
-        cancelModalOpen: false,
-        cancelFormAction: '',
-        cancelTicketLabel: '',
-        editModalOpen: false,
-        editFormAction: '',
-        editTicketLabel: '',
-        editFirstname: '',
-        editSurname: '',
-        editEmail: '',
-        editPhone: '',
-        openCancelModal(action, label) {
-            this.cancelFormAction = action;
-            this.cancelTicketLabel = label;
-            this.cancelModalOpen = true;
-        },
-        openEditModal(action, label, details) {
-            this.editFormAction = action;
-            this.editTicketLabel = label;
-            this.editFirstname = details.firstname || '';
-            this.editSurname = details.surname || '';
-            this.editEmail = details.email || '';
-            this.editPhone = details.phone || '';
-            this.editModalOpen = true;
-        },
-        closeEditModal() {
-            this.editModalOpen = false;
-            this.editFormAction = '';
-            this.editTicketLabel = '';
-            this.editFirstname = '';
-            this.editSurname = '';
-            this.editEmail = '';
-            this.editPhone = '';
-        },
-        closeCancelModal() {
-            this.cancelModalOpen = false;
-            this.cancelFormAction = '';
-            this.cancelTicketLabel = '';
-        },
-        showCancelledRefunded: true
-    }">
+    <x-container x-data="smCspAccountTickets1">
         <x-ui.dynamic-list name="account-tickets">
 
         <div class="my-4 flex flex-wrap items-center gap-3">
@@ -155,7 +115,7 @@
                             @else
                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
-                                x-on:click="SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')" />
+                                x-on:click="$SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')" />
                             @endif
                             @else
                             <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>
@@ -231,4 +191,50 @@
 
         </x-ui.dynamic-list>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAccountTickets1', () => ({
+        cancelModalOpen: false,
+        cancelFormAction: '',
+        cancelTicketLabel: '',
+        editModalOpen: false,
+        editFormAction: '',
+        editTicketLabel: '',
+        editFirstname: '',
+        editSurname: '',
+        editEmail: '',
+        editPhone: '',
+        openCancelModal(action, label) {
+            this.cancelFormAction = action;
+            this.cancelTicketLabel = label;
+            this.cancelModalOpen = true;
+        },
+        openEditModal(action, label, details) {
+            this.editFormAction = action;
+            this.editTicketLabel = label;
+            this.editFirstname = details.firstname || '';
+            this.editSurname = details.surname || '';
+            this.editEmail = details.email || '';
+            this.editPhone = details.phone || '';
+            this.editModalOpen = true;
+        },
+        closeEditModal() {
+            this.editModalOpen = false;
+            this.editFormAction = '';
+            this.editTicketLabel = '';
+            this.editFirstname = '';
+            this.editSurname = '';
+            this.editEmail = '';
+            this.editPhone = '';
+        },
+        closeCancelModal() {
+            this.cancelModalOpen = false;
+            this.cancelFormAction = '';
+            this.cancelTicketLabel = '';
+        },
+        showCancelledRefunded: true
+    }));
+});
+</script>
 </x-layout>

@@ -38,12 +38,12 @@
 <div
     @if($pageUpload)
     data-workshop-page-upload
-    x-on:dragenter.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); if (!({{ $disabled }})) pageUploadDragDepth++; }"
-    x-on:dragover.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); $event.dataTransfer.dropEffect = ({{ $disabled }}) ? 'none' : 'copy'; }"
-    x-on:dragleave.window="pageUploadDragDepth = Math.max(0, pageUploadDragDepth - 1)"
-    x-on:drop.window="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { const handled = $event.defaultPrevented; $event.preventDefault(); pageUploadDragDepth = 0; if (!handled && !({{ $disabled }})) {{ $onFiles }}($event.dataTransfer.files); }"
-    x-on:blur.window="pageUploadDragDepth = 0"
-    x-on:dragend.window="pageUploadDragDepth = 0"
+    x-on:dragenter.window="$SM.handlePageUploadDrop($el, $event, 'dragenter', !({{ $disabled }}), '{{ $onFiles }}')"
+    x-on:dragover.window="$SM.handlePageUploadDrop($el, $event, 'dragover', !({{ $disabled }}), '{{ $onFiles }}')"
+    x-on:dragleave.window="$SM.resetPageUpload($el)"
+    x-on:drop.window="$SM.handlePageUploadDrop($el, $event, 'drop', !({{ $disabled }}), '{{ $onFiles }}')"
+    x-on:blur.window="$SM.resetPageUpload($el)"
+    x-on:dragend.window="$SM.resetPageUpload($el)"
     @endif
 >
     @if($pageUpload)
@@ -57,7 +57,7 @@
         @if($multiple) multiple @endif
         class="sr-only"
         x-ref="{{ $inputRef }}"
-        x-on:change="{{ $onFiles }}($event.target.files){{ $clearAfterChange ? '; $event.target.value = \'\'' : '' }}"
+        x-on:change="$SM.uploadFilesFromInput($el, '{{ $onFiles }}', {{ $clearAfterChange ? 'true' : 'false' }})"
         x-bind:disabled="{{ $disabled }}"
     >
 
@@ -67,10 +67,10 @@
         role="group"
         aria-label="Upload media"
         x-bind:tabindex="({{ $disabled }}) ? -1 : 0"
-        x-init="window.SMImagePaste.register($el, files => { if (!({{ $disabled }})) {{ $onFiles }}(files); })"
-        x-on:dragover="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); if (!({{ $disabled }})) $el.classList.add('ring-2', 'ring-primary-color', 'border-primary-color'); }"
-        x-on:dragleave="$el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color')"
-        x-on:drop="if (Array.from($event.dataTransfer?.types || []).includes('Files')) { $event.preventDefault(); $el.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color'); if (!({{ $disabled }})) {{ $onFiles }}($event.dataTransfer.files); }"
+        x-init="$SM.registerImagePaste($el, !({{ $disabled }}), '{{ $onFiles }}')"
+        x-on:dragover="$SM.handleImageDrop($el, $event, 'dragover', !({{ $disabled }}), '{{ $onFiles }}')"
+        x-on:dragleave="$SM.handleImageDrop($el, $event, 'dragleave', !({{ $disabled }}), '{{ $onFiles }}')"
+        x-on:drop="$SM.handleImageDrop($el, $event, 'drop', !({{ $disabled }}), '{{ $onFiles }}')"
     >
         <div class="flex flex-col items-center justify-center gap-3 text-center">
             <div>

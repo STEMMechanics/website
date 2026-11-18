@@ -9,34 +9,7 @@
         @endif
     </x-admin.sponsorship-mast>
     <x-container class="py-5 sm:py-8">
-        <form method="POST" action="{{ $editing ? route('admin.sponsorship.sponsor.manual-support.update', $support) : route('admin.sponsorship.sponsor.manual-support.store') }}" enctype="multipart/form-data" class="mx-auto max-w-5xl space-y-6" x-data="{
-            supportMethod: @js(old('support_method', $support->support_method ?: 'cheque')),
-            sendInvoiceEmail: @js((bool) old('send_invoice_email', false)),
-            sponsorDetails: {
-                email: @js(old('email', $sponsor->email ?? '')),
-                sponsor_type: @js(old('sponsor_type', $sponsor->sponsor_type ?: 'organisation')),
-                company_name: @js(old('company_name', $sponsor->company_name ?? '')),
-                country: @js(old('country', $sponsor->country ?: 'Australia')),
-                billing_address: @js(old('billing_address', $sponsor->billing_address ?? '')),
-                billing_address2: @js(old('billing_address2', $sponsor->billing_address2 ?? '')),
-                billing_city: @js(old('billing_city', $sponsor->billing_city ?? '')),
-                billing_state: @js(old('billing_state', $sponsor->billing_state ?? '')),
-                billing_postcode: @js(old('billing_postcode', $sponsor->billing_postcode ?? '')),
-            },
-            applyLinkedUser(detail) {
-                const user = detail?.user;
-                if (!user) return;
-                this.sponsorDetails.email = user.email || '';
-                this.sponsorDetails.sponsor_type = user.sponsor_type || 'individual';
-                this.sponsorDetails.company_name = user.company_name || '';
-                this.sponsorDetails.country = user.country || 'Australia';
-                this.sponsorDetails.billing_address = user.billing_address || '';
-                this.sponsorDetails.billing_address2 = user.billing_address2 || '';
-                this.sponsorDetails.billing_city = user.billing_city || '';
-                this.sponsorDetails.billing_state = user.billing_state || '';
-                this.sponsorDetails.billing_postcode = user.billing_postcode || '';
-            }
-        }" x-on:admin-linked-user-changed.window="applyLinkedUser($event.detail)">
+        <form method="POST" action="{{ $editing ? route('admin.sponsorship.sponsor.manual-support.update', $support) : route('admin.sponsorship.sponsor.manual-support.store') }}" enctype="multipart/form-data" class="mx-auto max-w-5xl space-y-6" x-data="smCspAdminSponsorshipManualSupportEdit1" x-on:admin-linked-user-changed.window="applyLinkedUser($event.detail)">
             @csrf
             @if($editing) @method('PUT') @endif
             @if(!$editing && $sponsor->exists)<input type="hidden" name="sponsor_id" value="{{ $sponsor->id }}">@endif
@@ -159,4 +132,37 @@
             </x-ui.editor-actions>
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminSponsorshipManualSupportEdit1', () => ({
+            supportMethod: @js(old('support_method', $support->support_method ?: 'cheque')),
+            sendInvoiceEmail: @js((bool) old('send_invoice_email', false)),
+            sponsorDetails: {
+                email: @js(old('email', $sponsor->email ?? '')),
+                sponsor_type: @js(old('sponsor_type', $sponsor->sponsor_type ?: 'organisation')),
+                company_name: @js(old('company_name', $sponsor->company_name ?? '')),
+                country: @js(old('country', $sponsor->country ?: 'Australia')),
+                billing_address: @js(old('billing_address', $sponsor->billing_address ?? '')),
+                billing_address2: @js(old('billing_address2', $sponsor->billing_address2 ?? '')),
+                billing_city: @js(old('billing_city', $sponsor->billing_city ?? '')),
+                billing_state: @js(old('billing_state', $sponsor->billing_state ?? '')),
+                billing_postcode: @js(old('billing_postcode', $sponsor->billing_postcode ?? '')),
+            },
+            applyLinkedUser(detail) {
+                const user = detail?.user;
+                if (!user) return;
+                this.sponsorDetails.email = user.email || '';
+                this.sponsorDetails.sponsor_type = user.sponsor_type || 'individual';
+                this.sponsorDetails.company_name = user.company_name || '';
+                this.sponsorDetails.country = user.country || 'Australia';
+                this.sponsorDetails.billing_address = user.billing_address || '';
+                this.sponsorDetails.billing_address2 = user.billing_address2 || '';
+                this.sponsorDetails.billing_city = user.billing_city || '';
+                this.sponsorDetails.billing_state = user.billing_state || '';
+                this.sponsorDetails.billing_postcode = user.billing_postcode || '';
+            }
+        }));
+});
+</script>
 </x-layout>

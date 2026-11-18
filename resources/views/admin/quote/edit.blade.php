@@ -28,12 +28,10 @@
     <x-container class="mt-4">
         @isset($quote)
             <div class="sm-quote-toolbar mb-4 flex flex-wrap items-center justify-end gap-2">
-                <x-ui.button type="button" size="icon-small" color="secondary" aria-label="Open PDF" title="Open PDF" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></x-ui.button>
+                <x-ui.button type="button" size="icon-small" color="secondary" aria-label="Open PDF" title="Open PDF" x-data x-on:click.prevent="$SM.openUrl('{{ route('admin.quote.pdf', $quote) }}')"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></x-ui.button>
                 <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
-                    <x-ui.button type="submit" size="icon-small" color="secondary" aria-label="Email Quote" title="Email Quote" x-data x-on:click.prevent="
-                        open = true;
-                    "><i class="fa-regular fa-envelope" aria-hidden="true"></i></x-ui.button>
+                    <x-ui.button type="submit" size="icon-small" color="secondary" aria-label="Email Quote" title="Email Quote" x-data x-on:click.prevent="$SM.setDataValues($el, { open: true })"><i class="fa-regular fa-envelope" aria-hidden="true"></i></x-ui.button>
 
                     <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="open = false">
                         <div class="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-4 shadow-lg" role="dialog" aria-modal="true" aria-label="Email Quote">
@@ -83,7 +81,7 @@
                             <div class="text-xs text-gray-500 ml-2 mt-1">Placeholders: @{{name}}, @{{id}}, @{{total}}, @{{outstanding}}, @{{due}}, @{{pay}}, @{{action}}</div>
                             <div class="mt-4 flex justify-end gap-2">
                                 <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
-                                <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit();">Send Quote Email</x-ui.button>
+                                <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit()">Send Quote Email</x-ui.button>
                             </div>
                         </div>
                     </div>
@@ -102,229 +100,7 @@
         <form
             method="POST"
             action="{{ route('admin.quote.' . (isset($quote) ? 'update' : 'store'), $quote ?? []) }}"
-            x-data="{
-                quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
-                isLocked: false,
-                ...SM.productLineEditor(@js($catalogProducts ?? [])),
-                savedTotals: @js($editing ? ['count' => count($quote->line_items ?? []), 'net' => (float) $quote->subtotal_amount, 'tax' => (float) $quote->gst_amount, 'gross' => (float) $quote->total_amount] : null),
-                lineItems: (() => {
-                    try {
-                        const parsed = JSON.parse(@js($savedLineItems));
-                        if (!Array.isArray(parsed)) {
-                            return [];
-                        }
-
-                        return parsed.map((item) => {
-                            const kind = (item.kind || 'custom').toString().trim() || 'custom';
-                            const storeContext = item.store_context || {};
-                            const sourceId = item.source_id ?? storeContext.product_id ?? '';
-                            const sourceVariantId = item.source_variant_id ?? storeContext.variant_id ?? 0;
-                            const gstApplicable = typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true;
-                            const taxMultiplier = 1 + SM.lineTaxRate(item);
-                            const quantity = parseFloat(item.quantity || 0);
-                            const legacyUnitEx = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
-                            const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? ''))
-                                ? parseFloat(item.unit_price_inc_tax || 0)
-                                : (Number.isFinite(legacyUnitEx) ? legacyUnitEx * taxMultiplier : 0);
-                            const unitPriceEx = Number.isFinite(parseFloat(item.unit_price_ex_tax ?? ''))
-                                ? parseFloat(item.unit_price_ex_tax || 0)
-                                : (taxMultiplier > 0 ? unitPriceInc / taxMultiplier : unitPriceInc);
-                            const lineTotalEx = Number.isFinite(quantity) && Number.isFinite(unitPriceEx)
-                                ? quantity * unitPriceEx
-                                : 0;
-                            const lineTotalInc = Number.isFinite(quantity) && Number.isFinite(unitPriceInc)
-                                ? quantity * unitPriceInc
-                                : 0;
-
-                            return {
-                                ...item,
-                                auto_pricing: item.saved_pricing ? false : (item.auto_pricing ?? false),
-                            travel_hours: item.travel_hours ?? '',
-                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
-                            legacy_workshop: item.kind === 'workshop' &amp;&amp; !item.workshop_hours &amp;&amp; !item.details_json?.workshop?.hours,
-                            details_json: item.details_json || {},
-                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
-                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
-                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
-                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
-                                kind,
-                                source_id: sourceId !== '' && sourceId !== null && sourceId !== undefined
-                                    ? String(parseInt(sourceId || 0, 10) || '')
-                                    : '',
-                                source_variant_id: String(parseInt(sourceVariantId || 0, 10) || 0),
-                                description: item.description || '',
-                                notes: item.notes || '',
-                                quantity,
-                                unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
-                                unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
-                                unit_price_inc_tax: SM.formatUnitPrice(unitPriceInc),
-                                line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
-                                line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
-                                line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
-                                gst_applicable: gstApplicable,
-                            };
-                        });
-                    } catch (e) {
-                        return [];
-                    }
-                })(),
-                defaultLineItem(kind = 'custom') {
-                    return {
-                        kind,
-                        auto_pricing: true, legacy_workshop: false, travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {},
-                        source_id: '',
-                        source_variant_id: 0,
-                        description: this.defaultDescriptionForKind(kind),
-                        notes: '',
-                        quantity: 1,
-                        unit_price: '0.00',
-                        unit_price_ex_tax: '0.00',
-                        unit_price_inc_tax: '0.00',
-                        line_total: 0,
-                        line_total_ex_tax: 0,
-                        line_total_inc_tax: 0,
-                        gst_applicable: true, tax_rate: SM.currentGstRate(),
-                    };
-                },
-                addLineItem(kind = 'custom') {
-                    this.lineItems.push(this.defaultLineItem(kind));
-                    this.serializeLineItems();
-                },
-                preparedItem(item) {
-                    const quantity = parseFloat(item.quantity || 0);
-                    const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0))
-                        ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
-                        : 0;
-                    const unitPriceEx = item.gst_applicable !== false
-                        ? unitPriceInc / (1 + SM.lineTaxRate(item))
-                        : unitPriceInc;
-                    const amounts = SM.lineAmounts(item);
-                    const lineTotalEx = amounts.net;
-                    const lineTotalInc = amounts.gross;
-                    const cleaned = {
-                        ...item,
-                        details_json: { ...(item.details_json || {}), inclusive_unit_price: unitPriceInc },
-                        kind: (item.kind || 'custom').toString().trim() || 'custom',
-                        description: (item.description || '').trim(),
-                        notes: (item.notes || '').trim(),
-                        quantity,
-                        unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
-                        unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
-                        unit_price_inc_tax: Number.isFinite(unitPriceInc) ? unitPriceInc : 0,
-                        line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
-                        line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
-                        line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
-                        gst_applicable: item.gst_applicable !== false,
-                    };
-                    delete cleaned.product_search;
-
-                    if (cleaned.kind === 'product') {
-                        const product = this.findProduct(item.source_id);
-                        const variant = this.variantOptions(item).find((entry) => parseInt(entry.id || 0) === parseInt(item.source_variant_id || 0)) || null;
-                        const variantId = variant && parseInt(variant.id || 0) > 0 ? parseInt(variant.id || 0) : null;
-                        cleaned.source_id = product ? parseInt(product.id || 0) : null;
-                        cleaned.source_variant_id = variantId;
-                        cleaned.store_context = product ? {
-                            ...(item.store_context || {}),
-                            product_id: parseInt(product.id || 0),
-                            variant_id: variantId,
-                            product_title: product.title || '',
-                            product_slug: product.slug || '',
-                            variant_name: variant?.name || product.base_option_name || '',
-                            product_sku: product.sku || '',
-                            variant_sku: variantId ? (variant?.sku || '') : (product.sku || ''),
-                            product_type: product.product_type || '',
-                            box_only: !!product.box_only,
-                            unit_shipping_units: parseFloat(product.shipping_units || 0),
-                            unit_min_satchel_rank: product.min_satchel_rank ?? null,
-                            unit_weight_grams: product.weight_grams ?? null,
-                            tax_rate: SM.lineTaxRate(item),
-                            unit_price_inc_tax: Number.isFinite(parseFloat(cleaned.unit_price_inc_tax || 0)) ? parseFloat(cleaned.unit_price_inc_tax || 0) : 0,
-                            line_price_inc_tax: Number.isFinite(parseFloat(cleaned.line_total_inc_tax || 0)) ? parseFloat(cleaned.line_total_inc_tax || 0) : 0,
-                        } : (item.store_context || null);
-                    } else {
-                        cleaned.source_id = null;
-                        cleaned.source_variant_id = null;
-                        cleaned.store_context = null;
-                    }
-
-                    return cleaned;
-                },
-                serializeLineItems() {
-                    const cleaned = this.lineItems
-                        .map((item) => this.preparedItem(item))
-                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
-
-                    this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
-                },
-                normalizeMoney(field) {
-                    const value = parseFloat(field || 0);
-                    return Number.isFinite(value) ? value.toFixed(2) : '0.00';
-                },
-                formatUnitPriceValue(value) {
-                    const parsed = parseFloat(value || 0);
-                    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
-                },
-                lineItemAmount(item, basis = 'ex') {
-                    const amounts = SM.lineAmounts(item);
-                    return basis === 'inc' ? amounts.gross : amounts.net;
-                },
-                lineItemExPrice(item) {
-                    const unitPriceInc = parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0);
-                    const multiplier = this.lineItemGstMultiplier(item);
-
-                    if (!Number.isFinite(unitPriceInc)) {
-                        return 0;
-                    }
-
-                    return multiplier > 0 ? unitPriceInc / multiplier : unitPriceInc;
-                },
-                lineItemGstMultiplier(item) {
-                    return 1 + SM.lineTaxRate(item);
-                },
-                unitPriceIncGst(item) {
-                    return this.normalizeMoney(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0));
-                },
-                unitPriceExGst(item) {
-                    return this.normalizeMoney(this.lineItemExPrice(item));
-                },
-                subtotalIncGst(item) {
-                    return this.normalizeMoney(this.lineItemAmount(item, 'inc'));
-                },
-                calculateSubtotal() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).net;
-                },
-                calculateGst() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).tax;
-                },
-                subtotalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal()); },
-                gstAmountFormatted() { return this.normalizeMoney(this.calculateGst()); },
-                totalAmountFormatted() { return this.normalizeMoney(SM.documentAmounts(this.lineItems, this.savedTotals).gross); },
-                hasStoreProductLines() {
-                    return this.lineItems.some((item) => item.kind === 'product' && this.findProduct(item.source_id));
-                },
-                createOrderDisabledReason() {
-                    return this.hasStoreProductLines()
-                        ? ''
-                        : 'Store order creation is only available when the quote includes at least one store product line item.';
-                },
-                normalizeLineItem(index, field) {
-                    if (field === 'unit_price_inc_tax' && SM.lineAmounts(this.lineItems[index]).saved) {
-                        this.lineItems[index][field] = SM.formatUnitPrice(this.lineItems[index][field]);
-                        this.serializeLineItems();
-                        return;
-                    }
-                    const value = parseFloat(this.lineItems[index]?.[field] || 0);
-                    if (!Number.isFinite(value)) {
-                        this.lineItems[index][field] = field === 'quantity' ? 0 : '0.00';
-                    } else if (field === 'quantity') {
-                        this.lineItems[index][field] = value;
-                    } else {
-                        this.lineItems[index][field] = value.toFixed(2);
-                    }
-                    this.serializeLineItems();
-                },
-            }"
+            x-data="smCspAdminQuoteEdit1"
             x-on:submit="serializeLineItems()">
             @isset($quote)
                 @method('PUT')
@@ -467,7 +243,7 @@
                             <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></span>
                         </summary>
                         <div class="sm-editor-secondary-menu sm-action-items">
-                            <x-ui.button type="button" variant="plain" class="sm-row-action rounded-xl" data-action-tone="danger" data-editor-delete x-data x-on:click.prevent="$el.closest('details').open = false; SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">
+                            <x-ui.button type="button" variant="plain" class="sm-row-action rounded-xl" data-action-tone="danger" data-editor-delete x-data x-on:click.prevent="$SM.closeDetailsAndConfirmDelete($el, '{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">
                                 <i class="fa-solid fa-trash" aria-hidden="true"></i><span>Delete quote</span>
                             </x-ui.button>
                         </div>
@@ -488,4 +264,232 @@
 
         </form>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminQuoteEdit1', () => ({
+                quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
+                isLocked: false,
+                ...SM.productLineEditor(@js($catalogProducts ?? [])),
+                savedTotals: @js($editing ? ['count' => count($quote->line_items ?? []), 'net' => (float) $quote->subtotal_amount, 'tax' => (float) $quote->gst_amount, 'gross' => (float) $quote->total_amount] : null),
+                lineItems: (() => {
+                    try {
+                        const parsed = JSON.parse(@js($savedLineItems));
+                        if (!Array.isArray(parsed)) {
+                            return [];
+                        }
+
+                        return parsed.map((item) => {
+                            const kind = (item.kind || 'custom').toString().trim() || 'custom';
+                            const storeContext = item.store_context || {};
+                            const sourceId = item.source_id ?? storeContext.product_id ?? '';
+                            const sourceVariantId = item.source_variant_id ?? storeContext.variant_id ?? 0;
+                            const gstApplicable = typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true;
+                            const taxMultiplier = 1 + window.SM.lineTaxRate(item);
+                            const quantity = parseFloat(item.quantity || 0);
+                            const legacyUnitEx = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
+                            const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? ''))
+                                ? parseFloat(item.unit_price_inc_tax || 0)
+                                : (Number.isFinite(legacyUnitEx) ? legacyUnitEx * taxMultiplier : 0);
+                            const unitPriceEx = Number.isFinite(parseFloat(item.unit_price_ex_tax ?? ''))
+                                ? parseFloat(item.unit_price_ex_tax || 0)
+                                : (taxMultiplier > 0 ? unitPriceInc / taxMultiplier : unitPriceInc);
+                            const lineTotalEx = Number.isFinite(quantity) && Number.isFinite(unitPriceEx)
+                                ? quantity * unitPriceEx
+                                : 0;
+                            const lineTotalInc = Number.isFinite(quantity) && Number.isFinite(unitPriceInc)
+                                ? quantity * unitPriceInc
+                                : 0;
+
+                            return {
+                                ...item,
+                                auto_pricing: item.saved_pricing ? false : (item.auto_pricing ?? false),
+                            travel_hours: item.travel_hours ?? '',
+                            travel_units: item.travel_units ?? item.details_json?.travel?.billable_units ?? '',
+                            legacy_workshop: item.kind === 'workshop' && !item.workshop_hours && !item.details_json?.workshop?.hours,
+                            details_json: item.details_json || {},
+                            workshop_hours: item.workshop_hours ?? item.details_json?.workshop?.hours ?? '',
+                            workshop_seats: item.workshop_seats ?? item.details_json?.workshop?.seats ?? '',
+                            supplied_categories: item.supplied_categories ?? item.details_json?.workshop?.supplied_categories ?? item.details_json?.travel?.supplied_categories ?? {},
+                            venue_supplied: item.venue_supplied ?? item.details_json?.workshop?.venue_supplied ?? true,
+                                kind,
+                                source_id: sourceId !== '' && sourceId !== null && sourceId !== undefined
+                                    ? String(parseInt(sourceId || 0, 10) || '')
+                                    : '',
+                                source_variant_id: String(parseInt(sourceVariantId || 0, 10) || 0),
+                                description: item.description || '',
+                                notes: item.notes || '',
+                                quantity,
+                                unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
+                                unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
+                                unit_price_inc_tax: window.SM.formatUnitPrice(unitPriceInc),
+                                line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                                line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                                line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
+                                gst_applicable: gstApplicable,
+                            };
+                        });
+                    } catch (e) {
+                        return [];
+                    }
+                })(),
+                defaultLineItem(kind = 'custom') {
+                    return {
+                        kind,
+                        auto_pricing: true, legacy_workshop: false, travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {},
+                        source_id: '',
+                        source_variant_id: 0,
+                        description: this.defaultDescriptionForKind(kind),
+                        notes: '',
+                        quantity: 1,
+                        unit_price: '0.00',
+                        unit_price_ex_tax: '0.00',
+                        unit_price_inc_tax: '0.00',
+                        line_total: 0,
+                        line_total_ex_tax: 0,
+                        line_total_inc_tax: 0,
+                        gst_applicable: true, tax_rate: window.SM.currentGstRate(),
+                    };
+                },
+                addLineItem(kind = 'custom') {
+                    this.lineItems.push(this.defaultLineItem(kind));
+                    this.serializeLineItems();
+                },
+                preparedItem(item) {
+                    const quantity = parseFloat(item.quantity || 0);
+                    const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0))
+                        ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
+                        : 0;
+                    const unitPriceEx = item.gst_applicable !== false
+                        ? unitPriceInc / (1 + window.SM.lineTaxRate(item))
+                        : unitPriceInc;
+                    const amounts = window.SM.lineAmounts(item);
+                    const lineTotalEx = amounts.net;
+                    const lineTotalInc = amounts.gross;
+                    const cleaned = {
+                        ...item,
+                        details_json: { ...(item.details_json || {}), inclusive_unit_price: unitPriceInc },
+                        kind: (item.kind || 'custom').toString().trim() || 'custom',
+                        description: (item.description || '').trim(),
+                        notes: (item.notes || '').trim(),
+                        quantity,
+                        unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
+                        unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
+                        unit_price_inc_tax: Number.isFinite(unitPriceInc) ? unitPriceInc : 0,
+                        line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                        line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                        line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
+                        gst_applicable: item.gst_applicable !== false,
+                    };
+                    delete cleaned.product_search;
+
+                    if (cleaned.kind === 'product') {
+                        const product = this.findProduct(item.source_id);
+                        const variant = this.variantOptions(item).find((entry) => parseInt(entry.id || 0) === parseInt(item.source_variant_id || 0)) || null;
+                        const variantId = variant && parseInt(variant.id || 0) > 0 ? parseInt(variant.id || 0) : null;
+                        cleaned.source_id = product ? parseInt(product.id || 0) : null;
+                        cleaned.source_variant_id = variantId;
+                        cleaned.store_context = product ? {
+                            ...(item.store_context || {}),
+                            product_id: parseInt(product.id || 0),
+                            variant_id: variantId,
+                            product_title: product.title || '',
+                            product_slug: product.slug || '',
+                            variant_name: variant?.name || product.base_option_name || '',
+                            product_sku: product.sku || '',
+                            variant_sku: variantId ? (variant?.sku || '') : (product.sku || ''),
+                            product_type: product.product_type || '',
+                            box_only: !!product.box_only,
+                            unit_shipping_units: parseFloat(product.shipping_units || 0),
+                            unit_min_satchel_rank: product.min_satchel_rank ?? null,
+                            unit_weight_grams: product.weight_grams ?? null,
+                            tax_rate: window.SM.lineTaxRate(item),
+                            unit_price_inc_tax: Number.isFinite(parseFloat(cleaned.unit_price_inc_tax || 0)) ? parseFloat(cleaned.unit_price_inc_tax || 0) : 0,
+                            line_price_inc_tax: Number.isFinite(parseFloat(cleaned.line_total_inc_tax || 0)) ? parseFloat(cleaned.line_total_inc_tax || 0) : 0,
+                        } : (item.store_context || null);
+                    } else {
+                        cleaned.source_id = null;
+                        cleaned.source_variant_id = null;
+                        cleaned.store_context = null;
+                    }
+
+                    return cleaned;
+                },
+                serializeLineItems() {
+                    const cleaned = this.lineItems
+                        .map((item) => this.preparedItem(item))
+                        .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
+
+                    this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
+                },
+                normalizeMoney(field) {
+                    const value = parseFloat(field || 0);
+                    return Number.isFinite(value) ? value.toFixed(2) : '0.00';
+                },
+                formatUnitPriceValue(value) {
+                    const parsed = parseFloat(value || 0);
+                    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+                },
+                lineItemAmount(item, basis = 'ex') {
+                    const amounts = window.SM.lineAmounts(item);
+                    return basis === 'inc' ? amounts.gross : amounts.net;
+                },
+                lineItemExPrice(item) {
+                    const unitPriceInc = parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0);
+                    const multiplier = this.lineItemGstMultiplier(item);
+
+                    if (!Number.isFinite(unitPriceInc)) {
+                        return 0;
+                    }
+
+                    return multiplier > 0 ? unitPriceInc / multiplier : unitPriceInc;
+                },
+                lineItemGstMultiplier(item) {
+                    return 1 + window.SM.lineTaxRate(item);
+                },
+                unitPriceIncGst(item) {
+                    return this.normalizeMoney(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0));
+                },
+                unitPriceExGst(item) {
+                    return this.normalizeMoney(this.lineItemExPrice(item));
+                },
+                subtotalIncGst(item) {
+                    return this.normalizeMoney(this.lineItemAmount(item, 'inc'));
+                },
+                calculateSubtotal() {
+                    return window.SM.documentAmounts(this.lineItems, this.savedTotals).net;
+                },
+                calculateGst() {
+                    return window.SM.documentAmounts(this.lineItems, this.savedTotals).tax;
+                },
+                subtotalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal()); },
+                gstAmountFormatted() { return this.normalizeMoney(this.calculateGst()); },
+                totalAmountFormatted() { return this.normalizeMoney(window.SM.documentAmounts(this.lineItems, this.savedTotals).gross); },
+                hasStoreProductLines() {
+                    return this.lineItems.some((item) => item.kind === 'product' && this.findProduct(item.source_id));
+                },
+                createOrderDisabledReason() {
+                    return this.hasStoreProductLines()
+                        ? ''
+                        : 'Store order creation is only available when the quote includes at least one store product line item.';
+                },
+                normalizeLineItem(index, field) {
+                    if (field === 'unit_price_inc_tax' && window.SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = window.SM.formatUnitPrice(this.lineItems[index][field]);
+                        this.serializeLineItems();
+                        return;
+                    }
+                    const value = parseFloat(this.lineItems[index]?.[field] || 0);
+                    if (!Number.isFinite(value)) {
+                        this.lineItems[index][field] = field === 'quantity' ? 0 : '0.00';
+                    } else if (field === 'quantity') {
+                        this.lineItems[index][field] = value;
+                    } else {
+                        this.lineItems[index][field] = value.toFixed(2);
+                    }
+                    this.serializeLineItems();
+                },
+            }));
+});
+</script>
 </x-layout>

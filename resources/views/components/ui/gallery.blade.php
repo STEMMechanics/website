@@ -14,7 +14,7 @@
         'visibleLimit' => $visibleLimit,
     ])
 @elseif($value !== '' || $editor === true)
-<div x-data="{ dragGalleryIndex: -1, dragGalleryDropIndex: -1, galleryDropActive: false }" class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
+<div x-data="$SM.galleryEditor()" class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
     @if($editor === true)
         <h3 class="text-xl font-semibold">{{ $label }}</h3>
         <p class="text-xs italic" x-text="$store.gallery.length + ' Image' + ($store.gallery.length !== 1 ? 's' : '')"></p>
@@ -31,11 +31,11 @@
                     <li x-show="$store.modelIndex==index" class="flex items-center justify-center relative">
                         <div class="flex gap-4 px-4 py-1 cursor-pointer z-10 fixed top-4 right-14 transition bg-black/0 hover:bg-black/80 rounded items-center">
                             @if($downloads)
-                            <x-ui.button variant="plain" size="icon" aria-label="Download image" x-bind:href="file.url ? file.url + '?download' : galleryModalUrl(file) + '?download'" target="_blank" class="text-white/80 hover:text-white text-2xl" x-on:click.stop><i class="fa-solid fa-download" aria-hidden="true"></i></x-ui.button>
+                            <x-ui.button variant="plain" size="icon" aria-label="Download image" x-bind:href="file.url ? file.url + '?download' : $SM.galleryModalUrl(file) + '?download'" target="_blank" class="text-white/80 hover:text-white text-2xl" x-on:click.stop><i class="fa-solid fa-download" aria-hidden="true"></i></x-ui.button>
                             @endif
                             <x-ui.button variant="plain" size="icon" aria-label="Close image gallery" class="text-white/80 hover:text-white text-3xl" x-on:click.prevent.stop="$store.modelIndex=-1"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                         </div>
-                        <img class="rounded max-h-[80vh] max-w-[90vw]" :src="galleryModalUrl(file)" :alt="file.title || file.name" x-on:error="handleGalleryImageError($event, file)" />
+                        <img class="rounded max-h-[80vh] max-w-[90vw]" :src="$SM.galleryModalUrl(file)" :alt="file.title || file.name" x-on:error="$SM.handleGalleryImageError($event, file)" />
                     </li>
                 </template>
             </ul>
@@ -49,13 +49,13 @@
                 :class="galleryDropActive ? 'ring-2 ring-primary-color ring-offset-2' : ''"
                 role="button"
                 tabindex="0"
-                x-on:click.prevent="SMMediaPicker.open((Array.isArray(Alpine.store('gallery')) ? Alpine.store('gallery') : []).map(file => file.name), {require_mime_type:'image/*',allow_multiple:true,allow_uploads:true}, (result)=>updateGallery(result))"
-                x-on:keydown.enter.prevent="SMMediaPicker.open((Array.isArray(Alpine.store('gallery')) ? Alpine.store('gallery') : []).map(file => file.name), {require_mime_type:'image/*',allow_multiple:true,allow_uploads:true}, (result)=>updateGallery(result))"
-                x-on:keydown.space.prevent="SMMediaPicker.open((Array.isArray(Alpine.store('gallery')) ? Alpine.store('gallery') : []).map(file => file.name), {require_mime_type:'image/*',allow_multiple:true,allow_uploads:true}, (result)=>updateGallery(result))"
+                x-on:click.prevent="$SM.openGalleryPicker()"
+                x-on:keydown.enter.prevent="$SM.openGalleryPicker()"
+                x-on:keydown.space.prevent="$SM.openGalleryPicker()"
                 x-on:dragenter.prevent="galleryDropActive = true"
                 x-on:dragover.prevent="galleryDropActive = true"
                 x-on:dragleave.prevent="galleryDropActive = false"
-                x-on:drop.prevent="galleryDropActive = false; uploadGalleryFiles($event.dataTransfer && $event.dataTransfer.files ? $event.dataTransfer.files : null)"
+                x-on:drop.prevent="$SM.setDataValueThenCallSM($el, 'galleryDropActive', false, 'uploadGalleryFiles', [$event.dataTransfer.files])"
             >
                 <div class="flex flex-col items-center gap-2 px-3 py-2 text-center">
                     <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400"></i>
@@ -65,7 +65,7 @@
                     <x-ui.button variant="plain"
                         type="button"
                         class="mt-1 bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                        x-on:click.prevent="SMMediaPicker.open((Array.isArray(Alpine.store('gallery')) ? Alpine.store('gallery') : []).map(file => file.name), {require_mime_type:'image/*',allow_multiple:true,allow_uploads:true}, (result)=>updateGallery(result))"
+                        x-on:click.prevent="$SM.openGalleryPicker()"
                     >
                         Select Images
                     </x-ui.button>
@@ -77,16 +77,18 @@
                 class="flex items-center justify-center w-44 h-28 relative {{ !$editor ? 'hover:scale-105 transition-transform' : '' }}"
                 :class="dragGalleryDropIndex === index ? 'ring-2 ring-primary-color ring-offset-2' : ''"
                 draggable="{{ $editor ? 'true' : 'false' }}"
-                x-on:click.prevent="if (dragGalleryIndex === -1) { $store.modelIndex=index; }"
-                x-on:dragstart="{{ $editor ? 'dragGalleryIndex=index; dragGalleryDropIndex=index; $event.dataTransfer.effectAllowed=\'move\'; $event.dataTransfer.setData(\'text/plain\', file.name);' : '' }}"
-                x-on:dragenter.prevent="{{ $editor ? 'dragGalleryDropIndex=index;' : '' }}"
-                x-on:dragover.prevent="{{ $editor ? 'dragGalleryDropIndex=index;' : '' }}"
-                x-on:drop.prevent="{{ $editor ? 'reorderGalleryItem(dragGalleryIndex, index); dragGalleryIndex=-1; dragGalleryDropIndex=-1;' : '' }}"
-                x-on:dragend="{{ $editor ? 'dragGalleryIndex=-1; dragGalleryDropIndex=-1;' : '' }}"
-            >
-                <img class="rounded max-w-44 max-h-28 object-contain" :src="galleryThumbnailUrl(file)" :alt="file.title || file.name" x-on:error="handleGalleryImageError($event, file)" />
+                x-on:click.prevent="openGalleryItem(index)"
                 @if($editor)
-                    <div class="opacity-0 hover:opacity-100 absolute rounded flex items-center justify-center top-0 left-0 h-full w-full bg-red-500/75 text-white cursor-pointer text-lg transition-opacity" x-on:click.prevent="removeGalleryItem(file.name)">
+                    x-on:dragstart="startGalleryItemDrag(index, $event, file.name)"
+                    x-on:dragenter.prevent="setGalleryDropIndex(index)"
+                    x-on:dragover.prevent="setGalleryDropIndex(index)"
+                    x-on:drop.prevent="dropGalleryItem(index)"
+                    x-on:dragend="resetGalleryDrag()"
+                @endif
+            >
+                <img class="rounded max-w-44 max-h-28 object-contain" :src="$SM.galleryThumbnailUrl(file)" :alt="file.title || file.name" x-on:error="$SM.handleGalleryImageError($event, file)" />
+                @if($editor)
+                    <div class="opacity-0 hover:opacity-100 absolute rounded flex items-center justify-center top-0 left-0 h-full w-full bg-red-500/75 text-white cursor-pointer text-lg transition-opacity" x-on:click.prevent="$SM.removeGalleryItem(file.name)">
                         <i class="fa-solid fa-trash"></i>
                     </div>
                 @endif
@@ -333,6 +335,18 @@
             }
         });
     }
+
+    window.SM.galleryThumbnailUrl = galleryThumbnailUrl;
+    window.SM.galleryModalUrl = galleryModalUrl;
+    window.SM.handleGalleryImageError = handleGalleryImageError;
+    window.SM.reorderGalleryItem = reorderGalleryItem;
+    window.SM.removeGalleryItem = removeGalleryItem;
+    window.SM.uploadGalleryFiles = uploadGalleryFiles;
+    window.SM.openGalleryPicker = () => window.SMMediaPicker.open(
+        galleryStore().map((file) => file.name),
+        { require_mime_type: 'image/*', allow_multiple: true, allow_uploads: true },
+        updateGallery,
+    );
 
     document.addEventListener('alpine:init', () => {
         if (!Array.isArray(Alpine.store('gallery'))) {

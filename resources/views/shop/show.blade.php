@@ -92,12 +92,243 @@
 
     <x-container>
         <div
-                x-data="{
+                x-data="smCspShopShow1"
+        >
+            <div class="grid gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_38%] lg:items-start">
+                <div class="min-w-0">
+                    <div class="min-w-0">
+                            <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ $product->title }}</h1>
+                            @if(trim((string) $product->subtitle) !== '')
+                                <div class="mt-2 text-base font-medium text-gray-500">{{ $product->subtitle }}</div>
+                            @endif
+
+                            <div class="mt-2 flex flex-wrap items-center gap-3">
+                                @if($product->isDigital())
+                                    <x-ui.badge color="success" class="tracking-[0.16em]">
+                                        {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
+                                    </x-ui.badge>
+                                @endif
+                                @foreach($product->displayCategories() as $category)
+                                    <x-product-category-badge
+                                        :label="$category->name"
+                                        :icon-class="$category->iconClass()"
+                                        :href="route('shop.index', ['category' => $category->slug])"
+                                    />
+                                @endforeach
+                                @if(!$product->isPurchasable())
+                                    <x-ui.badge color="danger" icon="fa-solid fa-circle-xmark">Out of stock</x-ui.badge>
+                                @endif
+                            </div>
+
+                            <div class="mt-5 flex items-center gap-4">
+                                <div class="text-3xl font-bold tracking-tight text-gray-900" x-text="currentPriceLabel()">{{ $product->priceRangeLabel() }}</div>
+                            </div>
+
+                            <div class="mt-8 mb-12">
+                                @if($productDescriptionHtml !== '')
+                                    <article class="content text-gray-700">
+                                        {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
+                                    </article>
+                                @elseif(trim((string) $product->short_description) !== '')
+                                    <p class="text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
+                                @endif
+                            </div>
+
+                            <div class="mt-6 w-full max-w-108 space-y-3 mx-auto lg:mx-0">
+                                @if($hasOptionChoices)
+                                    <div class="mb-1 pl-1 text-sm font-medium text-gray-900">{{ $chooserHeading }}</div>
+
+                                    <div class="relative w-full" @click.outside="closeVariantMenu()">
+                                            <x-ui.button variant="plain"
+                                                    type="button"
+                                                    class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                                    x-on:click="toggleVariantMenu()"
+                                                    x-bind:aria-expanded="variantMenuOpen ? 'true' : 'false'"
+                                            >
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="flex items-center gap-2 text-sm">
+                                                        <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
+                                                        <span class="text-gray-400">-</span>
+                                                        <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                            'text-red-700': selectionButtonTone() === 'danger',
+                                                            'text-amber-700': selectionButtonTone() === 'warning',
+                                                            'text-emerald-700': selectionButtonTone() === 'success',
+                                                            'text-sky-700': selectionButtonTone() === 'neutral',
+                                                        }">
+                                                            <i x-show="selectionButtonTone() === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                            <i x-show="selectionButtonTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                            <span x-text="selectionButtonMeta()">{{ $multiOptionStockLabel }}</span>
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                                <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
+                                            </x-ui.button>
+
+                                            <div
+                                                    x-show="variantMenuOpen"
+                                                    x-cloak
+                                                    x-transition.opacity
+                                                    class="absolute left-0 right-0 top-[calc(75%)] z-30 overflow-hidden rounded border border-gray-300 bg-white shadow-2xl"
+                                            >
+                                                <div class="max-h-80 overflow-y-auto py-2">
+                                                    @foreach($optionPayload as $option)
+                                                        <x-ui.button variant="plain"
+                                                                type="button"
+                                                                x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
+                                                                class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
+                                                    x-bind:class="$SM.string($SM.get(selectedVariantId, '')) === $SM.string($SM.get(option, 'input_value', '')) ? 'bg-sky-50' : ''"
+                                                                x-on:click="chooseOption($SM.string({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
+                                                        >
+                                                            <span class="min-w-0 flex-1">
+                                                                <div>
+                                                                <span class="flex items-center gap-2 text-sm">
+                                                                    <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
+                                                                    <span class="text-gray-400">-</span>
+                                                                    <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                                        'text-red-700': option.availability_tone === 'danger',
+                                                                        'text-amber-700': option.availability_tone === 'warning',
+                                                                        'text-emerald-700': option.availability_tone === 'success',
+                                                                        'text-sky-700': option.availability_tone === 'neutral',
+                                                                    }">
+                                                                        <i x-show="option.availability_tone === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                                        <i x-show="option.availability_tone === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                                        <span x-text="option.availability_label">{{ $option['availability_label'] }}</span>
+                                                                    </span>
+                                                                </span>
+                                                                @if(!empty($option['description']))
+                                                                    <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
+                                                                @endif
+                                                                </div>
+                                                            </span>
+                                                            <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
+                                                        </x-ui.button>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                    </div>
+                                @endif
+
+                                @error('product_variant_id')
+                                    <div class="text-sm text-red-600">{{ $message }}</div>
+                                @enderror
+                                <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
+
+                                @unless($hasOptionChoices)
+                                    <div class="flex items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
+                                        <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
+                                        <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
+                                        <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
+                                    </div>
+                                @endunless
+
+                                <form
+                                        method="POST"
+                                        action="{{ route('shop.cart.add', $product) }}"
+                                        class="w-full"
+                                        x-on:submit.prevent="handleAddToCart($event.target)"
+                                        x-show="cartQuantity() <= 0"
+                                >
+                                    @csrf
+                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                    @if($hasOptionChoices)
+                                            <input type="hidden" name="product_variant_id" :value="selectedVariantId ?? ''">
+                                    @endif
+                                    <input type="hidden" name="quantity" value="1">
+                                    <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
+                                        <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                        @if($hasOptionChoices)
+                                                <span x-show="!canAddSelection() && selectedOption" x-cloak>Sold out</span>
+                                                <span x-show="!canAddSelection() && !selectedOption" x-cloak>Select option</span>
+                                        @else
+                                            <span x-show="!canAddSelection()" x-cloak>Sold out</span>
+                                        @endif
+                                    </x-ui.button>
+                                </form>
+
+                                <div x-show="cartQuantity() > 0" x-cloak class="w-full">
+                                    <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
+                                        <x-ui.button variant="plain"
+                                                type="button"
+                                                class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:click="changeCartQuantity(cartQuantity() - 1)" size="icon">-</x-ui.button>
+                                        <x-ui.input-control
+                                                type="number"
+                                                min="0"
+                                                x-bind:max="cartMaxQuantity()"
+                                                x-bind:value="cartQuantity()"
+                                                class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
+                                                x-on:change="changeCartQuantity($event.target.value)" />
+                                        <x-ui.button variant="plain"
+                                                type="button"
+                                                class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
+                                                x-on:click="changeCartQuantity(cartQuantity() + 1)" size="icon">+</x-ui.button>
+                                    </div>
+                                </div>
+
+                                <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
+
+                                <div class="grid w-full grid-cols-2 sm:grid-cols-3 overflow-hidden">
+                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                        <i class="fa-solid fa-person text-lg" aria-hidden="true"></i>
+                                        <span>Local/workshop pickup available</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
+                                        <i class="fa-solid fa-truck-fast text-lg" aria-hidden="true"></i>
+                                        <span>Fast shipping Australia-wide</span>
+                                    </div>
+                                    <div class="sm:flex items-center gap-2 text-xxs text-gray-500 hidden">
+                                        <i class="fa-solid fa-lock text-lg" aria-hidden="true"></i>
+                                        <span>Secure checkout SSL encrypted</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-8 max-w-108 lg:hidden mx-auto">
+                                @include('shop.partials.product-details-caution', ['product' => $product])
+                            </div>
+
+                            @if($product->galleryMedia->isNotEmpty())
+                                <x-ui.gallery
+                                    class="mt-8"
+                                    name="product_gallery_{{ $product->id }}"
+                                    :value="$product->galleryMedia->pluck('name')->join(',')"
+                                />
+                            @endif
+                    </div>
+                </div>
+                <aside class="order-first min-w-0 lg:order-last">
+                    <div class="overflow-hidden rounded-3xl">
+                        <img
+                            src="{{ $product->primaryImageUrl('lg') }}"
+                            @if($product->hero)
+                                srcset="{{ $product->primaryImageUrl('md') }} 768w, {{ $product->primaryImageUrl('lg') }} 1024w, {{ $product->primaryImageUrl('xl') }} 1536w"
+                                sizes="(min-width: 1024px) 38vw, 100vw"
+                            @endif
+                            alt="{{ $product->title }}"
+                            class="max-h-96 w-full object-cover" width="1024" height="768" loading="eager" fetchpriority="high"
+                        />
+                    </div>
+                    <div class="mt-6 hidden lg:block">
+                        @include('shop.partials.product-details-caution', ['product' => $product])
+                    </div>
+                </aside>
+            </div>
+        </div>
+        @include('shop.partials.recommendations', ['products' => $recommendedProducts])
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspShopShow1', () => ({
                 options: @js($optionPayload),
                 selectedVariantId: @js($defaultOptionInput),
                 baseProductUrl: @js(route('shop.product.show', $product)),
                 variantMenuOpen: false,
-                addQuantity: {{ $defaultAddQuantity }},
+                addQuantity: @js($defaultAddQuantity),
                 optionDraftQuantities: @js($hasOptionChoices
                     ? collect($optionPayload)->mapWithKeys(fn ($option) => [($option['key'] ?? 'base') => $defaultAddQuantity])->all()
                     : []),
@@ -597,232 +828,7 @@
 
                     window.SM.shopCart.subscribe((cart) => this.setCartState(cart));
                 },
-            }"
-        >
-            <div class="grid gap-8 p-6 lg:grid-cols-[minmax(0,1fr)_38%] lg:items-start">
-                <div class="min-w-0">
-                    <div class="min-w-0">
-                            <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ $product->title }}</h1>
-                            @if(trim((string) $product->subtitle) !== '')
-                                <div class="mt-2 text-base font-medium text-gray-500">{{ $product->subtitle }}</div>
-                            @endif
-
-                            <div class="mt-2 flex flex-wrap items-center gap-3">
-                                @if($product->isDigital())
-                                    <x-ui.badge color="success" class="tracking-[0.16em]">
-                                        {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
-                                    </x-ui.badge>
-                                @endif
-                                @foreach($product->displayCategories() as $category)
-                                    <x-product-category-badge
-                                        :label="$category->name"
-                                        :icon-class="$category->iconClass()"
-                                        :href="route('shop.index', ['category' => $category->slug])"
-                                    />
-                                @endforeach
-                                @if(!$product->isPurchasable())
-                                    <x-ui.badge color="danger" icon="fa-solid fa-circle-xmark">Out of stock</x-ui.badge>
-                                @endif
-                            </div>
-
-                            <div class="mt-5 flex items-center gap-4">
-                                <div class="text-3xl font-bold tracking-tight text-gray-900" x-text="currentPriceLabel()">{{ $product->priceRangeLabel() }}</div>
-                            </div>
-
-                            <div class="mt-8 mb-12">
-                                @if($productDescriptionHtml !== '')
-                                    <article class="content text-gray-700">
-                                        {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
-                                    </article>
-                                @elseif(trim((string) $product->short_description) !== '')
-                                    <p class="text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
-                                @endif
-                            </div>
-
-                            <div class="mt-6 w-full max-w-108 space-y-3 mx-auto lg:mx-0">
-                                @if($hasOptionChoices)
-                                    <div class="mb-1 pl-1 text-sm font-medium text-gray-900">{{ $chooserHeading }}</div>
-
-                                    <div class="relative w-full" @click.outside="closeVariantMenu()">
-                                            <x-ui.button variant="plain"
-                                                    type="button"
-                                                    class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
-                                                    x-on:click="toggleVariantMenu()"
-                                                    x-bind:aria-expanded="variantMenuOpen ? 'true' : 'false'"
-                                            >
-                                                <span class="min-w-0 flex-1">
-                                                    <span class="flex items-center gap-2 text-sm">
-                                                        <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
-                                                        <span class="text-gray-400">-</span>
-                                                        <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
-                                                            'text-red-700': selectionButtonTone() === 'danger',
-                                                            'text-amber-700': selectionButtonTone() === 'warning',
-                                                            'text-emerald-700': selectionButtonTone() === 'success',
-                                                            'text-sky-700': selectionButtonTone() === 'neutral',
-                                                        }">
-                                                            <i x-show="selectionButtonTone() === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
-                                                            <i x-show="selectionButtonTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
-                                                            <span x-text="selectionButtonMeta()">{{ $multiOptionStockLabel }}</span>
-                                                        </span>
-                                                    </span>
-                                                </span>
-                                                <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
-                                            </x-ui.button>
-
-                                            <div
-                                                    x-show="variantMenuOpen"
-                                                    x-cloak
-                                                    x-transition.opacity
-                                                    class="absolute left-0 right-0 top-[calc(75%)] z-30 overflow-hidden rounded border border-gray-300 bg-white shadow-2xl"
-                                            >
-                                                <div class="max-h-80 overflow-y-auto py-2">
-                                                    @foreach($optionPayload as $option)
-                                                        <x-ui.button variant="plain"
-                                                                type="button"
-                                                                x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
-                                                                class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
-                                                                x-bind:class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
-                                                                x-on:click="chooseOption(String({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
-                                                        >
-                                                            <span class="min-w-0 flex-1">
-                                                                <div>
-                                                                <span class="flex items-center gap-2 text-sm">
-                                                                    <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
-                                                                    <span class="text-gray-400">-</span>
-                                                                    <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
-                                                                        'text-red-700': option.availability_tone === 'danger',
-                                                                        'text-amber-700': option.availability_tone === 'warning',
-                                                                        'text-emerald-700': option.availability_tone === 'success',
-                                                                        'text-sky-700': option.availability_tone === 'neutral',
-                                                                    }">
-                                                                        <i x-show="option.availability_tone === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
-                                                                        <i x-show="option.availability_tone === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
-                                                                        <span x-text="option.availability_label">{{ $option['availability_label'] }}</span>
-                                                                    </span>
-                                                                </span>
-                                                                @if(!empty($option['description']))
-                                                                    <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
-                                                                @endif
-                                                                </div>
-                                                            </span>
-                                                            <span class="text-right text-md font-semibold">{{ $option['price_label'] }}</span>
-                                                        </x-ui.button>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                    </div>
-                                @endif
-
-                                @error('product_variant_id')
-                                    <div class="text-sm text-red-600">{{ $message }}</div>
-                                @enderror
-                                <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
-
-                                @unless($hasOptionChoices)
-                                    <div class="flex items-center gap-1.5 text-sm font-medium" :class="currentStockToneClass()">
-                                        <i x-show="currentStockTone() === 'danger'" class="fa-solid fa-circle-xmark text-xs" x-cloak></i>
-                                        <i x-show="currentStockTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-xs" x-cloak></i>
-                                        <span x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</span>
-                                    </div>
-                                @endunless
-
-                                <form
-                                        method="POST"
-                                        action="{{ route('shop.cart.add', $product) }}"
-                                        class="w-full"
-                                        x-on:submit.prevent="handleAddToCart($event.target)"
-                                        x-show="cartQuantity() <= 0"
-                                >
-                                    @csrf
-                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                    @if($hasOptionChoices)
-                                            <input type="hidden" name="product_variant_id" :value="selectedVariantId ?? ''">
-                                    @endif
-                                    <input type="hidden" name="quantity" value="1">
-                                    <x-ui.button type="submit" color="primary" class="w-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                        <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>
-                                        <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
-                                        @if($hasOptionChoices)
-                                                <span x-show="!canAddSelection() && selectedOption" x-cloak>Sold out</span>
-                                                <span x-show="!canAddSelection() && !selectedOption" x-cloak>Select option</span>
-                                        @else
-                                            <span x-show="!canAddSelection()" x-cloak>Sold out</span>
-                                        @endif
-                                    </x-ui.button>
-                                </form>
-
-                                <div x-show="cartQuantity() > 0" x-cloak class="w-full">
-                                    <div class="shop-catalog-stepper flex w-full items-center gap-2 rounded border border-gray-300 bg-white">
-                                        <x-ui.button variant="plain"
-                                                type="button"
-                                                class="shop-catalog-stepper-button border-r border-r-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
-                                                x-on:click="changeCartQuantity(cartQuantity() - 1)" size="icon">-</x-ui.button>
-                                        <x-ui.input-control
-                                                type="number"
-                                                min="0"
-                                                x-bind:max="cartMaxQuantity()"
-                                                x-bind:value="cartQuantity()"
-                                                class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey()"
-                                                x-on:change="changeCartQuantity($event.target.value)" />
-                                        <x-ui.button variant="plain"
-                                                type="button"
-                                                class="shop-catalog-stepper-button border-l border-l-gray-300 p-1 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                x-bind:disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
-                                                x-on:click="changeCartQuantity(cartQuantity() + 1)" size="icon">+</x-ui.button>
-                                    </div>
-                                </div>
-
-                                <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
-
-                                <div class="grid w-full grid-cols-2 sm:grid-cols-3 overflow-hidden">
-                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
-                                        <i class="fa-solid fa-person text-lg" aria-hidden="true"></i>
-                                        <span>Local/workshop pickup available</span>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-xxs text-gray-500">
-                                        <i class="fa-solid fa-truck-fast text-lg" aria-hidden="true"></i>
-                                        <span>Fast shipping Australia-wide</span>
-                                    </div>
-                                    <div class="sm:flex items-center gap-2 text-xxs text-gray-500 hidden">
-                                        <i class="fa-solid fa-lock text-lg" aria-hidden="true"></i>
-                                        <span>Secure checkout SSL encrypted</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mt-8 max-w-108 lg:hidden mx-auto">
-                                @include('shop.partials.product-details-caution', ['product' => $product])
-                            </div>
-
-                            @if($product->galleryMedia->isNotEmpty())
-                                <x-ui.gallery
-                                    class="mt-8"
-                                    name="product_gallery_{{ $product->id }}"
-                                    :value="$product->galleryMedia->pluck('name')->join(',')"
-                                />
-                            @endif
-                    </div>
-                </div>
-                <aside class="order-first min-w-0 lg:order-last">
-                    <div class="overflow-hidden rounded-3xl">
-                        <img
-                            src="{{ $product->primaryImageUrl('lg') }}"
-                            @if($product->hero)
-                                srcset="{{ $product->primaryImageUrl('md') }} 768w, {{ $product->primaryImageUrl('lg') }} 1024w, {{ $product->primaryImageUrl('xl') }} 1536w"
-                                sizes="(min-width: 1024px) 38vw, 100vw"
-                            @endif
-                            alt="{{ $product->title }}"
-                            class="max-h-96 w-full object-cover" width="1024" height="768" loading="eager" fetchpriority="high"
-                        />
-                    </div>
-                    <div class="mt-6 hidden lg:block">
-                        @include('shop.partials.product-details-caution', ['product' => $product])
-                    </div>
-                </aside>
-            </div>
-        </div>
-        @include('shop.partials.recommendations', ['products' => $recommendedProducts])
-    </x-container>
+            }));
+});
+</script>
 </x-layout>

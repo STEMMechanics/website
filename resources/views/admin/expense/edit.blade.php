@@ -199,7 +199,7 @@
                                 title="Remove attachment"
                                 aria-label="Remove attachment"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove attachment?', 'Are you sure you want to remove this attachment?', '{{ route('admin.expense.document.remove', $expense) }}')"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Remove attachment?', 'Are you sure you want to remove this attachment?', '{{ route('admin.expense.document.remove', $expense) }}')"
                             >
                                 <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                             </x-ui.button>
@@ -230,9 +230,9 @@
                 id="expense-product-purchases"
                 class="mb-6 rounded-xl border border-slate-200 bg-white p-4"
                 data-expense-product-purchases
-                x-data="SM.expenseProductPurchases(@js($purchaseCatalog), @js($purchaseRows), @js(route('admin.shop.product.quick-store')))"
+                x-data="$SM.expenseProductPurchases(@js($purchaseCatalog), @js($purchaseRows), @js(route('admin.shop.product.quick-store')))"
                 x-init="expanded = rows.length > 0 || @js($errors->has('product_purchases'))"
-                x-on:sm-expense-product-purchases-ai="$event.detail.appliedCount = applyAiItems($event.detail.items); if ($event.detail.appliedCount > 0) expanded = true"
+                x-on:sm-expense-product-purchases-ai="$SM.applyExpenseItemsAndExpand($el, $event)"
             >
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-center gap-3 text-left" x-on:click="expanded = !expanded" x-bind:aria-expanded="expanded" aria-controls="expense-product-purchases-content">
@@ -246,7 +246,7 @@
                         <x-ui.button type="button" color="primary-outline" size="small" aria-haspopup="dialog" aria-controls="expense-product-item-create-dialog" x-on:click="openCreateItemDialog()">
                             <i class="fa-solid fa-box-open mr-2" aria-hidden="true"></i>Create material
                         </x-ui.button>
-                        <x-ui.button type="button" color="primary-outline" size="small" x-on:click="expanded = true; addRow()">
+                        <x-ui.button type="button" color="primary-outline" size="small" x-on:click="$SM.setDataValueAndCall($el, 'expanded', true, 'addRow')">
                             <i class="fa-solid fa-plus mr-2" aria-hidden="true"></i>Add row
                         </x-ui.button>
                     </div>
@@ -287,20 +287,20 @@
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.product_id'">
                                             <input type="hidden" x-bind:name="'product_purchases[' + index + '][id]'" x-model="row.id">
                                             <input type="hidden" x-bind:name="'product_purchases[' + index + '][product_id]'" x-model="row.product_id">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][product_variant_id]`" x-model="row.product_variant_id">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][individual_units]`" x-bind:value="row.individual_units ? 1 : 0">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][purchase_pack]`" x-bind:value="row.purchase_pack ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][product_variant_id]')" x-model="row.product_variant_id">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][individual_units]')" x-bind:value="row.individual_units ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][purchase_pack]')" x-bind:value="row.purchase_pack ? 1 : 0">
                                             <div class="flex items-center gap-2">
                                                 <x-admin.product-item-field class="min-w-0 flex-1" model="row" catalog-expression="catalog" :require-selection="true" placeholder="Find a product or material" ariaLabel="Product or Material" noMatchesText="No matching active items. Use Create material above." />
-                                                <label x-cloak x-show="['physical', 'kit'].includes(productFor(row)?.product_type) && (productFor(row)?.variants?.length || productFor(row)?.pack_units > 1 || productFor(row)?.purchase_pack_units > 1 || row.purchase_pack)" class="block w-52 shrink-0">
+                                                <label x-cloak x-show="['physical', 'kit'].includes($SM.get(productFor(row), 'product_type')) && ($SM.get(productFor(row), 'variants.length', 0) || $SM.get(productFor(row), 'pack_units', 0) > 1 || $SM.get(productFor(row), 'purchase_pack_units', 0) > 1 || row.purchase_pack)" class="block w-52 shrink-0">
                                                     <span class="sr-only">Purchased as</span>
                                                     <x-ui.select-control class="h-11" title="Purchased as" x-model="row.purchase_choice" x-on:change="purchaseChoiceChanged(row)">
                                                         <option value="individual">Individual units</option>
-                                                        <template x-if="productFor(row)?.has_material_measurements && productFor(row)?.purchase_pack_units > 1 || row.purchase_pack">
+                                                        <template x-if="$SM.get(productFor(row), 'has_material_measurements') && $SM.get(productFor(row), 'purchase_pack_units', 0) > 1 || row.purchase_pack">
                                                             <option value="supplier" x-text="supplierPackLabel(row)"></option>
                                                         </template>
-                                                        <option value="" x-text="productFor(row)?.base_option_name || ''"></option>
-                                                        <template x-for="variant in productFor(row)?.variants || []" :key="variant.id">
+                                                        <option value="" x-text="$SM.get(productFor(row), 'base_option_name', '') || ''"></option>
+                                                        <template x-for="variant in $SM.get(productFor(row), 'variants', []) || []" :key="variant.id">
                                                             <option x-bind:value="variant.id" x-text="variant.name"></option>
                                                         </template>
                                                     </x-ui.select-control>
@@ -308,10 +308,10 @@
                                             </div>
                                             <p x-bind:id="'expense-product-item-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
                                             <p x-show="row.aiSuggested" class="mt-1 text-xs font-medium text-sky-700">AI suggestion · review</p>
-                                            <p x-show="(row.individual_units || row.purchase_pack) && productFor(row)?.pack_units > 1 && !productFor(row)?.shared_inventory && productFor(row)?.tracks_inventory" class="mt-1 text-xs text-slate-500">These purchases update costs. Enable shared stock on the product to add individual units to stock.</p>
-                                            <p x-show="row.purchase_pack && tracksInventory(row) && row.add_inventory && row.quantity" class="mt-1 text-xs text-slate-500" x-text="'Adds ' + (Number(row.quantity) * purchasePackUnits(row)) + ' individual stock units.'"></p>
-                                            <p x-show="row.aiSuggested && row.evidence?.text" class="mt-1 text-xs text-slate-600">
-                                                Receipt evidence: “<span x-text="row.evidence?.text"></span>”<span x-show="row.evidence?.page" x-text="' · page ' + row.evidence.page"></span>
+                                            <p x-show="(row.individual_units || row.purchase_pack) && $SM.get(productFor(row), 'pack_units', 0) > 1 && !$SM.get(productFor(row), 'shared_inventory') && $SM.get(productFor(row), 'tracks_inventory')" class="mt-1 text-xs text-slate-500">These purchases update costs. Enable shared stock on the product to add individual units to stock.</p>
+                                            <p x-show="row.purchase_pack && tracksInventory(row) && row.add_inventory && row.quantity" class="mt-1 text-xs text-slate-500" x-text="'Adds ' + ($SM.number(row.quantity) * purchasePackUnits(row)) + ' individual stock units.'"></p>
+                                            <p x-show="row.aiSuggested && $SM.get(row.evidence, 'text')" class="mt-1 text-xs text-slate-600">
+                                                Receipt evidence: “<span x-text="$SM.get(row.evidence, 'text')"></span>”<span x-show="$SM.get(row.evidence, 'page')" x-text="' · page ' + row.evidence.page"></span>
                                             </p>
                                         </td>
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.quantity'">
@@ -324,7 +324,7 @@
                                                     Add to stock
                                                 </label>
                                             </div>
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][add_inventory]`" x-bind:value="row.add_inventory ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][add_inventory]')" x-bind:value="row.add_inventory ? 1 : 0">
                                             <p x-bind:id="'expense-purchase-quantity-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
                                         </td>
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.total_cost_ex_tax'">
@@ -377,7 +377,7 @@
 
             <x-ui.editor-actions>
                 @isset($expense)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
                 @endisset
                 @if($expenseImport)
                     <x-ui.button type="button" color="outline" id="expense-skip-button" data-expense-import-skip>

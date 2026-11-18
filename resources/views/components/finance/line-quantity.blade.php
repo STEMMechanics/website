@@ -6,7 +6,7 @@
         </div>
     </template>
     <template x-if="!quantityIsCalculated(item)">
-        <x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-on:input="if (item.kind === 'travel') { item.travel_hours = item.quantity; SM.updateWorkshopLine(item); } serializeLineItems()" />
+        <x-ui.input-control aria-label="Hours or quantity" type="number" step="any" class="h-11 pr-11!" x-model="item.quantity" x-on:input="$SM.handleLineQuantityInput($el, item)" />
     </template>
     <x-finance.line-refresh />
 </div>

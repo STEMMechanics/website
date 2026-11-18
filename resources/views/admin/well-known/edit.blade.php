@@ -20,11 +20,11 @@
                 </div>
             @endif
             <div x-show="mode === 'upload'" x-cloak>
-                <x-ui.file-upload name="document" label="Verification file" x-bind:disabled="mode !== 'upload'" x-on:change="if (!filename) filename = $event.target.files[0]?.name || ''" info="Maximum 1 MB. Uploading replaces this file’s contents without changing its public URL." />
+                <x-ui.file-upload name="document" label="Verification file" x-bind:disabled="mode !== 'upload'" x-on:change="$SM.setFilenameFromFile($el, $event)" info="Maximum 1 MB. Uploading replaces this file’s contents without changing its public URL." />
             </div>
             <x-ui.editor-actions>
                 @if($filename)
-                    <x-ui.button type="button" color="danger" x-on:click="SM.confirmDelete('{{ csrf_token() }}', 'Delete verification file?', 'Services relying on this file may no longer be able to verify your domain.', '{{ route('admin.well-known.destroy', $filename) }}')">Delete</x-ui.button>
+                    <x-ui.button type="button" color="danger" x-on:click="$SM.confirmDelete('{{ csrf_token() }}', 'Delete verification file?', 'Services relying on this file may no longer be able to verify your domain.', '{{ route('admin.well-known.destroy', $filename) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit" class="ml-auto">Save file</x-ui.button>
             </x-ui.editor-actions>

@@ -342,7 +342,7 @@ class AdminMediaUploadTest extends TestCase
             ->assertViewHas('attachedPhotoNames', ['stemmechanics-logo.png'])
             ->assertSeeText('Original Name')
             ->assertSee('value="stemmechanics-logo.png"', false)
-            ->assertSee('x-on:change="appendFiles($event.target.files)"', false)
+            ->assertSee('x-on:change="$SM.uploadFilesFromInput($el, \'appendFiles\', false)"', false)
             ->assertSeeText('Select')
             ->assertSeeText('Actions')
             ->assertSee("variant=thumbnail", false)

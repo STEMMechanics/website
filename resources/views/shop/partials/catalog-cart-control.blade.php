@@ -1,10 +1,59 @@
 <div
     class="shop-catalog-cart-control space-y-2"
-    x-data="{
+    x-data="smCspShopPartialsCatalogCartControl1"
+>
+    <form
+        method="POST"
+        action="{{ route('shop.cart.add', $product) }}"
+        x-on:submit.prevent="handleSubmit($event.target)"
+        x-show="quantity <= 0"
+        class="m-0"
+    >
+        @csrf
+        <input type="hidden" name="quantity" value="1">
+        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+        @if($defaultVariant)
+            <input type="hidden" name="product_variant_id" value="{{ $defaultVariant->id }}">
+        @endif
+        <x-ui.button type="submit" color="primary" class="shop-catalog-add-button w-full" x-bind:disabled="busy">
+            <span x-show="!busy">Add to cart</span>
+            <span x-show="busy" x-cloak>Adding...</span>
+        </x-ui.button>
+    </form>
+
+    <div x-show="quantity > 0" x-cloak>
+        <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
+            <x-ui.button variant="plain"
+                type="button"
+                class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                x-bind:disabled="busy"
+                x-on:click="change(quantity - 1)"
+            >-</x-ui.button>
+            <x-ui.input-control
+                type="number"
+                min="0"
+                x-bind:max="maxQuantity"
+                x-bind:value="quantity"
+                class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
+                x-bind:disabled="busy"
+                x-on:change="change($event.target.value)" />
+            <x-ui.button variant="plain"
+                type="button"
+                class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                x-bind:disabled="busy || quantity >= maxQuantity"
+                x-on:click="change(quantity + 1)"
+            >+</x-ui.button>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspShopPartialsCatalogCartControl1', () => ({
         lineKey: @js($lineKey),
-        fallbackMaxQuantity: {{ $fallbackMaxQuantity }},
+        fallbackMaxQuantity: @js($fallbackMaxQuantity),
         quantity: 0,
-        maxQuantity: {{ $fallbackMaxQuantity }},
+        maxQuantity: @js($fallbackMaxQuantity),
         busy: false,
         syncFromCart(cart) {
             const line = Array.isArray(cart?.lines)
@@ -85,49 +134,6 @@
             this.syncFromCart(window.SM.shopCart.getState());
             window.SM.shopCart.subscribe((cart) => this.syncFromCart(cart));
         },
-    }"
->
-    <form
-        method="POST"
-        action="{{ route('shop.cart.add', $product) }}"
-        x-on:submit.prevent="handleSubmit($event.target)"
-        x-show="quantity <= 0"
-        class="m-0"
-    >
-        @csrf
-        <input type="hidden" name="quantity" value="1">
-        <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-        @if($defaultVariant)
-            <input type="hidden" name="product_variant_id" value="{{ $defaultVariant->id }}">
-        @endif
-        <x-ui.button type="submit" color="primary" class="shop-catalog-add-button w-full" x-bind:disabled="busy">
-            <span x-show="!busy">Add to cart</span>
-            <span x-show="busy" x-cloak>Adding...</span>
-        </x-ui.button>
-    </form>
-
-    <div x-show="quantity > 0" x-cloak>
-        <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
-            <x-ui.button variant="plain"
-                type="button"
-                class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                x-bind:disabled="busy"
-                x-on:click="change(quantity - 1)"
-            >-</x-ui.button>
-            <x-ui.input-control
-                type="number"
-                min="0"
-                x-bind:max="maxQuantity"
-                x-bind:value="quantity"
-                class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                x-bind:disabled="busy"
-                x-on:change="change($event.target.value)" />
-            <x-ui.button variant="plain"
-                type="button"
-                class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                x-bind:disabled="busy || quantity >= maxQuantity"
-                x-on:click="change(quantity + 1)"
-            >+</x-ui.button>
-        </div>
-    </div>
-</div>
+    }));
+});
+</script>

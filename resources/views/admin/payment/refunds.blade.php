@@ -157,7 +157,7 @@
                                 <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                             @endif
                             @if($needsManualAction)
-                                <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="leaveAsCredit = false; refundModalOpen = true" />
+                                <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="$SM.setDataValues($el, { leaveAsCredit: false, refundModalOpen: true })" />
                                 <form method="POST" action="{{ $silenceAlertUrl }}">
                                     @csrf
                                     <x-ui.row-action
@@ -371,7 +371,7 @@
                                             <x-ui.row-action label="Open workshop tickets" icon="fa-solid fa-ticket" tone="neutral" href="{{ $workshopUrl }}" />
                                         @endif
                                         @if($needsManualAction)
-                                            <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="leaveAsCredit = false; refundModalOpen = true" />
+                                            <x-ui.row-action label="Resolve refund" icon="fa-solid fa-money-bill-transfer" tone="primary" type="button" x-on:click="$SM.setDataValues($el, { leaveAsCredit: false, refundModalOpen: true })" />
                                             <form method="POST" action="{{ $silenceAlertUrl }}">
                                                 @csrf
                                                 <x-ui.row-action

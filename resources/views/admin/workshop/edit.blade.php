@@ -182,7 +182,914 @@ if (isset($workshop)) {
 
     <x-container class="py-5 sm:py-8">
         <x-admin.ai-status-toast id="workshop-ai-toast" message="Preparing workshop copy…" detail="Workshop and blueprint details are being used to draft the content." progress-label="Workshop content generation" />
-        <form id="workshop-form" x-data="{
+        <form id="workshop-form" x-data="smCspAdminWorkshopEdit1" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" novalidate x-init="initializeWorkshopEditor()" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
+                @isset($workshop)
+                @method('PUT')
+                @endisset
+                @csrf
+                <input type="hidden" name="notify_ticket_holders" :value="notifyTicketHolders ? '1' : '0'">
+                <input type="hidden" name="ticket_change_email_notes" :value="ticketChangeEmailNotes">
+                <input type="hidden" name="ticket_change_email_body" :value="ticketChangeEmailBody">
+                <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
+                <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
+                <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
+                <input type="hidden" name="editor_step" x-model="editorStep">
+
+                <nav id="workshop-editor-steps" aria-label="Workshop editor steps" class="mb-6 scroll-mt-24">
+                    <ol class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                @foreach($workshopEditorSteps as $stepIndex => $step)
+                            <li class="min-w-0">
+                                <x-ui.button variant="plain" type="button" class="block w-full text-left" x-on:click="setEditorStep('{{ $step['id'] }}')" x-bind:aria-current="editorStep === '{{ $step['id'] }}' ? 'step' : null">
+                                    <span class="block h-1.5 rounded-full transition-colors" x-bind:class="editorStepIndex() >= {{ $stepIndex }} ? 'bg-primary-color' : 'bg-gray-200'"></span>
+                                    <span class="mt-2 block truncate text-xs" x-bind:class="editorStep === '{{ $step['id'] }}' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ $stepIndex + 1 }}. {{ $step['label'] }}</span>
+                                </x-ui.button>
+                    </li>
+                @endforeach
+                    </ol>
+                </nav>
+                <div class="mb-5">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-color" x-text="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')"></p>
+                    <h2 class="mt-1 text-xl font-semibold text-gray-950" tabindex="-1" x-ref="editorStepHeading" x-text="editorStepLabel()"></h2>
+                    <p class="mt-1 text-sm text-gray-600" x-text="editorStepDescription()"></p>
+                </div>
+
+                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.input label="Title" name="title" x-model="workshopTitle" value="{{ old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '') }}" />
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.select
+                            label="Facilitator"
+                            name="facilitator_user_id"
+                            value="{{ old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) }}"
+                            info="Workshop task reminders are sent to this person. New workshops default to their creator."
+                        >
+                            @foreach(($facilitatorOptions ?? collect()) as $facilitator)
+                                <option value="{{ $facilitator->id }}" @selected((string) old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) === (string) $facilitator->id)>
+                                    {{ $facilitator->getName() }} · {{ $facilitator->email }}
+                                </option>
+                            @endforeach
+                        </x-ui.select>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <input type="hidden" name="format" x-bind:value="workshopFormat">
+                        <input type="hidden" name="type" value="{{ $workshopTypeForForm }}" x-bind:value="type">
+                        <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
+                            x-on:change="handleWorkshopFormatChange($event.target.value)">
+                            <option value="physical">Physical</option>
+                            <option value="online">Online</option>
+                            <option value="stemcraft">STEMCraft</option>
+                            <option value="course">Course</option>
+                        </x-ui.select>
+                    </div>
+                    <div class="flex-1">
+                        <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
+                        <span x-show="type === 'physical' || workshopFormat === 'course'">
+                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical' && workshopFormat !== 'course'">
+                                <x-slot name="labelRight">
+                                    <x-ui.button variant="plain" type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</x-ui.button>
+                                </x-slot>
+                                <option value="">Select location</option>
+                                <template x-for="location in locations" :key="location.id">
+                                    <option :value="String(location.id)" :selected="String(selectedLocationId ?? '') === String(location.id)" x-text="location.name"></option>
+                                </template>
+                            </x-ui.select>
+                        </span>
+                    </div>
+                </div>
+                @php
+                    $selectedContact = $workshopModel?->requestedBy;
+                    $selectedHost = $workshopModel?->hostedFor;
+                    $selectedContactLabel = $selectedContact
+                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->primaryOrganisation ? ' · '.$selectedContact->primaryOrganisation->name : ''))
+                        : '';
+                    $selectedHostLabel = $selectedHost
+                        ? ($selectedHost->parent ? $selectedHost->parent->name.' — ' : '').$selectedHost->name
+                        : '';
+                @endphp
+                <div class="flex flex-col sm:flex-row sm:gap-8"
+                    x-data="smCspAdminWorkshopEdit2"
+                >
+                    <div class="relative mb-4 flex-1" x-on:click.outside="closeContacts()">
+                        <input type="hidden" name="requested_by_user_id" :value="contactId">
+                        <label for="requested_by_user_search" class="mb-1 block pl-1 text-sm">Requested by / Contact</label>
+                        <div class="flex gap-2">
+                            <x-ui.input-control id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input="editContact()" x-on:input.debounce.350ms="findContacts()"
+                                x-on:keydown.down.prevent="moveContact(1)" x-on:keydown.up.prevent="moveContact(-1)" x-on:keydown.enter.prevent.stop="confirmContact()" x-on:keydown.escape.prevent.stop="closeContacts()" x-on:keydown.tab="closeContacts()"
+                                role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="requested_by_user_results" x-bind:aria-expanded="contactSearchOpen && !contactSearching && contactResults.length > 0" x-bind:aria-activedescendant="contactResults[contactSelectedIndex] ? 'requested_by_user_option_' + contactResults[contactSelectedIndex].id : null"
+                                autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
+                        </div>
+                        <div id="requested_by_user_results" x-ref="contactResults" role="listbox" aria-label="Matching contacts" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearchOpen && !contactSearching && contactResults.length > 0" x-cloak>
+                            <template x-for="(contact, contactIndex) in contactResults" :key="contact.id">
+                                <x-ui.button variant="plain" type="button" role="option" tabindex="-1" x-bind:id="'requested_by_user_option_' + contact.id" x-bind:aria-selected="contactSelectedIndex === contactIndex" x-bind:class="contactSelectedIndex === contactIndex ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="contactSelectedIndex = contactIndex" x-on:mousedown.prevent x-on:click="chooseContact(contact)">
+                                    <span class="block text-gray-900" x-text="contact.name"></span>
+                                    <span class="block text-xs text-gray-500" x-text="('' + (contact.email) + '' + (contact.organisation_name ? (' · ' + (contact.organisation_name) + '') : '') + '')"></span>
+                                </x-ui.button>
+                            </template>
+                        </div>
+                        @error('requested_by_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="relative mb-4 flex-1" x-on:click.outside="hostResults = []">
+                        <input type="hidden" name="hosted_for_organisation_id" :value="hostId">
+                        <div class="flex justify-between">
+                            <label for="hosted_for_organisation_search" class="mb-1 block pl-1 text-sm">Hosted For</label>
+                            <a href="{{ route('admin.organisation.index') }}" class="text-primary-color cursor-pointer hover:underline text-xs">Manage organisations</a>
+                        </div>
+                        <div class="flex gap-2">
+                            <x-ui.input-control id="hosted_for_organisation_search" type="search" x-model="hostSearch" x-on:input.debounce.350ms="findHosts()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
+                        </div>
+                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="hostSearch.trim().length >= 2 && !hostSearching && hostResults.length > 0" x-cloak>
+                            <template x-for="organisation in hostResults" :key="organisation.id">
+                                <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></x-ui.button>
+                            </template>
+                        </div>
+                        @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+                </div>
+            <div
+                x-cloak
+                x-show="createLocationOpen"
+                x-on:keydown.escape.window="closeCreateLocation()"
+                x-on:keydown.enter.prevent.stop="submitCreateLocation()"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true">
+                    <div class="absolute inset-0 bg-black/40" x-on:click="closeCreateLocation()"></div>
+                <div class="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-xl">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h3 class="text-lg font-semibold">Create Location</h3>
+                        <x-ui.button size="icon-small" aria-label="Close create location" variant="text" color="secondary" type="button"  x-on:click="closeCreateLocation()">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </x-ui.button>
+                    </div>
+
+                    <x-ui.grid class="gap-3">
+                        <x-ui.input label="Name" name="new_location_name" x-model="newLocation.name" />
+                        <x-ui.input label="Address" name="new_location_address" x-model="newLocation.address" />
+                        <x-ui.input label="Location URL" name="new_location_url" x-model="newLocation.url" />
+                        <x-ui.input label="Address URL" name="new_location_address_url" x-model="newLocation.address_url" />
+                    </x-ui.grid>
+
+                    <div x-show="createLocationError" x-text="createLocationError" class="mt-2 text-sm text-red-600"></div>
+
+                    <div class="mt-5 flex justify-end gap-3">
+                        <x-ui.button type="button" color="secondary" x-on:click.prevent.stop="closeCreateLocation()">Cancel</x-ui.button>
+                        <x-ui.button type="button" x-bind:disabled="createLocationSubmitting" x-on:click.prevent.stop="submitCreateLocation()">
+                            <span x-show="!createLocationSubmitting">Create Location</span>
+                            <span x-show="createLocationSubmitting">Creating...</span>
+                        </x-ui.button>
+                    </div>
+                </div>
+            </div>
+                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.input
+                            type="datetime-local"
+                            label="Start Date"
+                            name="starts_at"
+                            value="{{ $workshopStartValue }}"
+                            x-on:change="manualStartsAt = $event.target.value"
+                            x-ref="startsAt" x-on:blur="updateStartsAtFromInput($event.target.value)"
+                            x-on:input="manualStartsAt = $event.target.value"
+                            x-bind:value="manualStartsAt"
+                        />
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.input
+                            type="datetime-local"
+                            label="End Date"
+                            name="ends_at"
+                            value="{{ $workshopEndValue }}"
+                            x-on:change="updatedEndsAt($event.target.value)"
+                            x-ref="endsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
+                            x-on:input="manualEndsAt = $event.target.value"
+                            x-bind:value="manualEndsAt"
+                        />
+                    </div>
+                </div>
+            @include('admin.workshop.partials.course-settings')
+                </div>
+
+            <div
+                x-cloak
+                x-show="cancelWorkshopOpen"
+                x-on:keydown.escape.window="closeCancelWorkshopModal()"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true">
+                    <div class="absolute inset-0 bg-black/40" x-on:click="closeCancelWorkshopModal()"></div>
+                    <div class="relative w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Cancel workshop?</h3>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    This will cancel the workshop and any active tickets linked to it.
+                                    Refunds will be attempted automatically for Square payments.
+                                    Tickets that need manual follow-up will be listed in Refunds.
+                                    Any pending workshop task reminders will be cancelled and will not be emailed.
+                                </p>
+                            </div>
+                            <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                            </x-ui.button>
+                        </div>
+
+                        <div class="mt-5">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="workshop-cancel-reason">Cancellation reason</label>
+                            <x-ui.textarea-control
+                                id="workshop-cancel-reason"
+                                rows="4"
+                                x-model="workshopCancelReason"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0"
+                            ></x-ui.textarea-control>
+                            <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in cancellation emails and records.</p>
+                        </div>
+
+                        <div class="mt-6 flex justify-end gap-3">
+                            <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelWorkshopModal()">Keep Workshop</x-ui.button>
+                            <x-ui.button type="button" color="danger" x-on:click="confirmCancelWorkshop()">Cancel Workshop</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+
+            <div
+                x-cloak
+                x-show="ticketChangeEmailOpen"
+                x-on:keydown.escape.window="closeTicketChangeEmailModal()"
+                class="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="ticket-change-email-title">
+                <div class="absolute inset-0 bg-black/40" x-on:click="closeTicketChangeEmailModal()"></div>
+                <div class="relative mx-auto my-2 flex h-[calc(100vh-1.5rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white p-4 shadow-xl sm:my-4 sm:h-[calc(100vh-2rem)] sm:p-6">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h3 id="ticket-change-email-title" class="text-lg font-semibold text-gray-900">Notify ticket holders?</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                This currently has <strong x-text="ticketHolderNotificationCount"></strong> active
+                                <span x-text="$SM.number(ticketHolderNotificationCount) === 1 ? 'ticket holder' : 'ticket holders'"></span>.
+                                Notify the ticket holders of the workshop changes by email?
+                            </p>
+                        </div>
+                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTicketChangeEmailModal()" aria-label="Close ticket holder notification modal">
+                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                        </x-ui.button>
+                    </div>
+
+                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
+                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-to">To</label>
+                            <input id="ticket-change-email-to" name="ticket_change_email_to" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailTo" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="hello@stemmechanics.com.au">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-cc">CC <span class="font-normal text-gray-500">(optional)</span></label>
+                            <input id="ticket-change-email-cc" name="ticket_change_email_cc" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailCc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="email@example.com">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-bcc">BCC</label>
+                            <textarea id="ticket-change-email-bcc" name="ticket_change_email_bcc" rows="2" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailBcc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="Separate addresses with commas, semicolons, or new lines"></textarea>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-subject">Subject</label>
+                            <input id="ticket-change-email-subject" name="ticket_change_email_subject" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailSubject" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+                            <label class="block text-sm font-semibold text-gray-900">Message</label>
+                            <span class="text-xs text-gray-500">Placeholders: @{{first_name}}, @{{last_name}}, @{{full_name}}</span>
+                        </div>
+                        <x-ui.mini-editor label="Ticket change email" x-model="ticketChangeEmailBody" content-class="min-h-48" />
+                        <p class="mt-1 text-xs text-gray-500">BCC sends one shared message. Name placeholders use a generic greeting when multiple ticket holders are included.</p>
+                    </div>
+                    </div>
+
+                    <div class="mt-4 flex shrink-0 flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="closeTicketChangeEmailModal()">Cancel</x-ui.button>
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <x-ui.button type="button" color="secondary" x-on:click="saveTicketChangeEmail(false)">Save</x-ui.button>
+                            <x-ui.button type="button" x-on:click="saveTicketChangeEmail(true)">Save and Email</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+            <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1 content-center flex gap-8">
+                        <x-ui.checkbox
+ label="Private Workshop"
+ name="is_private"
+ info="Visible to the public but requires an access code to register"
+ value="1"
+ :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
+ x-model="isPrivate"
+ no-wrapper="true"
+ />
+                        <x-ui.checkbox
+ label="Hidden Workshop"
+ name="is_hidden"
+ info="Not displayed in public lists, search or newsletters"
+ value="1"
+ :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
+ x-model="isHidden"
+ no-wrapper="true"
+ />
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.input type="datetime-local" label="Closes Date" name="closes_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->closes_at ?? '') }}" />
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="isPrivate">
+                    <div class="flex-1">
+                        <x-ui.input label="Private Code" name="private_code" value="{{ old('private_code', $workshop->private_code ?? '') }}" info="When set, users must enter this code before accessing private registration options." error="{{ $errors->first('private_code') }}" />
+                    </div>
+                    <div class="hidden flex-1 sm:block" aria-hidden="true"></div>
+                </div>
+                        @php
+                            $ticketBudget = isset($workshop) ? \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first() : null;
+                            $ticketPlan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $ticketBudget ? (int) $ticketBudget->pricing_version_id : (old('pricing_version_id', $workshop->pricing_version_id ?? null) ?: null));
+                            $ticketPlans = \Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $ticketPlan->id)->orderBy('name')->get();
+                            $ticketPlanOptions = $ticketPlans->mapWithKeys(fn ($version) => [$version->id => array_merge(json_decode($version->prices, true), ['rules' => json_decode($version->rules, true)])]);
+                        @endphp
+                        <div x-data="smCspAdminWorkshopEdit3" x-effect="$SM.trackAndCallNextTick($el, ['registration'], 'reprice')" x-on:workshop-pricing-changed.window="reprice()">
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.select label="Registration" name="registration" x-model="registration" x-on:change="$SM.nextTickMethod($el, 'syncRegistrationData')">
+                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
+                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
+                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
+                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
+                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
+                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
+                        </x-ui.select>
+                    </div>
+                    <div class="flex-1">
+                        <div x-show="registration === 'tickets'" x-cloak>
+                            <x-ui.select label="Allocation plan" name="pricing_version_id" x-model="planId" x-on:blur="reprice()" :disabled="(bool) $ticketBudget">
+                                @foreach($ticketPlans as $option)
+                                    <option value="{{ $option->id }}">{{ $option->name }}{{ $option->archived ? ' (archived)' : '' }}</option>
+                                @endforeach
+                            </x-ui.select>
+                            @if($ticketBudget)
+                                <input type="hidden" name="pricing_version_id" value="{{ $ticketPlan->id }}">
+                                <p class="mb-3 text-xs text-slate-500">This workshop already has saved allocations using this plan.</p>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                            <input type="hidden" name="price_is_automatic" x-bind:value="registration === 'tickets' && automatic ? 1 : 0">
+                            <label class="block text-sm pl-1" for="workshop-price">Price</label>
+                            <div class="relative mt-1">
+                                <x-ui.input-control id="workshop-price" name="price" x-model="price" x-bind:class="registration === 'tickets' ? 'pr-11' : ''"
+                                    x-on:input="automatic = false" x-on:blur="reprice()" />
+                                <x-ui.button variant="plain" type="button" x-show="registration === 'tickets'" x-cloak
+                                    aria-label="Refresh suggested ticket price" title="Refresh suggested ticket price from the allocation plan"
+                                    class="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-primary-color"
+                                    x-on:click="reprice(true)">
+                                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
+                                </x-ui.button>
+                            </div>
+                            @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
+                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'" class="ml-2 mt-1">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
+                            <div x-show="$SM.shouldShowPayAtDoor(registration, price, type, workshopFormat, locations, selectedLocationId)" x-cloak>
+                                <input type="hidden" name="allow_pay_at_door" value="0">
+                                <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />
+                                <p class="mb-4 mt-1 text-xs text-gray-500">Enable only when payment can be collected at this venue. Online workshops require another payment method.</p>
+                            </div>
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
+                    </div>
+                </div>
+
+                <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <span x-show="registration==='tickets'">
+                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" x-on:blur="$dispatch('workshop-pricing-changed')" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
+                        </span>
+                        <span x-show="registration!=='tickets'" x-cloak>
+                            <x-ui.input type="number" min="1" step="1" label="Maximum Attendance" name="max_attendance" x-model="maxAttendance" value="{{ old('max_attendance', $workshop->max_attendance ?? '') }}" info="Used to reserve stock and calculate pick-list quantities for workshops without ticket registration." error="{{ $errors->first('max_attendance') }}" />
+                        </span>
+                    </div>
+                    <div class="flex-1">
+                        <x-ui.input
+                            label="Price information"
+                            name="price_info"
+                            :value="old('price_info', $workshopModel?->price_info ?? '')"
+                            maxlength="255"
+                            placeholder="Complete 8-week course • $16.50 per session"
+                            info="Optional small text shown underneath the price on public workshop cards."
+                            error="{{ $errors->first('price_info') }}"
+                        />
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                        <span x-show="registration==='link'">
+                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <span x-show="registration==='email'">
+                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <span x-show="registration==='message'">
+                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
+                        </span>
+                        <input type="hidden" name="registration_data" id="registration_data" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}">
+                </div>
+                <div class="grid items-start gap-x-8 lg:grid-cols-2" x-show="registration === 'tickets'" x-cloak>
+                <x-ui.collapsible-section
+                    :open="$earlyBirdSectionOpen"
+                    title="Early Bird"
+                    variant="panel"
+                    x-show="registration==='tickets'"
+                >
+                    <x-slot:summary>
+                        <span x-text="earlyBirdSummaryText()">{{ $earlyBirdSectionSummary }}</span>
+                    </x-slot:summary>
+                    <div class="flex flex-col sm:flex-row sm:gap-8">
+                        <div class="flex-1">
+                            <x-ui.input type="number" step="0.01" min="0" label="Early Bird Price" name="early_bird_price" x-model="earlyBirdPrice" value="{{ $earlyBirdPriceValue }}" info="Optional. Leave blank for a special instead of a discount." error="{{ $errors->first('early_bird_price') }}" />
+                        </div>
+                        <div class="flex-1">
+                            <x-ui.input type="datetime-local" label="Early Bird Ends At" name="early_bird_ends_at" x-model="earlyBirdEndsAt" value="{{ $earlyBirdEndsAtValue }}" info="Use this, the ticket limit, or both to end the early bird offer." error="{{ $errors->first('early_bird_ends_at') }}" />
+                        </div>
+                    </div>
+                    <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
+                        <div class="flex-1">
+                            <x-ui.input type="number" min="1" step="1" label="Early Bird Ticket Limit" name="early_bird_ticket_limit" x-model="earlyBirdTicketLimit" value="{{ $earlyBirdTicketLimitValue }}" info="{{ $earlyBirdTicketLimitInfo }}" error="{{ $errors->first('early_bird_ticket_limit') }}" />
+                        </div>
+                        <div class="flex-1"></div>
+                    </div>
+                </x-ui.collapsible-section>
+                    <x-finance.workshop-allocation-preview :budget="$ticketBudget" :workshop="$workshop ?? null" />
+                </div>
+                </div>
+                <div x-show="registration==='tickets'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div class="font-semibold text-gray-900">Participant information</div>
+                            <div class="text-sm text-gray-600">Add instructions, permission forms, or other documents to checkout and the confirmation email.</div>
+                            <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? ('' + (participantFiles.length) + ' attachment' + (participantFiles.length === 1 ? '' : 's') + ' selected') : 'No attachments selected'"></div>
+                        </div>
+                        <x-ui.button type="button" color="outline" x-on:click.prevent="participantInformationOpen = true">
+                            <i class="fa-solid fa-paperclip mr-2" aria-hidden="true"></i>Configure
+                        </x-ui.button>
+                    </div>
+                </div>
+                <div x-show="registration === 'tickets'" x-cloak>
+                    <x-ui.collapsible-section title="Optional equipment" variant="panel" subtitle="Offer store products with a ticket">
+                        <x-ui.select name="optional_product_ids[]" label="Products" multiple
+                            :value="old('optional_product_ids', $workshop->optional_product_ids ?? [])"
+                            :options="\App\Models\Product::query()->sellable()->active()->orderBy('title')->pluck('title', 'id')->all()" />
+                        <p class="text-sm text-gray-600">Customers can choose equipment and use the store’s delivery options during ticket checkout.</p>
+                    </x-ui.collapsible-section>
+                </div>
+                </div>
+                <input type="hidden" name="participant_files" x-bind:value="$SM.jsonStringify(participantFiles)">
+                <div
+                    x-cloak
+                    x-show="participantInformationOpen"
+                    x-on:keydown.escape.window="participantInformationOpen = false"
+                    class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="participant-information-title">
+                    <div class="absolute inset-0 bg-black/40" x-on:click="participantInformationOpen = false"></div>
+                    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+                        <div class="mb-5 flex items-start justify-between gap-4">
+                            <div>
+                                <h3 id="participant-information-title" class="text-lg font-semibold text-gray-900">Participant information</h3>
+                                <p class="mt-1 text-sm text-gray-600">This content appears during checkout and in the booking confirmation email.</p>
+                            </div>
+                            <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
+                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+                            </x-ui.button>
+                        </div>
+                        <div class="mb-5 border-b border-gray-200 pb-5">
+                            <x-ui.input
+                                label="Access Group Granted on Checkout Completion"
+                                name="ticket_group_slug"
+                                :suggestions="$groupSuggestions ?? []"
+                                :value="old('ticket_group_slug', $workshop->ticket_group_slug ?? '')"
+                                info="Optional. Grants this group to the purchaser-linked account as soon as checkout completes."
+                                x-model="ticketGroupRaw"
+                                x-on:input="ticketGroupRaw = $SM.slug(ticketGroupRaw)"
+                            />
+                        </div>
+                        <x-ui.editor
+                            label="Instructions or notes"
+                            name="participant_information"
+                            :value="old('participant_information', $workshopModel?->participant_information ?? '')"
+                        ></x-ui.editor>
+                        <div class="mt-5">
+                            <div class="mb-2 flex items-center justify-between gap-3">
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">Attachments</div>
+                                    <div class="text-xs text-gray-500">PDF, Word, or other supporting files will be attached to the confirmation email.</div>
+                                </div>
+                                <x-ui.button type="button" color="outline" x-on:click.prevent="openParticipantFilePicker()">Select or Upload</x-ui.button>
+                            </div>
+                            <div x-show="participantFiles.length === 0" class="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500">No attachments selected.</div>
+                            <div class="space-y-2" x-show="participantFiles.length > 0">
+                                <template x-for="(fileName, index) in participantFiles" :key="fileName">
+                                    <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="min-w-0 truncate text-sm font-medium text-gray-800" x-text="fileName"></div>
+                                        <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="mt-6 flex justify-end">
+                            <x-ui.button type="button" x-on:click="participantInformationOpen = false">Done</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                @include('admin.workshop.partials.welcome-settings')
+                </div>
+                <div x-data="smCspAdminWorkshopEdit4" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-blueprint-selected.window="handleBlueprintSelection($event.detail)">
+                <div data-workshop-step-panel="delivery" x-show="editorStep === 'delivery'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="mb-5 flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <div x-id="['workshop-blueprint-option']" x-on:click.outside="blueprintPickerOpen = false" class="relative">
+                            <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                                <label class="pl-1 text-sm font-medium text-gray-700">Workshop Blueprint</label>
+                                <div class="flex flex-wrap items-center gap-x-2 text-xs">
+                                    <div class="flex items-center gap-x-2">
+                                        <a href="{{ route('admin.workshop-blueprint.index') }}" class="text-primary-color hover:underline" target="_blank" rel="noopener noreferrer">Manage blueprints</a>
+                                        <a x-show="pickListTemplateId" x-cloak class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" x-bind:href="blueprintEditUrl()">Open selected blueprint</a>
+                                    </div>
+                                    @isset($workshop)
+                                        <a class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open run sheet</a>
+                                    @endisset
+                                </div>
+                            </div>
+                            <div class="relative flex items-center">
+                                <x-ui.input-control
+                                    type="text"
+                                    readonly
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-haspopup="listbox"
+                                    aria-label="Workshop Blueprint"
+                                    aria-controls="workshop-blueprint-option-list"
+                                    x-bind:aria-expanded="blueprintPickerOpen"
+                                    x-bind:value="currentBlueprintSelectorLabel()"
+                                    class="h-11 bg-white! pr-10! cursor-pointer"
+                                    x-on:click="openBlueprintPicker()"
+                                />
+                                <x-ui.button type="button" variant="plain" class="absolute right-0 text-slate-500" aria-label="Choose a workshop blueprint" x-bind:aria-expanded="blueprintPickerOpen" x-on:click="toggleBlueprintPicker()" size="icon">
+                                    <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                                </x-ui.button>
+                            </div>
+                            <div x-show="blueprintPickerOpen" x-cloak class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                                <x-ui.input-control
+                                    type="search"
+                                    x-ref="blueprintSearch"
+                                    x-model="blueprintSearch"
+                                    x-on:input="blueprintOptionIndex = 0"
+                                    x-on:keydown.arrow-down.prevent="moveBlueprintOption(1)"
+                                    x-on:keydown.arrow-up.prevent="moveBlueprintOption(-1)"
+                                    x-on:keydown.enter.prevent="chooseBlueprintOption(filteredBlueprintOptions()[blueprintOptionIndex])"
+                                    x-on:keydown.escape.prevent="blueprintPickerOpen = false"
+                                    placeholder="Search workshop blueprints"
+                                    aria-label="Search workshop blueprints"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="workshop-blueprint-option-list"
+                                    x-bind:aria-expanded="blueprintPickerOpen"
+                                    x-bind:aria-activedescendant="filteredBlueprintOptions().length ? $id('workshop-blueprint-option') + '-' + blueprintOptionIndex : null"
+                                    class="mb-2"
+                                />
+                                <div id="workshop-blueprint-option-list" role="listbox" class="max-h-72 overflow-y-auto">
+                                    <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="('' + (option.kind) + '-' + (option.id) + '')">
+                                        <x-ui.button variant="plain"
+                                            type="button"
+                                            role="option"
+                                            class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
+                                            x-bind:class="optionIndex === blueprintOptionIndex ? 'bg-sky-50 text-sky-800' : 'text-slate-700 hover:bg-slate-50'"
+                                            x-bind:id="$id('workshop-blueprint-option') + '-' + optionIndex"
+                                            x-bind:aria-selected="option.kind === 'custom' ? pickListTemplateMode === 'custom' : pickListTemplateMode !== 'custom' && $SM.string(option.id) === $SM.string(pickListTemplateId || '')"
+                                            x-on:mouseenter="blueprintOptionIndex = optionIndex"
+                                            x-on:click="chooseBlueprintOption(option)"
+                                        >
+                                            <span class="min-w-0 truncate" x-text="option.label"></span>
+                                            <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="('' + (option.tasks_count || 0) + ' tasks · ' + (option.items_count || 0) + ' items')"></span>
+                                        </x-ui.button>
+                                    </template>
+                                    <p x-show="filteredBlueprintOptions().length === 0" class="px-3 py-2 text-sm text-slate-500">No matching blueprints.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="workshop_tasks_payload" x-bind:value="serializedTasks()">
+                @error('workshop_tasks_payload')<div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
+                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
+                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">Existing tasks are kept when you change blueprints.</p><p x-show="blueprintTaskImportMessage" x-cloak class="mt-1 text-sm text-sky-800" role="status" x-text="blueprintTaskImportMessage"></p></div>
+                        <div class="flex items-center gap-1">
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" x-show="pickListTemplateId" x-cloak x-bind:disabled="blueprintTasksImporting" x-on:click="addMissingBlueprintTasks()" aria-label="Add missing tasks from blueprint" title="Add missing tasks from blueprint"><i class="fa-solid" x-bind:class="blueprintTasksImporting ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" aria-hidden="true"></i></x-ui.button>
+                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add task</x-ui.button>
+                        </div>
+                    </div>
+                    <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
+                    <div class="space-y-4">
+                        <template x-for="(task, taskIndex) in tasks" :key="task.id || ('new-workshop-task-' + (taskIndex) + '')">
+                            <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                <div class="flex items-start gap-2">
+                                    <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="('' + (task.expanded ? 'Collapse' : 'Expand') + ' ' + (task.name || 'task') + '')">
+                                        <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
+                                            <span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                <span x-show="$SM.string(task.notes || '').trim() !== ''" class="inline-flex items-center gap-1"><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Notes</span>
+                                                <span class="inline-flex items-center gap-1"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
+                                            </span>
+                                        </span>
+                                    </x-ui.button>
+                                    <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                                </div>
+                                <div x-show="task.expanded" x-cloak class="mt-4 border-t border-gray-200 pt-4">
+                                    <label class="mb-3 block"><span class="mb-1 block text-sm font-medium text-gray-700">Task</span><x-ui.input-control type="text" maxlength="255" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="task.name" /></label>
+                                    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                        <span class="text-sm font-medium text-gray-700">Notes</span>
+                                        <div class="flex items-center gap-1">
+                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(workshopAiContext(taskIndex))" x-bind:data-ai-mode="$SM.string(task.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task notes" title="Write or improve task notes" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" x-show="taskPreviewAvailable(task)" x-cloak x-on:click="previewTask = task" data-open-dialog="workshop-task-copy-dialog" aria-haspopup="dialog" aria-controls="workshop-task-copy-dialog" aria-label="Preview and copy workshop post" title="Preview and copy workshop post" size="icon-small"><i class="fa-solid fa-eye" aria-hidden="true"></i></x-ui.button>
+                                        </div>
+                                    </div>
+                                    <div x-show="$SM.string(task.notes || '').trim() !== ''">
+                                        <x-ui.mini-editor label="Task notes" x-model="task.notes">
+                                            <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                        </x-ui.mini-editor>
+                                    </div>
+                                    <div x-show="$SM.string(task.notes || '').trim() === ''" class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
+                                        <span>No notes added.</span>
+                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = {{ \Illuminate\Support\Js::from('<p></p>') }}">Add notes</x-ui.button>
+                                    </div>
+                                    <div class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
+                                        <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
+                                            <input type="checkbox" class="rounded border-gray-300 text-primary-color focus:ring-primary-color" x-model="task.reminder_enabled">
+                                            <span>Email a reminder to the workshop facilitator</span>
+                                        </label>
+                                        <div x-show="task.reminder_enabled" class="mt-3 grid gap-3 sm:grid-cols-3">
+                                            <label class="block text-sm text-gray-700">Days
+                                                <x-ui.input-control type="number" min="0" max="365" step="1" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900" x-model.number="task.reminder_days" />
+                                            </label>
+                                            <x-ui.select :name="null" label="When" class="mb-0" x-model="task.reminder_direction">
+                                                <option value="before">Before workshop</option>
+                                                <option value="after">After workshop</option>
+                                            </x-ui.select>
+                                            <x-ui.select :name="null" label="Time" class="mb-0" x-model="task.reminder_time">
+                                                <option value="06:00">6:00am</option>
+                                                <option value="12:00">12:00pm</option>
+                                                <option value="16:00">4:00pm</option>
+                                            </x-ui.select>
+                                        </div>
+                                    </div>
+                                    <details x-show="(task.subtasks || []).length > 0" class="mt-3 rounded-lg border border-gray-200 bg-white p-3">
+                                        <summary class="cursor-pointer text-sm font-medium text-gray-700">Social post sections and other details (<span x-text="$SM.get(task.subtasks, 'length', 0) || 0"></span>)</summary>
+                                        <div class="mt-3 space-y-4">
+                                            <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="('workshop-subtask-' + (task.id || taskIndex) + '-' + (subtaskIndex) + '')">
+                                                <div class="border-t border-gray-200 pt-3">
+                                                    <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section" size="icon-small"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button></div>
+                                                    <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="$SM.string(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
+                                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
+                                                        <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
+                                                    </x-ui.mini-editor>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </details>
+                                    <x-ui.button type="button" variant="plain" class="mt-2 text-sm text-primary-color hover:underline" x-on:click="addSubtask(task)"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add section</x-ui.button>
+                                </div>
+                            </article>
+                        </template>
+                    </div>
+                    <x-ui.list-dialog id="workshop-task-copy-dialog" title="Workshop copy preview" kind="edit">
+                        <div class="p-4 sm:p-5">
+                            <p class="mb-3 text-sm text-slate-600">This preview uses the current workshop details. Saved placeholders stay up to date when you change them.</p>
+                            <pre x-show="previewTask" class="max-h-[55dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-gray-800" x-text="resolvedWorkshopTaskCopy(previewTask)"></pre>
+                            <p x-show="previewTask && !workshopPublicUrl && $SM.string(previewTask.notes || '').includes('{workshop-url}')" class="mt-3 text-xs text-slate-600">Save the workshop to add its public link to the preview.</p>
+                        </div>
+                        <div class="sm-dialog-footer">
+                            <x-ui.button type="button" color="outline" data-close-dialog>Close</x-ui.button>
+                            <x-ui.button type="button" x-bind:disabled="!previewTask" x-on:click="copyWorkshopTaskCopy(previewTask)"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i><span x-text="$SM.get(previewTask, 'copy_status') || 'Copy text'"></span></x-ui.button>
+                        </div>
+                    </x-ui.list-dialog>
+                </section>
+                </div>
+                <div data-workshop-step-panel="public" x-show="editorStep === 'public'" x-cloak
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                <div class="mb-4">
+                    <x-ui.media label="Image" name="hero_media_name" value="{{ old('hero_media_name', $workshopModel?->hero_media_name ?? $selectedBlueprint?->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" />
+                </div>
+                <div class="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">Optional public workshop filters. A workshop can have more than one category.</p>
+                        </div>
+                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
+                    </div>
+
+                    @if(($workshopCategories ?? collect())->isEmpty())
+                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
+                    @else
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                            @foreach($workshopCategories as $category)
+                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
+                                    <x-ui.checkbox name="category_ids[]" value="{{ $category->id }}" :checked="in_array((string) $category->id, $selectedCategoryIds, true)" :noWrapper="true" />
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="font-medium">{{ $category->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
+                    <div class="mb-5">
+                        <div class="mb-1 flex items-center gap-1 pl-1">
+                            <label for="summary" class="text-sm">Summary</label>
+                            <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="summary" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(workshopSummaryAiContext())" x-bind:data-ai-mode="$SM.aiMode($el, 'summary')" x-on:click="$SM.syncAiAction($el, 'summary', 'workshopSummaryAiContext')" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
+                        </div>
+                        <x-ui.input type="textarea" noLabel class="mb-0" id="summary" name="summary" value="{{ $workshopSummary }}" rows="3" />
+                    </div>
+                    <div class="mb-2 flex items-center justify-between gap-3"><h2 class="font-semibold text-gray-900">Description</h2></div>
+                    <x-ui.editor
+                        label=""
+                        name="content"
+                        :value="$workshopContent">
+                        <x-slot:toolbar>
+                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(workshopAiContext())" x-bind:data-ai-mode="$SM.aiMode($el, 'content')" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Replace and improve workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
+                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                            </x-ui.button>
+                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Checking workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="$SM.jsonStringify(workshopAiContext())" x-bind:data-ai-mode="$SM.aiMode($el, 'content')" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Amend description and add missing supported sections" title="Amend the description and add missing supported sections, including learning outcomes">
+                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
+                            </x-ui.button>
+                        </x-slot:toolbar>
+                    </x-ui.editor>
+                </section>
+                </div>
+                </div>
+                <section data-workshop-step-panel="review" x-show="editorStep === 'review'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                    x-transition:enter="transition ease-out duration-150"
+                    x-transition:enter-start="translate-y-1 opacity-0"
+                    x-transition:enter-end="translate-y-0 opacity-100"
+                    x-transition:leave="transition ease-in duration-100"
+                    x-transition:leave-start="translate-y-0 opacity-100"
+                    x-transition:leave-end="-translate-y-1 opacity-0">
+                    <div class="mb-5">
+                        <h2 class="text-lg font-semibold text-gray-950">Review and publish</h2>
+                        <p class="mt-1 text-sm text-gray-600">Check the workshop details, then save. You can return to any step before saving.</p>
+                    </div>
+                    <div class="mb-5 grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <x-ui.select label="Status" name="status" x-model="status">
+                                <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
+                                <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
+                                <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
+                                <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
+                                <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
+                                <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </x-ui.select>
+                        </div>
+                        <div>
+                            <x-ui.input x-data type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" x-on:change="updatedPublishAt()" />
+                        </div>
+                    </div>
+                    <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Workshop</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopTitle || 'Untitled workshop'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Type</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopFormat === 'course' ? 'Course' : ({ physical: 'In-person workshop', online: 'Online workshop', stemcraft: 'STEMCraft workshop' }[type] || type)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Starts</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualStartsAt)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Ends</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualEndsAt)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Location</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewLocation()"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Registration</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="({ none: 'None', tickets: 'Tickets', interest: 'Interest', link: 'External link', email: 'External email', message: 'Custom message' }[registration] || registration)"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Capacity</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="registration === 'tickets' ? (maxTickets ? ('' + (maxTickets) + ' tickets') : 'No ticket limit set') : (maxAttendance ? ('' + (maxAttendance) + ' attendees') : 'No attendance limit set')"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Price</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewValue('price') || 'No price set'"></dd>
+                        </div>
+                        <div class="rounded-lg bg-gray-50 p-3">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Status</dt>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="({ draft: 'Draft', scheduled: 'Opens soon', open: 'Open', full: 'Full', closed: 'Closed', cancelled: 'Cancelled' }[status] || status)"></dd>
+                        </div>
+                    </dl>
+
+                    @isset($workshop)
+                        <div class="mt-4">
+                            <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
+                                Preview saved public page <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
+                            </x-ui.button>
+                        </div>
+                    @endisset
+                </section>
+
+                <div class="sm-workshop-step-footer {{ isset($workshop) ? 'sm-workshop-step-footer--existing' : 'sm-workshop-step-footer--new' }}">
+                    @isset($workshop)
+                        <div class="sm-workshop-step-footer__delete">
+                            @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
+                                <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__interests" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
+                            @endif
+                            <x-ui.button data-editor-delete type="button" color="danger" class="sm-workshop-step-control sm-workshop-step-footer__delete-button" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                        </div>
+                    @endisset
+                    <div class="sm-workshop-step-footer__progress" x-bind:aria-label="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')">
+                        <span class="sm:hidden" x-text="('' + (editorStepIndex() + 1) + ' / ' + (editorStepOrder.length) + '')"></span>
+                        <span class="hidden sm:inline" x-text="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')"></span>
+                    </div>
+                    <div class="sm-workshop-step-footer__navigation">
+                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__previous" type="button" color="outline" x-show="editorStepIndex() > 0" x-cloak x-on:click="previousEditorStep()">
+                            <span class="sm:hidden">Back</span>
+                            <span class="hidden sm:inline">Previous</span>
+                        </x-ui.button>
+                        @isset($workshop)
+                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__save" type="submit">Save</x-ui.button>
+                        @else
+                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__create" type="submit" x-show="editorStep === 'review'" x-cloak>Create</x-ui.button>
+                        @endisset
+                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__next" type="button" x-show="editorStepIndex() < editorStepOrder.length - 1" x-cloak x-on:click="nextEditorStep()">Next <i class="fa-solid fa-arrow-right ml-2" aria-hidden="true"></i></x-ui.button>
+                    </div>
+                </div>
+        </form>
+        @isset($workshop)
+            <form id="send-workshop-welcome" method="POST" action="{{ route('admin.workshop.welcome.send', $workshop) }}">@csrf</form>
+        @endisset
+
+    </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminWorkshopEdit1', () => ({
             ...SM.courseEditor(@js(old('format', $workshopModel?->format ?? 'workshop')), @js(old('course_sessions', $workshopModel?->course_sessions ?? []))),
             editorStep: @js($workshopEditorStep),
             editorStepDefinitions: @js($workshopEditorSteps),
@@ -190,6 +1097,27 @@ if (isset($workshop)) {
             editorStepIndex() { return this.editorStepOrder.indexOf(this.editorStep); },
             editorStepLabel() { return this.editorStepDefinitions.find((step) => step.id === this.editorStep)?.label || 'Workshop details'; },
             editorStepDescription() { return this.editorStepDefinitions.find((step) => step.id === this.editorStep)?.description || ''; },
+            initializeWorkshopEditor() {
+                this.initLocationSelection();
+                this.initCourseSchedule();
+                this.updatedStartsAt(this.manualStartsAt);
+            },
+            handleWorkshopFormatChange(value) {
+                this.workshopFormat = value === 'course' ? 'course' : 'workshop';
+                this.type = value === 'course' ? (this.type === 'stemcraft' ? 'physical' : this.type) : value;
+                if (this.type !== 'physical' && this.workshopFormat !== 'course') this.selectedLocationId = '';
+                else this.initLocationSelection();
+                this.sessionChanged();
+                this.$nextTick(() => syncWorkshopClosesAt());
+            },
+            updateStartsAtFromInput(value) {
+                this.updatedStartsAt(value);
+                this.$dispatch('workshop-pricing-changed');
+            },
+            removeCourseSession(index) {
+                this.courseSessions.splice(index, 1);
+                this.sessionChanged();
+            },
             setEditorStep(step) {
                 if (!this.editorStepOrder.includes(step)) return;
                 this.editorStep = step;
@@ -272,7 +1200,7 @@ if (isset($workshop)) {
                 const startsAt = new Date(value);
                 if (!this.manualEndsAt && Number.isFinite(startsAt.getTime())) {
                     startsAt.setHours(startsAt.getHours() + 1);
-                    this.manualEndsAt = SM.toLocalISOString(startsAt);
+                    this.manualEndsAt = window.SM.toLocalISOString(startsAt);
                 }
                 this.$nextTick(() => syncWorkshopClosesAt(true));
             },
@@ -764,12 +1692,12 @@ if (isset($workshop)) {
             this.createLocationSubmitting = true;
             this.createLocationError = '';
             try {
-            const response = await fetch('{{ route('admin.location.store') }}', {
+            const response = await fetch('@js(route('admin.location.store'))', {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'X-CSRF-TOKEN': '@js(csrf_token())',
             },
             body: JSON.stringify(this.newLocation),
             });
@@ -832,102 +1760,8 @@ if (isset($workshop)) {
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" enctype="multipart/form-data" novalidate x-init="initLocationSelection(); initCourseSchedule(); updatedStartsAt(manualStartsAt)" x-ref="workshopForm" x-on:input="workshopTaskPreviewRevision++" x-on:change="workshopTaskPreviewRevision++" x-on:submit="handleSubmit($event)">
-                @isset($workshop)
-                @method('PUT')
-                @endisset
-                @csrf
-                <input type="hidden" name="notify_ticket_holders" :value="notifyTicketHolders ? '1' : '0'">
-                <input type="hidden" name="ticket_change_email_notes" :value="ticketChangeEmailNotes">
-                <input type="hidden" name="ticket_change_email_body" :value="ticketChangeEmailBody">
-                <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
-                <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
-                <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
-                <input type="hidden" name="editor_step" x-model="editorStep">
-
-                <nav id="workshop-editor-steps" aria-label="Workshop editor steps" class="mb-6 scroll-mt-24">
-                    <ol class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                @foreach($workshopEditorSteps as $stepIndex => $step)
-                            <li class="min-w-0">
-                                <x-ui.button variant="plain" type="button" class="block w-full text-left" x-on:click="setEditorStep('{{ $step['id'] }}')" x-bind:aria-current="editorStep === '{{ $step['id'] }}' ? 'step' : null">
-                                    <span class="block h-1.5 rounded-full transition-colors" x-bind:class="editorStepIndex() >= {{ $stepIndex }} ? 'bg-primary-color' : 'bg-gray-200'"></span>
-                                    <span class="mt-2 block truncate text-xs" x-bind:class="editorStep === '{{ $step['id'] }}' ? 'font-semibold text-gray-900' : 'text-gray-500'">{{ $stepIndex + 1 }}. {{ $step['label'] }}</span>
-                                </x-ui.button>
-                    </li>
-                @endforeach
-                    </ol>
-                </nav>
-                <div class="mb-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-color" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></p>
-                    <h2 class="mt-1 text-xl font-semibold text-gray-950" tabindex="-1" x-ref="editorStepHeading" x-text="editorStepLabel()"></h2>
-                    <p class="mt-1 text-sm text-gray-600" x-text="editorStepDescription()"></p>
-                </div>
-
-                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.input label="Title" name="title" x-model="workshopTitle" value="{{ old('title', $workshopModel?->title ?? $selectedBlueprint?->default_workshop_title ?? $selectedBlueprint?->name ?? '') }}" />
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.select
-                            label="Facilitator"
-                            name="facilitator_user_id"
-                            value="{{ old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) }}"
-                            info="Workshop task reminders are sent to this person. New workshops default to their creator."
-                        >
-                            @foreach(($facilitatorOptions ?? collect()) as $facilitator)
-                                <option value="{{ $facilitator->id }}" @selected((string) old('facilitator_user_id', $workshopModel?->facilitator_user_id ?? $workshopModel?->user_id ?? auth()->id()) === (string) $facilitator->id)>
-                                    {{ $facilitator->getName() }} · {{ $facilitator->email }}
-                                </option>
-                            @endforeach
-                        </x-ui.select>
-                    </div>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <input type="hidden" name="format" x-bind:value="workshopFormat">
-                        <input type="hidden" name="type" value="{{ $workshopTypeForForm }}" x-bind:value="type">
-                        <x-ui.select label="Type" id="workshop-type" x-bind:value="workshopFormat === 'course' ? 'course' : type"
-                            x-on:change="workshopFormat = $event.target.value === 'course' ? 'course' : 'workshop'; type = $event.target.value === 'course' ? (type === 'stemcraft' ? 'physical' : type) : $event.target.value; if (type !== 'physical' && workshopFormat !== 'course') { selectedLocationId = '' } else { initLocationSelection() }; sessionChanged(); $nextTick(() => syncWorkshopClosesAt())">
-                            <option value="physical">Physical</option>
-                            <option value="online">Online</option>
-                            <option value="stemcraft">STEMCraft</option>
-                            <option value="course">Course</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="flex-1">
-                        <input type="hidden" name="location_id" x-bind:value="normalizedCurrentLocationId()">
-                        <span x-show="type === 'physical' || workshopFormat === 'course'">
-                            <x-ui.select label="Location" x-model="selectedLocationId" x-bind:disabled="type !== 'physical' && workshopFormat !== 'course'">
-                                <x-slot name="labelRight">
-                                    <x-ui.button variant="plain" type="button" class="text-primary-color cursor-pointer hover:underline" x-on:click.prevent="openCreateLocation()">Create new location</x-ui.button>
-                                </x-slot>
-                                <option value="">Select location</option>
-                                <template x-for="location in locations" :key="location.id">
-                                    <option :value="String(location.id)" :selected="String(selectedLocationId ?? '') === String(location.id)" x-text="location.name"></option>
-                                </template>
-                            </x-ui.select>
-                        </span>
-                    </div>
-                </div>
-                @php
-                    $selectedContact = $workshopModel?->requestedBy;
-                    $selectedHost = $workshopModel?->hostedFor;
-                    $selectedContactLabel = $selectedContact
-                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->primaryOrganisation ? ' · '.$selectedContact->primaryOrganisation->name : ''))
-                        : '';
-                    $selectedHostLabel = $selectedHost
-                        ? ($selectedHost->parent ? $selectedHost->parent->name.' — ' : '').$selectedHost->name
-                        : '';
-                @endphp
-                <div class="flex flex-col sm:flex-row sm:gap-8"
-                    x-data="{
+                }));
+    Alpine.data('smCspAdminWorkshopEdit2', () => ({
                         contactId: @js((string) old('requested_by_user_id', $workshopModel?->requested_by_user_id ?? '')),
                         contactSearch: @js($selectedContactLabel),
                         contactResults: [],
@@ -1024,267 +1858,8 @@ if (isset($workshop)) {
                             this.hostSearch = '';
                             this.hostResults = [];
                         },
-                    }"
-                >
-                    <div class="relative mb-4 flex-1" x-on:click.outside="closeContacts()">
-                        <input type="hidden" name="requested_by_user_id" :value="contactId">
-                        <label for="requested_by_user_search" class="mb-1 block pl-1 text-sm">Requested by / Contact</label>
-                        <div class="flex gap-2">
-                            <x-ui.input-control id="requested_by_user_search" type="search" x-model="contactSearch" x-on:input="editContact()" x-on:input.debounce.350ms="findContacts()"
-                                x-on:keydown.down.prevent="moveContact(1)" x-on:keydown.up.prevent="moveContact(-1)" x-on:keydown.enter.prevent.stop="confirmContact()" x-on:keydown.escape.prevent.stop="closeContacts()" x-on:keydown.tab="closeContacts()"
-                                role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-controls="requested_by_user_results" x-bind:aria-expanded="contactSearchOpen && !contactSearching && contactResults.length > 0" x-bind:aria-activedescendant="contactResults[contactSelectedIndex] ? 'requested_by_user_option_' + contactResults[contactSelectedIndex].id : null"
-                                autocomplete="off" placeholder="Search name, email, or organisation" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
-                        </div>
-                        <div id="requested_by_user_results" x-ref="contactResults" role="listbox" aria-label="Matching contacts" class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="contactSearchOpen && !contactSearching && contactResults.length > 0" x-cloak>
-                            <template x-for="(contact, contactIndex) in contactResults" :key="contact.id">
-                                <x-ui.button variant="plain" type="button" role="option" tabindex="-1" x-bind:id="'requested_by_user_option_' + contact.id" x-bind:aria-selected="contactSelectedIndex === contactIndex" x-bind:class="contactSelectedIndex === contactIndex ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="contactSelectedIndex = contactIndex" x-on:mousedown.prevent x-on:click="chooseContact(contact)">
-                                    <span class="block text-gray-900" x-text="contact.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
-                                </x-ui.button>
-                            </template>
-                        </div>
-                        @error('requested_by_user_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
-                    </div>
-                    <div class="relative mb-4 flex-1" x-on:click.outside="hostResults = []">
-                        <input type="hidden" name="hosted_for_organisation_id" :value="hostId">
-                        <div class="flex justify-between">
-                            <label for="hosted_for_organisation_search" class="mb-1 block pl-1 text-sm">Hosted For</label>
-                            <a href="{{ route('admin.organisation.index') }}" class="text-primary-color cursor-pointer hover:underline text-xs">Manage organisations</a>
-                        </div>
-                        <div class="flex gap-2">
-                            <x-ui.input-control id="hosted_for_organisation_search" type="search" x-model="hostSearch" x-on:input.debounce.350ms="findHosts()" autocomplete="off" placeholder="Search organisations" class="block w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-indigo-300" />
-                        </div>
-                        <div class="absolute z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg" x-show="hostSearch.trim().length >= 2 && !hostSearching && hostResults.length > 0" x-cloak>
-                            <template x-for="organisation in hostResults" :key="organisation.id">
-                                <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></x-ui.button>
-                            </template>
-                        </div>
-                        @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
-                    </div>
-                </div>
-                </div>
-            <div
-                x-cloak
-                x-show="createLocationOpen"
-                x-on:keydown.escape.window="closeCreateLocation()"
-                x-on:keydown.enter.prevent.stop="submitCreateLocation()"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                role="dialog"
-                aria-modal="true">
-                    <div class="absolute inset-0 bg-black/40" x-on:click="closeCreateLocation()"></div>
-                <div class="relative w-full max-w-xl rounded-xl bg-white p-5 shadow-xl">
-                    <div class="mb-4 flex items-center justify-between">
-                        <h3 class="text-lg font-semibold">Create Location</h3>
-                        <x-ui.button size="icon-small" aria-label="Close create location" variant="text" color="secondary" type="button"  x-on:click="closeCreateLocation()">
-                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                        </x-ui.button>
-                    </div>
-
-                    <x-ui.grid class="gap-3">
-                        <x-ui.input label="Name" name="new_location_name" x-model="newLocation.name" />
-                        <x-ui.input label="Address" name="new_location_address" x-model="newLocation.address" />
-                        <x-ui.input label="Location URL" name="new_location_url" x-model="newLocation.url" />
-                        <x-ui.input label="Address URL" name="new_location_address_url" x-model="newLocation.address_url" />
-                    </x-ui.grid>
-
-                    <div x-show="createLocationError" x-text="createLocationError" class="mt-2 text-sm text-red-600"></div>
-
-                    <div class="mt-5 flex justify-end gap-3">
-                        <x-ui.button type="button" color="secondary" x-on:click.prevent.stop="closeCreateLocation()">Cancel</x-ui.button>
-                        <x-ui.button type="button" x-bind:disabled="createLocationSubmitting" x-on:click.prevent.stop="submitCreateLocation()">
-                            <span x-show="!createLocationSubmitting">Create Location</span>
-                            <span x-show="createLocationSubmitting">Creating...</span>
-                        </x-ui.button>
-                    </div>
-                </div>
-            </div>
-                <div data-workshop-step-panel="details" x-show="editorStep === 'details'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.input
-                            type="datetime-local"
-                            label="Start Date"
-                            name="starts_at"
-                            value="{{ $workshopStartValue }}"
-                            x-on:change="manualStartsAt = $event.target.value"
-                            x-ref="startsAt" x-on:blur="updatedStartsAt($event.target.value); $dispatch('workshop-pricing-changed')"
-                            x-on:input="manualStartsAt = $event.target.value"
-                            x-bind:value="manualStartsAt"
-                        />
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input
-                            type="datetime-local"
-                            label="End Date"
-                            name="ends_at"
-                            value="{{ $workshopEndValue }}"
-                            x-on:change="updatedEndsAt($event.target.value)"
-                            x-ref="endsAt" x-on:blur="$dispatch('workshop-pricing-changed')"
-                            x-on:input="manualEndsAt = $event.target.value"
-                            x-bind:value="manualEndsAt"
-                        />
-                    </div>
-                </div>
-            @include('admin.workshop.partials.course-settings')
-                </div>
-
-            <div
-                x-cloak
-                x-show="cancelWorkshopOpen"
-                x-on:keydown.escape.window="closeCancelWorkshopModal()"
-                class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                role="dialog"
-                aria-modal="true">
-                    <div class="absolute inset-0 bg-black/40" x-on:click="closeCancelWorkshopModal()"></div>
-                    <div class="relative w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 class="text-lg font-semibold text-gray-900">Cancel workshop?</h3>
-                                <p class="mt-1 text-sm text-gray-600">
-                                    This will cancel the workshop and any active tickets linked to it.
-                                    Refunds will be attempted automatically for Square payments.
-                                    Tickets that need manual follow-up will be listed in Refunds.
-                                    Any pending workshop task reminders will be cancelled and will not be emailed.
-                                </p>
-                            </div>
-                            <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
-                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                            </x-ui.button>
-                        </div>
-
-                        <div class="mt-5">
-                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="workshop-cancel-reason">Cancellation reason</label>
-                            <x-ui.textarea-control
-                                id="workshop-cancel-reason"
-                                rows="4"
-                                x-model="workshopCancelReason"
-                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0"
-                            ></x-ui.textarea-control>
-                            <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in cancellation emails and records.</p>
-                        </div>
-
-                        <div class="mt-6 flex justify-end gap-3">
-                            <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelWorkshopModal()">Keep Workshop</x-ui.button>
-                            <x-ui.button type="button" color="danger" x-on:click="confirmCancelWorkshop()">Cancel Workshop</x-ui.button>
-                        </div>
-                    </div>
-                </div>
-
-            <div
-                x-cloak
-                x-show="ticketChangeEmailOpen"
-                x-on:keydown.escape.window="closeTicketChangeEmailModal()"
-                class="fixed inset-0 z-50 overflow-y-auto p-3 sm:p-4"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="ticket-change-email-title">
-                <div class="absolute inset-0 bg-black/40" x-on:click="closeTicketChangeEmailModal()"></div>
-                <div class="relative mx-auto my-2 flex h-[calc(100vh-1.5rem)] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white p-4 shadow-xl sm:my-4 sm:h-[calc(100vh-2rem)] sm:p-6">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <h3 id="ticket-change-email-title" class="text-lg font-semibold text-gray-900">Notify ticket holders?</h3>
-                            <p class="mt-1 text-sm text-gray-600">
-                                This currently has <strong x-text="ticketHolderNotificationCount"></strong> active
-                                <span x-text="Number(ticketHolderNotificationCount) === 1 ? 'ticket holder' : 'ticket holders'"></span>.
-                                Notify the ticket holders of the workshop changes by email?
-                            </p>
-                        </div>
-                        <x-ui.button variant="plain" type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeTicketChangeEmailModal()" aria-label="Close ticket holder notification modal">
-                            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                        </x-ui.button>
-                    </div>
-
-                    <div class="min-h-0 flex-1 overflow-y-auto pr-1">
-                    <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-to">To</label>
-                            <input id="ticket-change-email-to" name="ticket_change_email_to" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailTo" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="hello@stemmechanics.com.au">
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-cc">CC <span class="font-normal text-gray-500">(optional)</span></label>
-                            <input id="ticket-change-email-cc" name="ticket_change_email_cc" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailCc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="email@example.com">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-bcc">BCC</label>
-                            <textarea id="ticket-change-email-bcc" name="ticket_change_email_bcc" rows="2" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailBcc" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" placeholder="Separate addresses with commas, semicolons, or new lines"></textarea>
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="ticket-change-email-subject">Subject</label>
-                            <input id="ticket-change-email-subject" name="ticket_change_email_subject" type="text" autocomplete="off" data-bwignore="true" data-1p-ignore="true" data-lpignore="true" data-form-type="other" x-model="ticketChangeEmailSubject" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0">
-                        </div>
-                    </div>
-
-                    <div class="mt-4">
-                        <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-                            <label class="block text-sm font-semibold text-gray-900">Message</label>
-                            <span class="text-xs text-gray-500">Placeholders: @{{first_name}}, @{{last_name}}, @{{full_name}}</span>
-                        </div>
-                        <x-ui.mini-editor label="Ticket change email" x-model="ticketChangeEmailBody" content-class="min-h-48" />
-                        <p class="mt-1 text-xs text-gray-500">BCC sends one shared message. Name placeholders use a generic greeting when multiple ticket holders are included.</p>
-                    </div>
-                    </div>
-
-                    <div class="mt-4 flex shrink-0 flex-col gap-3 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                        <x-ui.button type="button" color="primary-outline" x-on:click="closeTicketChangeEmailModal()">Cancel</x-ui.button>
-                        <div class="flex flex-col gap-3 sm:flex-row">
-                            <x-ui.button type="button" color="secondary" x-on:click="saveTicketChangeEmail(false)">Save</x-ui.button>
-                            <x-ui.button type="button" x-on:click="saveTicketChangeEmail(true)">Save and Email</x-ui.button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-            <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1 content-center flex gap-8">
-                        <x-ui.checkbox
- label="Private Workshop"
- name="is_private"
- info="Visible to the public but requires an access code to register"
- value="1"
- :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
- x-model="isPrivate"
- no-wrapper="true"
- />
-                        <x-ui.checkbox
- label="Hidden Workshop"
- name="is_hidden"
- info="Not displayed in public lists, search or newsletters"
- value="1"
- :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
- x-model="isHidden"
- no-wrapper="true"
- />
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Closes Date" name="closes_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->closes_at ?? '') }}" />
-                    </div>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="isPrivate">
-                    <div class="flex-1">
-                        <x-ui.input label="Private Code" name="private_code" value="{{ old('private_code', $workshop->private_code ?? '') }}" info="When set, users must enter this code before accessing private registration options." error="{{ $errors->first('private_code') }}" />
-                    </div>
-                    <div class="hidden flex-1 sm:block" aria-hidden="true"></div>
-                </div>
-                        @php
-                            $ticketBudget = isset($workshop) ? \Illuminate\Support\Facades\DB::table('finance_budgets')->where('workshop_id', $workshop->id)->first() : null;
-                            $ticketPlan = \App\Services\Finance\PricingVersion::forDate(today()->toDateString(), $ticketBudget ? (int) $ticketBudget->pricing_version_id : (old('pricing_version_id', $workshop->pricing_version_id ?? null) ?: null));
-                            $ticketPlans = \Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $ticketPlan->id)->orderBy('name')->get();
-                            $ticketPlanOptions = $ticketPlans->mapWithKeys(fn ($version) => [$version->id => array_merge(json_decode($version->prices, true), ['rules' => json_decode($version->rules, true)])]);
-                        @endphp
-                        <div x-data="{
+                    }));
+    Alpine.data('smCspAdminWorkshopEdit3', () => ({
                             price: @js(old('price', $workshop->price ?? '')),
                             automatic: @js((bool) old('price_is_automatic', $workshop->price_is_automatic ?? !isset($workshop))),
                             planId: @js((string) $ticketPlan->id),
@@ -1297,218 +1872,15 @@ if (isset($workshop)) {
                                 const inputs = JSON.stringify([this.planId, this.registration, this.manualStartsAt, this.manualEndsAt, this.maxTickets, this.courseTeachingHours()]);
                                 const changed = this.previousPricingInputs !== null && this.previousPricingInputs !== inputs;
                                 this.previousPricingInputs = inputs;
-                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
-                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
+                                this.breakdown = window.SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
+                                this.maxBreakdown = window.SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
                                 if (!force && (!this.automatic || (!changed && String(this.price ?? '').trim() !== ''))) return;
-                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
+                                const next = window.SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
                             }
-                        }" x-effect="const r = registration; $nextTick(() => reprice());" x-on:workshop-pricing-changed.window="reprice()">
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <x-ui.select label="Registration" name="registration" x-model="registration" x-on:change="$nextTick(() => syncRegistrationData())">
-                            <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
-                            <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
-                            <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
-                            <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
-                            <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
-                            <option value="message" {{ (old('registration', $workshop->registration ?? '')) === 'message' ? 'selected' : '' }}>Custom Message</option>
-                        </x-ui.select>
-                    </div>
-                    <div class="flex-1">
-                        <div x-show="registration === 'tickets'" x-cloak>
-                            <x-ui.select label="Allocation plan" name="pricing_version_id" x-model="planId" x-on:blur="reprice()" :disabled="(bool) $ticketBudget">
-                                @foreach($ticketPlans as $option)
-                                    <option value="{{ $option->id }}">{{ $option->name }}{{ $option->archived ? ' (archived)' : '' }}</option>
-                                @endforeach
-                            </x-ui.select>
-                            @if($ticketBudget)
-                                <input type="hidden" name="pricing_version_id" value="{{ $ticketPlan->id }}">
-                                <p class="mb-3 text-xs text-slate-500">This workshop already has saved allocations using this plan.</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                            <input type="hidden" name="price_is_automatic" x-bind:value="registration === 'tickets' && automatic ? 1 : 0">
-                            <label class="block text-sm pl-1" for="workshop-price">Price</label>
-                            <div class="relative mt-1">
-                                <x-ui.input-control id="workshop-price" name="price" x-model="price" x-bind:class="registration === 'tickets' ? 'pr-11' : ''"
-                                    x-on:input="automatic = false" x-on:blur="reprice()" />
-                                <x-ui.button variant="plain" type="button" x-show="registration === 'tickets'" x-cloak
-                                    aria-label="Refresh suggested ticket price" title="Refresh suggested ticket price from the allocation plan"
-                                    class="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-sky-50 hover:text-primary-color"
-                                    x-on:click="reprice(true)">
-                                    <i class="fa-solid fa-rotate-right" aria-hidden="true"></i>
-                                </x-ui.button>
-                            </div>
-                            @error('price')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
-                            <p class="mb-4 mt-1 text-xs text-gray-500"><span x-show="registration === 'tickets'">Leave blank for free tickets.</span><span x-show="registration !== 'tickets'" class="ml-2 mt-1">Enter - to hide the price from public.</span> Also supports Free, TBD or TBC.</p>
-                            <div x-show="registration === 'tickets' && parseFloat(String(price).replace(/[$,]/g, '')) > 0 && (type === 'physical' || workshopFormat === 'course') && locations.some(location => String(location.id) === String(selectedLocationId) && location.name.trim().toLowerCase() !== 'online')" x-cloak>
-                                <input type="hidden" name="allow_pay_at_door" value="0">
-                                <x-ui.checkbox name="allow_pay_at_door" value="1" label="Allow payment at the door" :checked="(bool) old('allow_pay_at_door', $workshopModel?->allow_pay_at_door ?? false)" />
-                                <p class="mb-4 mt-1 text-xs text-gray-500">Enable only when payment can be collected at this venue. Online workshops require another payment method.</p>
-                            </div>
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
-                    </div>
-                </div>
-
-                <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <span x-show="registration==='tickets'">
-                            <x-ui.input type="number" min="1" step="1" label="Max Tickets" name="max_tickets" x-model="maxTickets" x-on:blur="$dispatch('workshop-pricing-changed')" value="{{ old('max_tickets', $workshop->max_tickets ?? '') }}" info="{{ $maxTicketsInfo }}" error="{{ $errors->first('max_tickets') }}" />
-                        </span>
-                        <span x-show="registration!=='tickets'" x-cloak>
-                            <x-ui.input type="number" min="1" step="1" label="Maximum Attendance" name="max_attendance" x-model="maxAttendance" value="{{ old('max_attendance', $workshop->max_attendance ?? '') }}" info="Used to reserve stock and calculate pick-list quantities for workshops without ticket registration." error="{{ $errors->first('max_attendance') }}" />
-                        </span>
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input
-                            label="Price information"
-                            name="price_info"
-                            :value="old('price_info', $workshopModel?->price_info ?? '')"
-                            maxlength="255"
-                            placeholder="Complete 8-week course • $16.50 per session"
-                            info="Optional small text shown underneath the price on public workshop cards."
-                            error="{{ $errors->first('price_info') }}"
-                        />
-                    </div>
-                </div>
-
-                <div class="mt-4">
-                        <span x-show="registration==='link'">
-                            <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <span x-show="registration==='email'">
-                            <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <span x-show="registration==='message'">
-                            <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}" error="{{ $errors->first('registration_data') }}" />
-                        </span>
-                        <input type="hidden" name="registration_data" id="registration_data" value="{{ old('registration_data', $workshopModel?->registration_data ?? '') }}">
-                </div>
-                <div class="grid items-start gap-x-8 lg:grid-cols-2" x-show="registration === 'tickets'" x-cloak>
-                <x-ui.collapsible-section
-                    :open="$earlyBirdSectionOpen"
-                    title="Early Bird"
-                    variant="panel"
-                    x-show="registration==='tickets'"
-                >
-                    <x-slot:summary>
-                        <span x-text="earlyBirdSummaryText()">{{ $earlyBirdSectionSummary }}</span>
-                    </x-slot:summary>
-                    <div class="flex flex-col sm:flex-row sm:gap-8">
-                        <div class="flex-1">
-                            <x-ui.input type="number" step="0.01" min="0" label="Early Bird Price" name="early_bird_price" x-model="earlyBirdPrice" value="{{ $earlyBirdPriceValue }}" info="Optional. Leave blank for a special instead of a discount." error="{{ $errors->first('early_bird_price') }}" />
-                        </div>
-                        <div class="flex-1">
-                            <x-ui.input type="datetime-local" label="Early Bird Ends At" name="early_bird_ends_at" x-model="earlyBirdEndsAt" value="{{ $earlyBirdEndsAtValue }}" info="Use this, the ticket limit, or both to end the early bird offer." error="{{ $errors->first('early_bird_ends_at') }}" />
-                        </div>
-                    </div>
-                    <div class="mt-4 flex flex-col sm:flex-row sm:gap-8">
-                        <div class="flex-1">
-                            <x-ui.input type="number" min="1" step="1" label="Early Bird Ticket Limit" name="early_bird_ticket_limit" x-model="earlyBirdTicketLimit" value="{{ $earlyBirdTicketLimitValue }}" info="{{ $earlyBirdTicketLimitInfo }}" error="{{ $errors->first('early_bird_ticket_limit') }}" />
-                        </div>
-                        <div class="flex-1"></div>
-                    </div>
-                </x-ui.collapsible-section>
-                    <x-finance.workshop-allocation-preview :budget="$ticketBudget" :workshop="$workshop ?? null" />
-                </div>
-                </div>
-                <div x-show="registration==='tickets'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <div class="font-semibold text-gray-900">Participant information</div>
-                            <div class="text-sm text-gray-600">Add instructions, permission forms, or other documents to checkout and the confirmation email.</div>
-                            <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? `${participantFiles.length} attachment${participantFiles.length === 1 ? '' : 's'} selected` : 'No attachments selected'"></div>
-                        </div>
-                        <x-ui.button type="button" color="outline" x-on:click.prevent="participantInformationOpen = true">
-                            <i class="fa-solid fa-paperclip mr-2" aria-hidden="true"></i>Configure
-                        </x-ui.button>
-                    </div>
-                </div>
-                <div x-show="registration === 'tickets'" x-cloak>
-                    <x-ui.collapsible-section title="Optional equipment" variant="panel" subtitle="Offer store products with a ticket">
-                        <x-ui.select name="optional_product_ids[]" label="Products" multiple
-                            :value="old('optional_product_ids', $workshop->optional_product_ids ?? [])"
-                            :options="\App\Models\Product::query()->sellable()->active()->orderBy('title')->pluck('title', 'id')->all()" />
-                        <p class="text-sm text-gray-600">Customers can choose equipment and use the store’s delivery options during ticket checkout.</p>
-                    </x-ui.collapsible-section>
-                </div>
-                </div>
-                <input type="hidden" name="participant_files" x-bind:value="JSON.stringify(participantFiles)">
-                <div
-                    x-cloak
-                    x-show="participantInformationOpen"
-                    x-on:keydown.escape.window="participantInformationOpen = false"
-                    class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="participant-information-title">
-                    <div class="absolute inset-0 bg-black/40" x-on:click="participantInformationOpen = false"></div>
-                    <div class="relative max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
-                        <div class="mb-5 flex items-start justify-between gap-4">
-                            <div>
-                                <h3 id="participant-information-title" class="text-lg font-semibold text-gray-900">Participant information</h3>
-                                <p class="mt-1 text-sm text-gray-600">This content appears during checkout and in the booking confirmation email.</p>
-                            </div>
-                            <x-ui.button variant="plain" type="button" class="text-gray-500 hover:text-gray-800" x-on:click="participantInformationOpen = false" aria-label="Close participant information">
-                                <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-                            </x-ui.button>
-                        </div>
-                        <div class="mb-5 border-b border-gray-200 pb-5">
-                            <x-ui.input
-                                label="Access Group Granted on Checkout Completion"
-                                name="ticket_group_slug"
-                                :suggestions="$groupSuggestions ?? []"
-                                :value="old('ticket_group_slug', $workshop->ticket_group_slug ?? '')"
-                                info="Optional. Grants this group to the purchaser-linked account as soon as checkout completes."
-                                x-model="ticketGroupRaw"
-                                x-on:input="ticketGroupRaw = ticketGroupRaw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')"
-                            />
-                        </div>
-                        <x-ui.editor
-                            label="Instructions or notes"
-                            name="participant_information"
-                            :value="old('participant_information', $workshopModel?->participant_information ?? '')"
-                        ></x-ui.editor>
-                        <div class="mt-5">
-                            <div class="mb-2 flex items-center justify-between gap-3">
-                                <div>
-                                    <div class="text-sm font-medium text-gray-900">Attachments</div>
-                                    <div class="text-xs text-gray-500">PDF, Word, or other supporting files will be attached to the confirmation email.</div>
-                                </div>
-                                <x-ui.button type="button" color="outline" x-on:click.prevent="openParticipantFilePicker()">Select or Upload</x-ui.button>
-                            </div>
-                            <div x-show="participantFiles.length === 0" class="rounded-lg border border-dashed border-gray-300 px-4 py-5 text-center text-sm text-gray-500">No attachments selected.</div>
-                            <div class="space-y-2" x-show="participantFiles.length > 0">
-                                <template x-for="(fileName, index) in participantFiles" :key="fileName">
-                                    <div class="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                                        <div class="min-w-0 truncate text-sm font-medium text-gray-800" x-text="fileName"></div>
-                                        <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-800" x-on:click="removeParticipantFile(index)" aria-label="Remove attachment"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
-                                    </div>
-                                </template>
-                            </div>
-                        </div>
-                        <div class="mt-6 flex justify-end">
-                            <x-ui.button type="button" x-on:click="participantInformationOpen = false">Done</x-ui.button>
-                        </div>
-                    </div>
-                </div>
-                <div data-workshop-step-panel="registration" x-show="editorStep === 'registration'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                @include('admin.workshop.partials.welcome-settings')
-                </div>
-                <div x-data="{
+                        }));
+    Alpine.data('smCspAdminWorkshopEdit4', () => ({
                     ...SM.workshopTaskCopy({
                         publicUrl: @js($workshopModel ? route('workshop.show', $workshopModel) : ''),
                         bookingsUrl: @js($workshopModel ? route('workshop.ticket.flow.start', $workshopModel) : ''),
@@ -1667,351 +2039,9 @@ if (isset($workshop)) {
                             reminder_time: task.reminder_time || null, sort_order: (index + 1) * 10,
                         })));
                     },
-                }" x-on:workshop-task-ai-copy.window="applyTaskAiContent($event.detail)" x-on:workshop-blueprint-selected.window="handleBlueprintSelection($event.detail)">
-                <div data-workshop-step-panel="delivery" x-show="editorStep === 'delivery'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                <div class="mb-5 flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1">
-                        <div x-id="['workshop-blueprint-option']" x-on:click.outside="blueprintPickerOpen = false" class="relative">
-                            <div class="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                                <label class="pl-1 text-sm font-medium text-gray-700">Workshop Blueprint</label>
-                                <div class="flex flex-wrap items-center gap-x-2 text-xs">
-                                    <div class="flex items-center gap-x-2">
-                                        <a href="{{ route('admin.workshop-blueprint.index') }}" class="text-primary-color hover:underline" target="_blank" rel="noopener noreferrer">Manage blueprints</a>
-                                        <a x-show="pickListTemplateId" x-cloak class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" x-bind:href="blueprintEditUrl()">Open selected blueprint</a>
-                                    </div>
-                                    @isset($workshop)
-                                        <a class="border-l border-gray-300 pl-2 text-primary-color hover:underline" target="_blank" rel="noopener noreferrer" href="{{ route('admin.workshop.run-sheet', $workshop) }}">Open run sheet</a>
-                                    @endisset
-                                </div>
-                            </div>
-                            <div class="relative flex items-center">
-                                <x-ui.input-control
-                                    type="text"
-                                    readonly
-                                    role="combobox"
-                                    aria-autocomplete="list"
-                                    aria-haspopup="listbox"
-                                    aria-label="Workshop Blueprint"
-                                    aria-controls="workshop-blueprint-option-list"
-                                    x-bind:aria-expanded="blueprintPickerOpen"
-                                    x-bind:value="currentBlueprintSelectorLabel()"
-                                    class="h-11 bg-white! pr-10! cursor-pointer"
-                                    x-on:click="openBlueprintPicker()"
-                                />
-                                <x-ui.button type="button" variant="plain" class="absolute right-0 text-slate-500" aria-label="Choose a workshop blueprint" x-bind:aria-expanded="blueprintPickerOpen" x-on:click="toggleBlueprintPicker()" size="icon">
-                                    <i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
-                                </x-ui.button>
-                            </div>
-                            <div x-show="blueprintPickerOpen" x-cloak class="absolute z-40 mt-1 w-full rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-                                <x-ui.input-control
-                                    type="search"
-                                    x-ref="blueprintSearch"
-                                    x-model="blueprintSearch"
-                                    x-on:input="blueprintOptionIndex = 0"
-                                    x-on:keydown.arrow-down.prevent="moveBlueprintOption(1)"
-                                    x-on:keydown.arrow-up.prevent="moveBlueprintOption(-1)"
-                                    x-on:keydown.enter.prevent="chooseBlueprintOption(filteredBlueprintOptions()[blueprintOptionIndex])"
-                                    x-on:keydown.escape.prevent="blueprintPickerOpen = false"
-                                    placeholder="Search workshop blueprints"
-                                    aria-label="Search workshop blueprints"
-                                    role="combobox"
-                                    aria-autocomplete="list"
-                                    aria-controls="workshop-blueprint-option-list"
-                                    x-bind:aria-expanded="blueprintPickerOpen"
-                                    x-bind:aria-activedescendant="filteredBlueprintOptions().length ? $id('workshop-blueprint-option') + '-' + blueprintOptionIndex : null"
-                                    class="mb-2"
-                                />
-                                <div id="workshop-blueprint-option-list" role="listbox" class="max-h-72 overflow-y-auto">
-                                    <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="`${option.kind}-${option.id}`">
-                                        <x-ui.button variant="plain"
-                                            type="button"
-                                            role="option"
-                                            class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm"
-                                            x-bind:class="optionIndex === blueprintOptionIndex ? 'bg-sky-50 text-sky-800' : 'text-slate-700 hover:bg-slate-50'"
-                                            x-bind:id="$id('workshop-blueprint-option') + '-' + optionIndex"
-                                            x-bind:aria-selected="option.kind === 'custom' ? pickListTemplateMode === 'custom' : pickListTemplateMode !== 'custom' && String(option.id) === String(pickListTemplateId || '')"
-                                            x-on:mouseenter="blueprintOptionIndex = optionIndex"
-                                            x-on:click="chooseBlueprintOption(option)"
-                                        >
-                                            <span class="min-w-0 truncate" x-text="option.label"></span>
-                                            <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="`${option.tasks_count || 0} tasks · ${option.items_count || 0} items`"></span>
-                                        </x-ui.button>
-                                    </template>
-                                    <p x-show="filteredBlueprintOptions().length === 0" class="px-3 py-2 text-sm text-slate-500">No matching blueprints.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <input type="hidden" name="workshop_tasks_payload" x-bind:value="serializedTasks()">
-                @error('workshop_tasks_payload')<div class="mb-3 text-sm text-red-700" role="alert">{{ $message }}</div>@enderror
-                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
-                    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div><h2 class="font-semibold text-gray-900">Run sheet tasks</h2><p class="mt-1 text-sm text-gray-600">Existing tasks are kept when you change blueprints.</p><p x-show="blueprintTaskImportMessage" x-cloak class="mt-1 text-sm text-sky-800" role="status" x-text="blueprintTaskImportMessage"></p></div>
-                        <div class="flex items-center gap-1">
-                            <x-ui.button type="button" variant="plain" class="inline-flex size-9 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800 disabled:cursor-not-allowed disabled:opacity-50" x-show="pickListTemplateId" x-cloak x-bind:disabled="blueprintTasksImporting" x-on:click="addMissingBlueprintTasks()" aria-label="Add missing tasks from blueprint" title="Add missing tasks from blueprint"><i class="fa-solid" x-bind:class="blueprintTasksImporting ? 'fa-spinner fa-spin' : 'fa-arrow-down-to-bracket'" aria-hidden="true"></i></x-ui.button>
-                            <x-ui.button type="button" color="primary-outline" size="small" x-on:click="addTask()"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add task</x-ui.button>
-                        </div>
-                    </div>
-                    <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
-                    <div class="space-y-4">
-                        <template x-for="(task, taskIndex) in tasks" :key="task.id || `new-workshop-task-${taskIndex}`">
-                            <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                <div class="flex items-start gap-2">
-                                    <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
-                                        <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
-                                        <span class="min-w-0 flex-1">
-                                            <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
-                                            <span class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                                                <span x-show="String(task.notes || '').trim() !== ''" class="inline-flex items-center gap-1"><i class="fa-regular fa-note-sticky" aria-hidden="true"></i>Notes</span>
-                                                <span class="inline-flex items-center gap-1"><i class="fa-regular fa-bell" aria-hidden="true"></i><span x-text="taskReminderSummary(task)"></span></span>
-                                            </span>
-                                        </span>
-                                    </x-ui.button>
-                                    <x-ui.button type="button" variant="plain" class="inline-flex size-9 shrink-0 items-center justify-center rounded text-red-600 hover:bg-red-50" x-on:click="removeTask(taskIndex)" aria-label="Remove task" title="Remove task"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
-                                </div>
-                                <div x-show="task.expanded" x-cloak class="mt-4 border-t border-gray-200 pt-4">
-                                    <label class="mb-3 block"><span class="mb-1 block text-sm font-medium text-gray-700">Task</span><x-ui.input-control type="text" maxlength="255" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="task.name" /></label>
-                                    <div class="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                        <span class="text-sm font-medium text-gray-700">Notes</span>
-                                        <div class="flex items-center gap-1">
-                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex))" x-bind:data-ai-mode="String(task.notes || '').trim() ? 'improve' : 'write'" aria-label="Write or improve task notes" title="Write or improve task notes" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                                            <x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" x-show="taskPreviewAvailable(task)" x-cloak x-on:click="previewTask = task" data-open-dialog="workshop-task-copy-dialog" aria-haspopup="dialog" aria-controls="workshop-task-copy-dialog" aria-label="Preview and copy workshop post" title="Preview and copy workshop post" size="icon-small"><i class="fa-solid fa-eye" aria-hidden="true"></i></x-ui.button>
-                                        </div>
-                                    </div>
-                                    <div x-show="String(task.notes || '').trim() !== ''">
-                                        <x-ui.mini-editor label="Task notes" x-model="task.notes">
-                                            <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
-                                        </x-ui.mini-editor>
-                                    </div>
-                                    <div x-show="String(task.notes || '').trim() === ''" class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
-                                        <span>No notes added.</span>
-                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = {{ \Illuminate\Support\Js::from('<p></p>') }}">Add notes</x-ui.button>
-                                    </div>
-                                    <div class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
-                                        <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">
-                                            <input type="checkbox" class="rounded border-gray-300 text-primary-color focus:ring-primary-color" x-model="task.reminder_enabled">
-                                            <span>Email a reminder to the workshop facilitator</span>
-                                        </label>
-                                        <div x-show="task.reminder_enabled" class="mt-3 grid gap-3 sm:grid-cols-3">
-                                            <label class="block text-sm text-gray-700">Days
-                                                <x-ui.input-control type="number" min="0" max="365" step="1" class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900" x-model.number="task.reminder_days" />
-                                            </label>
-                                            <x-ui.select :name="null" label="When" class="mb-0" x-model="task.reminder_direction">
-                                                <option value="before">Before workshop</option>
-                                                <option value="after">After workshop</option>
-                                            </x-ui.select>
-                                            <x-ui.select :name="null" label="Time" class="mb-0" x-model="task.reminder_time">
-                                                <option value="06:00">6:00am</option>
-                                                <option value="12:00">12:00pm</option>
-                                                <option value="16:00">4:00pm</option>
-                                            </x-ui.select>
-                                        </div>
-                                    </div>
-                                    <details x-show="(task.subtasks || []).length > 0" class="mt-3 rounded-lg border border-gray-200 bg-white p-3">
-                                        <summary class="cursor-pointer text-sm font-medium text-gray-700">Social post sections and other details (<span x-text="task.subtasks?.length || 0"></span>)</summary>
-                                        <div class="mt-3 space-y-4">
-                                            <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="`workshop-subtask-${task.id || taskIndex}-${subtaskIndex}`">
-                                                <div class="border-t border-gray-200 pt-3">
-                                                    <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section" size="icon-small"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button></div>
-                                                    <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
-                                                    <x-ui.mini-editor label="Subtask content" x-model="subtask.content">
-                                                        <x-slot:toolbarActions><x-admin.workshop-placeholder-inserter /></x-slot:toolbarActions>
-                                                    </x-ui.mini-editor>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </details>
-                                    <x-ui.button type="button" variant="plain" class="mt-2 text-sm text-primary-color hover:underline" x-on:click="addSubtask(task)"><i class="fa-solid fa-plus mr-1" aria-hidden="true"></i>Add section</x-ui.button>
-                                </div>
-                            </article>
-                        </template>
-                    </div>
-                    <x-ui.list-dialog id="workshop-task-copy-dialog" title="Workshop copy preview" kind="edit">
-                        <div class="p-4 sm:p-5">
-                            <p class="mb-3 text-sm text-slate-600">This preview uses the current workshop details. Saved placeholders stay up to date when you change them.</p>
-                            <pre x-show="previewTask" class="max-h-[55dvh] overflow-y-auto whitespace-pre-wrap break-words rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm leading-relaxed text-gray-800" x-text="resolvedWorkshopTaskCopy(previewTask)"></pre>
-                            <p x-show="previewTask && !workshopPublicUrl && String(previewTask.notes || '').includes('{workshop-url}')" class="mt-3 text-xs text-slate-600">Save the workshop to add its public link to the preview.</p>
-                        </div>
-                        <div class="sm-dialog-footer">
-                            <x-ui.button type="button" color="outline" data-close-dialog>Close</x-ui.button>
-                            <x-ui.button type="button" x-bind:disabled="!previewTask" x-on:click="copyWorkshopTaskCopy(previewTask)"><i class="fa-regular fa-copy mr-2" aria-hidden="true"></i><span x-text="previewTask?.copy_status || 'Copy text'"></span></x-ui.button>
-                        </div>
-                    </x-ui.list-dialog>
-                </section>
-                </div>
-                <div data-workshop-step-panel="public" x-show="editorStep === 'public'" x-cloak
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                <div class="mb-4">
-                    <x-ui.media label="Image" name="hero_media_name" value="{{ old('hero_media_name', $workshopModel?->hero_media_name ?? $selectedBlueprint?->hero_media_name ?? '') }}" allow_uploads="true" public_usable_only="true" />
-                </div>
-                <div class="mb-5 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-                    <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
-                            <p class="text-xs text-gray-500">Optional public workshop filters. A workshop can have more than one category.</p>
-                        </div>
-                        <a href="{{ route('admin.workshop-category.index') }}" class="text-xs font-semibold text-primary-color hover:underline">Manage categories</a>
-                    </div>
-
-                    @if(($workshopCategories ?? collect())->isEmpty())
-                        <p class="text-sm text-gray-500">No workshop categories have been created yet.</p>
-                    @else
-                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach($workshopCategories as $category)
-                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 transition hover:border-primary-color hover:bg-primary-color-light/10">
-                                    <x-ui.checkbox name="category_ids[]" value="{{ $category->id }}" :checked="in_array((string) $category->id, $selectedCategoryIds, true)" :noWrapper="true" />
-                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-gray-600 shadow-sm ring-1 ring-gray-200">
-                                        <i class="{{ $category->iconClass() }}"></i>
-                                    </span>
-                                    <span class="font-medium">{{ $category->name }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    @endif
-                </div>
-                <section class="mb-5 rounded-xl border border-gray-200 bg-white p-4">
-                    <div class="mb-5">
-                        <div class="mb-1 flex items-center gap-1 pl-1">
-                            <label for="summary" class="text-sm">Summary</label>
-                            <x-ui.button type="button" variant="plain" class="inline-flex size-7 items-center justify-center rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Creating workshop summary…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_summary" data-ai-result-key="content" data-ai-fill-target="summary" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopSummaryAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=summary]')?.value || '').trim() ? 'improve' : 'write'" x-on:click="$el.dataset.aiContext = JSON.stringify(workshopSummaryAiContext()); $el.dataset.aiMode = String(document.querySelector('#workshop-form [name=summary]')?.value || '').trim() ? 'improve' : 'write'" aria-label="Develop summary from workshop description" title="Use the workshop description to draft or improve this summary" :disabled="blank(config('services.openai.api_key'))"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button>
-                        </div>
-                        <x-ui.input type="textarea" noLabel class="mb-0" id="summary" name="summary" value="{{ $workshopSummary }}" rows="3" />
-                    </div>
-                    <div class="mb-2 flex items-center justify-between gap-3"><h2 class="font-semibold text-gray-900">Description</h2></div>
-                    <x-ui.editor
-                        label=""
-                        name="content"
-                        :value="$workshopContent">
-                        <x-slot:toolbar>
-                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Improving workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Replace and improve workshop description" title="Replace and improve the current description" :disabled="blank(config('services.openai.api_key'))">
-                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-rotate absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                            </x-ui.button>
-                            <x-ui.button variant="plain" type="button" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Checking workshop description…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="workshop_description_amend" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext())" x-bind:data-ai-mode="String(document.querySelector('#workshop-form [name=content]')?.value || '').trim() ? 'improve' : 'write'" data-ai-editor-field="content" data-ai-editor-format="workshop-description" aria-label="Amend description and add missing supported sections" title="Amend the description and add missing supported sections, including learning outcomes">
-                                <span class="relative inline-flex"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i><i class="fa-solid fa-plus absolute -right-2 -bottom-1 rounded-full bg-white p-px text-[9px]" aria-hidden="true"></i></span>
-                            </x-ui.button>
-                        </x-slot:toolbar>
-                    </x-ui.editor>
-                </section>
-                </div>
-                </div>
-                <section data-workshop-step-panel="review" x-show="editorStep === 'review'" x-cloak class="mb-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-                    x-transition:enter="transition ease-out duration-150"
-                    x-transition:enter-start="translate-y-1 opacity-0"
-                    x-transition:enter-end="translate-y-0 opacity-100"
-                    x-transition:leave="transition ease-in duration-100"
-                    x-transition:leave-start="translate-y-0 opacity-100"
-                    x-transition:leave-end="-translate-y-1 opacity-0">
-                    <div class="mb-5">
-                        <h2 class="text-lg font-semibold text-gray-950">Review and publish</h2>
-                        <p class="mt-1 text-sm text-gray-600">Check the workshop details, then save. You can return to any step before saving.</p>
-                    </div>
-                    <div class="mb-5 grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <x-ui.select label="Status" name="status" x-model="status">
-                                <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
-                                <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
-                                <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
-                                <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
-                                <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
-                                <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                            </x-ui.select>
-                        </div>
-                        <div>
-                            <x-ui.input x-data type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" x-on:change="updatedPublishAt()" />
-                        </div>
-                    </div>
-                    <dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Workshop</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopTitle || 'Untitled workshop'"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Type</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="workshopFormat === 'course' ? 'Course' : ({ physical: 'In-person workshop', online: 'Online workshop', stemcraft: 'STEMCraft workshop' }[type] || type)"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Starts</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualStartsAt)"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Ends</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewDate(manualEndsAt)"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Location</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewLocation()"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Registration</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="({ none: 'None', tickets: 'Tickets', interest: 'Interest', link: 'External link', email: 'External email', message: 'Custom message' }[registration] || registration)"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Capacity</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="registration === 'tickets' ? (maxTickets ? `${maxTickets} tickets` : 'No ticket limit set') : (maxAttendance ? `${maxAttendance} attendees` : 'No attendance limit set')"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Price</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="reviewValue('price') || 'No price set'"></dd>
-                        </div>
-                        <div class="rounded-lg bg-gray-50 p-3">
-                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Status</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="({ draft: 'Draft', scheduled: 'Opens soon', open: 'Open', full: 'Full', closed: 'Closed', cancelled: 'Cancelled' }[status] || status)"></dd>
-                        </div>
-                    </dl>
-
-                    @isset($workshop)
-                        <div class="mt-4">
-                            <x-ui.button color="outline" href="{{ route('workshop.show', $workshop) }}" target="_blank" rel="noopener noreferrer">
-                                Preview saved public page <i class="fa-solid fa-arrow-up-right-from-square ml-2" aria-hidden="true"></i>
-                            </x-ui.button>
-                        </div>
-                    @endisset
-                </section>
-
-                <div class="sm-workshop-step-footer {{ isset($workshop) ? 'sm-workshop-step-footer--existing' : 'sm-workshop-step-footer--new' }}">
-                    @isset($workshop)
-                        <div class="sm-workshop-step-footer__delete">
-                            @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
-                                <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__interests" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
-                            @endif
-                            <x-ui.button data-editor-delete type="button" color="danger" class="sm-workshop-step-control sm-workshop-step-footer__delete-button" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
-                        </div>
-                    @endisset
-                    <div class="sm-workshop-step-footer__progress" x-bind:aria-label="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`">
-                        <span class="sm:hidden" x-text="`${editorStepIndex() + 1} / ${editorStepOrder.length}`"></span>
-                        <span class="hidden sm:inline" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></span>
-                    </div>
-                    <div class="sm-workshop-step-footer__navigation">
-                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__previous" type="button" color="outline" x-show="editorStepIndex() > 0" x-cloak x-on:click="previousEditorStep()">
-                            <span class="sm:hidden">Back</span>
-                            <span class="hidden sm:inline">Previous</span>
-                        </x-ui.button>
-                        @isset($workshop)
-                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__save" type="submit">Save</x-ui.button>
-                        @else
-                            <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__create" type="submit" x-show="editorStep === 'review'" x-cloak>Create</x-ui.button>
-                        @endisset
-                        <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__next" type="button" x-show="editorStepIndex() < editorStepOrder.length - 1" x-cloak x-on:click="nextEditorStep()">Next <i class="fa-solid fa-arrow-right ml-2" aria-hidden="true"></i></x-ui.button>
-                    </div>
-                </div>
-        </form>
-        @isset($workshop)
-            <form id="send-workshop-welcome" method="POST" action="{{ route('admin.workshop.welcome.send', $workshop) }}">@csrf</form>
-        @endisset
-
-    </x-container>
+                }));
+});
+</script>
 </x-layout>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">

@@ -11,7 +11,7 @@
         @endforeach
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach
         @php($customer = $session['equipment_customer'] ?? [])
-        <form method="POST" action="{{ route('workshop.ticket.flow.delivery.save', $workshop) }}" x-data="SM.workshopDelivery(@js(['summary' => $summary, 'ticketAmount' => $ticketAmount]))" x-on:input="scheduleQuote()" x-on:change="scheduleQuote()" x-on:submit="if (loading || quoteError) $event.preventDefault()">
+        <form method="POST" action="{{ route('workshop.ticket.flow.delivery.save', $workshop) }}" x-data="$SM.workshopDelivery(@js(['summary' => $summary, 'ticketAmount' => $ticketAmount]))" x-on:input="scheduleQuote()" x-on:change="scheduleQuote()" x-on:submit="$SM.preventIf($event, loading || quoteError)">
             @csrf
             @if($lines->isNotEmpty())
                 <x-finance.panel title="Delivery">
@@ -33,11 +33,11 @@
                     </div>
                     </fieldset>
                     <div x-show="isPickup" x-cloak class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">We will contact you when your order is available to collect.</div>
-                    <div x-show="quote.shipping_quote?.offers_consolidation && !isPickup && method !== 'request_quote'" x-cloak>
-                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" x-bind:disabled="!quote.shipping_quote?.offers_consolidation || isPickup || method === 'request_quote'" />
+                    <div x-show="$SM.get(quote, 'shipping_quote.offers_consolidation') && !isPickup && method !== 'request_quote'" x-cloak>
+                        <x-ui.checkbox name="consolidate_shipments" value="1" label="Send items together when all are available" :checked="$customer['consolidate_shipments'] ?? false" x-bind:disabled="!$SM.get(quote, 'shipping_quote.offers_consolidation') || isPickup || method === 'request_quote'" />
                     </div>
-                    <div x-show="!quote.shipping_quote?.requires_manual_quote" class="my-4 space-y-3">
-                        <template x-for="shipment in quote.shipping_quote?.shipments || []" :key="shipment.key">
+                    <div x-show="!$SM.get(quote, 'shipping_quote.requires_manual_quote')" class="my-4 space-y-3">
+                        <template x-for="shipment in $SM.get(quote, 'shipping_quote.shipments', []) || []" :key="shipment.key">
                             @include('shop.partials.shipment-card', ['moneyFunction' => 'money'])
                         </template>
                     </div>
@@ -49,13 +49,13 @@
                     <div class="flex justify-between gap-4"><dt>Tickets</dt><dd>{{ money($ticketAmount) }}</dd></div>
                     @foreach($lines as $line)<div class="flex justify-between gap-4"><dt>{{ $line->product->title }} × {{ $line->quantity }}</dt><dd>{{ money($line->line_price) }}</dd></div>@endforeach
                     <div class="flex justify-between gap-4"><dt>Delivery</dt><dd><span x-text="money(quote.shipping)">{{ money($summary['shipping']) }}</span></dd></div>
-                    <div class="flex justify-between gap-4 border-t pt-2 font-semibold"><dt>Total (inc GST)</dt><dd x-text="quote.shipping_quote?.requires_manual_quote ? money(ticketAmount) + ' now; equipment quoted separately' : money(ticketAmount + Number(quote.total || 0))"></dd></div>
+                    <div class="flex justify-between gap-4 border-t pt-2 font-semibold"><dt>Total (inc GST)</dt><dd x-text="$SM.get(quote, 'shipping_quote.requires_manual_quote') ? money(ticketAmount) + ' now; equipment quoted separately' : money(ticketAmount + $SM.number(quote.total || 0))"></dd></div>
                 </dl>
-                    <p x-show="quote.shipping_quote?.requires_manual_quote" x-cloak class="mb-4 text-sm text-amber-700">This delivery requires a quote. Your tickets will be paid now; equipment and delivery will be quoted separately before you pay for them.</p>
+                    <p x-show="$SM.get(quote, 'shipping_quote.requires_manual_quote')" x-cloak class="mb-4 text-sm text-amber-700">This delivery requires a quote. Your tickets will be paid now; equipment and delivery will be quoted separately before you pay for them.</p>
             @endif
             <input type="hidden" name="confirmed_total" x-bind:value="quote.total || 0">
             <p class="text-sm text-red-600" x-show="quoteError" x-text="quoteError" role="alert"></p>
-            <div class="mt-5 flex justify-end"><x-ui.button type="submit" name="action" value="continue" x-bind:disabled="loading || Boolean(quoteError)"><span x-text="loading ? 'Updating delivery…' : 'Continue'">Continue</span></x-ui.button></div>
+            <div class="mt-5 flex justify-end"><x-ui.button type="submit" name="action" value="continue" x-bind:disabled="loading || $SM.boolean(quoteError)"><span x-text="loading ? 'Updating delivery…' : 'Continue'">Continue</span></x-ui.button></div>
         </form>
         </div>
         @include('workshop.tickets.partials.pattern-sidebar')

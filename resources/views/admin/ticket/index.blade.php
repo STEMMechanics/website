@@ -4,7 +4,7 @@
     <x-container class="py-5 sm:py-8"
         x-data="{}"
         data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
-        x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
+        x-init="$SM.initTicketCancelModal($el.dataset.cancelReason)">
         <x-ui.dynamic-list name="admin-ticket-index">
 
             <x-slot:presetActions>
@@ -146,7 +146,7 @@
                                     @if($canCancel)
                                         <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
-                                            x-on:click="SM.openTicketCancelModal(
+                                            x-on:click="$SM.openTicketCancelModal(
                                                 {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
                                                 {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
                                                 {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
@@ -173,8 +173,8 @@
             x-show="$store.ticketCancelModal.open"
             x-cloak
             class="fixed inset-0 z-50 flex items-center justify-center p-4"
-            x-on:keydown.escape.window="SM.closeTicketCancelModal()">
-            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="SM.closeTicketCancelModal()"></div>
+            x-on:keydown.escape.window="$SM.closeTicketCancelModal()">
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="$SM.closeTicketCancelModal()"></div>
             <div class="relative z-10 w-full max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
                 <h3 class="text-lg font-bold text-gray-900" x-text="$store.ticketCancelModal.submitLabel"></h3>
                 <p class="mt-2 text-sm text-gray-700">
@@ -216,7 +216,7 @@
                     </label>
 
                     <div class="flex justify-end gap-3 pt-2">
-                        <x-ui.button type="button" color="primary-outline" x-on:click="SM.closeTicketCancelModal()">Keep Ticket</x-ui.button>
+                        <x-ui.button type="button" color="primary-outline" x-on:click="$SM.closeTicketCancelModal()">Keep Ticket</x-ui.button>
                         <x-ui.button variant="plain"
                             type="submit"
                             class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"

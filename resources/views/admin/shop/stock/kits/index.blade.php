@@ -63,7 +63,7 @@
                                                 <x-ui.row-action label="Restore" icon="fa-solid fa-box-open" tone="neutral" type="submit" aria-label="Restore {{ $kit->linkLabel() }}" />
                                             </form>
                                         @else
-                                            <form method="POST" action="{{ route('admin.shop.stock.kit.archive', $kit) }}" x-data x-on:submit.prevent="SM.confirm('Archive?', 'This removes it from active stock lists and selectors while preserving its history.', 'Archive', confirmed => { if (confirmed) $el.submit() })">
+                                            <form method="POST" action="{{ route('admin.shop.stock.kit.archive', $kit) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Archive?', 'This removes it from active stock lists and selectors while preserving its history.', 'Archive')">
                                                 @csrf
                                                 @method('PATCH')
                                                 <x-ui.row-action label="Archive" icon="fa-solid fa-box-archive" tone="neutral" type="submit" aria-label="Archive {{ $kit->linkLabel() }}" />

@@ -76,7 +76,7 @@
                 </article>
 
                 @if($bitcoinEnabled && $bitcoinAddress)
-                    <article id="bitcoin" x-data="{ copied: false, qrOpen: false, async copy(address) { try { await navigator.clipboard.writeText(address); this.copied = true; setTimeout(() => this.copied = false, 2200); } catch (_) { this.copied = false; } } }" class="scroll-mt-6 flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    <article id="bitcoin" x-data="smCspSponsorshipIndex1" class="scroll-mt-6 flex flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex min-h-9 items-center justify-between gap-3">
                             <div class="flex min-w-0 items-center gap-3"><span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><i class="fa-brands fa-bitcoin" aria-hidden="true"></i></span><h3 class="text-xl font-semibold text-gray-900">Support with Bitcoin</h3></div>
                             @if($bitcoinQrAvailable)
@@ -191,4 +191,10 @@
             else animateCounters();
         })();
     </script>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspSponsorshipIndex1', () => ({ copied: false, qrOpen: false, async copy(address) { try { await navigator.clipboard.writeText(address); this.copied = true; setTimeout(() => this.copied = false, 2200); } catch (_) { this.copied = false; } } }));
+});
+</script>
 </x-layout>

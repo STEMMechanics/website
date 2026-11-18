@@ -1,44 +1,6 @@
 <x-layout>
     <div
-        x-data="{
-            replacementDialogOpen: false,
-            replacementDialogData: null,
-            replacementDialogSelectedCandidateId: null,
-            openReplacementDialogFromEncoded(dialogEncoded) {
-                if (!dialogEncoded) {
-                    return;
-                }
-
-                try {
-                    this.openReplacementDialog(JSON.parse(decodeURIComponent(dialogEncoded)));
-                } catch (error) {
-                    console.error('Unable to open payment replacement dialog.', error);
-                }
-            },
-            openReplacementDialog(dialogData = null) {
-                const nextData = dialogData || null;
-                if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
-                    return;
-                }
-
-                this.replacementDialogData = nextData;
-                this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
-                this.replacementDialogOpen = true;
-            },
-            closeReplacementDialog() {
-                this.replacementDialogOpen = false;
-            },
-            selectedReplacementCandidate() {
-                if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
-                    return null;
-                }
-
-                const selectedId = String(this.replacementDialogSelectedCandidateId || '');
-                return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
-                    || this.replacementDialogData.candidates[0]
-                    || null;
-            },
-        }"
+        x-data="smCspAdminPaymentIndex1"
     >
     <x-mast title="Payments"><x-slot:actions><x-ui.button color="mast" href="{{ route('admin.payment.create') }}">Record payment</x-ui.button></x-slot:actions></x-mast>
 
@@ -314,4 +276,48 @@
     </x-container>
     @include('admin.payment.partials.replacement-dialog')
     </div>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminPaymentIndex1', () => ({
+            replacementDialogOpen: false,
+            replacementDialogData: null,
+            replacementDialogSelectedCandidateId: null,
+            openReplacementDialogFromEncoded(dialogEncoded) {
+                if (!dialogEncoded) {
+                    return;
+                }
+
+                try {
+                    this.openReplacementDialog(JSON.parse(decodeURIComponent(dialogEncoded)));
+                } catch (error) {
+                    console.error('Unable to open payment replacement dialog.', error);
+                }
+            },
+            openReplacementDialog(dialogData = null) {
+                const nextData = dialogData || null;
+                if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
+                    return;
+                }
+
+                this.replacementDialogData = nextData;
+                this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
+                this.replacementDialogOpen = true;
+            },
+            closeReplacementDialog() {
+                this.replacementDialogOpen = false;
+            },
+            selectedReplacementCandidate() {
+                if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
+                    return null;
+                }
+
+                const selectedId = String(this.replacementDialogSelectedCandidateId || '');
+                return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
+                    || this.replacementDialogData.candidates[0]
+                    || null;
+            },
+        }));
+});
+</script>
 </x-layout>

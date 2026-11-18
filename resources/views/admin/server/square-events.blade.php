@@ -1,28 +1,7 @@
 <x-layout>
     <x-mast>Square Events</x-mast>
 
-    <x-container class="py-5 sm:py-8" x-data="{
-        ignoreOpen: false,
-        ignoreAction: '',
-        ignoreSquarePaymentId: '',
-        reasonCode: '',
-        reasonOther: '',
-        openIgnore(actionUrl, squarePaymentId) {
-            this.ignoreAction = actionUrl;
-            this.ignoreSquarePaymentId = squarePaymentId || '';
-            this.reasonCode = '';
-            this.reasonOther = '';
-            this.ignoreOpen = true;
-        },
-        closeIgnore() {
-            this.ignoreOpen = false;
-        },
-        canSubmitIgnore() {
-            if (!this.reasonCode) return false;
-            if (this.reasonCode !== 'other') return true;
-            return this.reasonOther.trim().length > 0;
-        }
-    }">
+    <x-container class="py-5 sm:py-8" x-data="smCspAdminServerSquareEvents1">
         <x-ui.dynamic-list name="admin-server-square-events">
         <x-ui.collection-controls class="my-5" />
 
@@ -242,4 +221,31 @@
 
         </x-ui.dynamic-list>
     </x-container>
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspAdminServerSquareEvents1', () => ({
+        ignoreOpen: false,
+        ignoreAction: '',
+        ignoreSquarePaymentId: '',
+        reasonCode: '',
+        reasonOther: '',
+        openIgnore(actionUrl, squarePaymentId) {
+            this.ignoreAction = actionUrl;
+            this.ignoreSquarePaymentId = squarePaymentId || '';
+            this.reasonCode = '';
+            this.reasonOther = '';
+            this.ignoreOpen = true;
+        },
+        closeIgnore() {
+            this.ignoreOpen = false;
+        },
+        canSubmitIgnore() {
+            if (!this.reasonCode) return false;
+            if (this.reasonCode !== 'other') return true;
+            return this.reasonOther.trim().length > 0;
+        }
+    }));
+});
+</script>
 </x-layout>

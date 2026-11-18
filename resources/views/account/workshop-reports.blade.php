@@ -57,7 +57,7 @@
                                         type="button"
                                         data-range-from="{{ $dateShortcut['from'] }}"
                                         data-range-to="{{ $dateShortcut['to'] }}"
-                                        x-on:click="$refs.reportDateFrom.value = $el.dataset.rangeFrom; $refs.reportDateTo.value = $el.dataset.rangeTo"
+                                        x-on:click="$SM.updateDateRange($refs.reportDateFrom, $refs.reportDateTo, $el.dataset.rangeFrom, $el.dataset.rangeTo)"
                                     >
                                         {{ $dateShortcut['label'] }}
                                     </x-ui.button>

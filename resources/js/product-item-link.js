@@ -19,6 +19,18 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
 
         return this.catalog.find((option) => String(option.id) === productId) || null;
     },
+    linkedProductUrl() {
+        return this.linkedProduct ? this.linkedProduct.url || '' : '';
+    },
+    linkedProductName() {
+        return this.linkedProduct ? this.linkedProduct.name || '' : '';
+    },
+    linkedProductLinkTitle() {
+        return 'Open ' + (this.linkedProductName() || 'linked item') + ' in a new tab';
+    },
+    initializeModel() {
+        if (this.linkedProduct && !this.model.item_name) this.model.item_name = this.linkedProduct.name;
+    },
     get matches() {
         const query = this.query.trim().toLowerCase();
         const currentProductId = String(this.model?.product_id ?? '');
@@ -69,6 +81,9 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
         this.menuTop = rect.bottom + 4;
         this.menuMaxHeight = Math.max(96, Math.min(320, window.innerHeight - this.menuTop - 8));
         this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
+    },
+    positionIfOpen(element, width) {
+        if (this.open) this.position(element, width);
     },
     editDescription(element) {
         const value = String(element.value || '');

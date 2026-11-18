@@ -85,13 +85,13 @@
                     </section>
                     @error('option_id')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     <p class="mt-1 text-xs leading-5 text-gray-600">Monthly sponsorships can be changed or cancelled later using the <a href="{{ route('sponsor.manage.request') }}" class="font-medium text-primary-color underline hover:no-underline">Manage My Sponsorship</a> page.</p>
-                    <p x-cloak x-show="frequency === 'monthly' && selectedOption()" class="mt-2 text-xs leading-5 text-gray-600">Your first payment is AUD $<span x-text="selectedOption()?.firstPayment"></span> today. You will then be charged on <span x-text="selectedOption()?.billingLabel"></span>, until cancelled.</p>
+                    <p x-cloak x-show="frequency === 'monthly' && selectedOption()" class="mt-2 text-xs leading-5 text-gray-600">Your first payment is AUD $<span x-text="$SM.get(selectedOption(), 'firstPayment')"></span> today. You will then be charged on <span x-text="$SM.get(selectedOption(), 'billingLabel')"></span>, until cancelled.</p>
                 </section>
 
                 <section class="rounded-2xl border border-gray-200 p-4 sm:p-5">
                     <h2 class="font-semibold text-gray-900">Where should we send your receipt?</h2>
                     <p class="mt-1 text-sm leading-6 text-gray-600">We’ll issue the invoice without recipient details. After payment, you can add a name, organisation or address if you need them shown.</p>
-                    <div class="mt-4 grid gap-x-4 sm:grid-cols-2" x-data="{ country: @js($savedCountry), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }">
+                    <div class="mt-4 grid gap-x-4 sm:grid-cols-2" x-data="smCspSponsorshipCommunitySupport1">
                         <x-ui.input type="email" name="email" label="Email address" :value="old('email', $user?->email ?? '')" autocomplete="email" maxlength="255" required />
                         <x-ui.input name="contact_name" label="Name (optional)" :value="old('contact_name', $user?->getName() ?? '')" autocomplete="name" maxlength="255" />
                         <x-ui.input name="country" label="Country" :value="$savedCountry" autocomplete="country-name" maxlength="120" x-model="country" required />
@@ -134,4 +134,10 @@
     @endif
     @include('sponsorship.partials.square-checkout-script')
     @include('sponsorship.partials.amount-choice-script')
+
+<script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+document.addEventListener('alpine:init', function () {
+    Alpine.data('smCspSponsorshipCommunitySupport1', () => ({ country: @js($savedCountry), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }));
+});
+</script>
 </x-layout>

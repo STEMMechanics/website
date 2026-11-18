@@ -6,7 +6,7 @@
             <div class="flex-1 min-w-0">
                 <div class="mb-4 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.cart', $workshop)" /><h2 class="text-2xl font-bold">Review booking</h2></div>
                 @foreach($errors->all() as $error)<p class="mb-3 text-sm text-red-600" role="alert">{{ $error }}</p>@endforeach
-                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="SM.workshopBookingReview(@js(['reviewVersion' => $session['review_version'], 'draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]))">
+                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="$SM.workshopBookingReview(@js(['reviewVersion' => $session['review_version'], 'draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]))">
                     @csrf
                     <input type="hidden" name="review_version" value="{{ $session['review_version'] }}" x-bind:value="reviewVersion">
                     <p x-show="saveError" x-text="saveError" role="alert" class="mb-3 text-sm text-red-600"></p>
@@ -14,9 +14,9 @@
                     <template x-for="(person, index) in participants" :key="index">
                         <div class="mb-3 rounded-lg border border-gray-200 p-3">
                             <div class="flex items-start justify-between gap-2 h-11"><h4 class="font-semibold" x-text="'Participant ' + (index + 1)"></h4><x-ui.row-action icon="fa-trash" label="Remove" x-show="participants.length > 1" x-on:click="participants.splice(index, 1)" /></div>
-                            <label class="mb-3 block text-sm font-medium">First name<x-ui.input-control x-bind:name="`participants[${index}][firstname]`" x-model="person.firstname" autocomplete="off" required /></label>
-                            <label class="mb-3 block text-sm font-medium">Surname<x-ui.input-control x-bind:name="`participants[${index}][surname]`" x-model="person.surname" autocomplete="off" required /></label>
-                            <x-ui.participant-age x-bind:name="`participants[${index}][age]`" x-model="person.age" />
+                            <label class="mb-3 block text-sm font-medium">First name<x-ui.input-control x-bind:name="('participants[' + (index) + '][firstname]')" x-model="person.firstname" autocomplete="off" required /></label>
+                            <label class="mb-3 block text-sm font-medium">Surname<x-ui.input-control x-bind:name="('participants[' + (index) + '][surname]')" x-model="person.surname" autocomplete="off" required /></label>
+                            <x-ui.participant-age x-bind:name="('participants[' + (index) + '][age]')" x-model="person.age" />
                         </div>
                     </template>
                     <x-ui.button type="button" color="secondary" x-on:click="addParticipant()" x-bind:disabled="participants.length >= 10">Add another participant</x-ui.button>
@@ -35,7 +35,7 @@
                             @endif
                             <template x-for="(person, index) in participants" :key="index">
                                 <label class="mb-2 flex cursor-pointer items-center gap-3">
-                                    <x-ui.checkbox bare :value="$item->id" x-bind:name="`participants[${index}][workshops][]`" x-model="person.workshops" x-bind:disabled="selectionFull(person, $el.value)" :aria-label="'Attend '.$item->title" />
+                                    <x-ui.checkbox bare :value="$item->id" x-bind:name="('participants[' + (index) + '][workshops][]')" x-model="person.workshops" x-bind:disabled="selectionFull(person, $el.value)" :aria-label="'Attend '.$item->title" />
                                     <span x-text="person.firstname.trim() ? [person.firstname, person.surname].filter(Boolean).join(' ') : 'Participant ' + (index + 1)"></span>
                                 </label>
                             </template>

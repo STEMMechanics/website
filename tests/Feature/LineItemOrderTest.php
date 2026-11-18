@@ -118,13 +118,13 @@ class LineItemOrderTest extends TestCase
                 ->assertSee('aria-label="Move down"', false)
                 ->assertSee('x-bind:disabled="index === 0"', false)
                 ->assertSee('x-bind:disabled="index === lineItems.length - 1"', false)
-                ->assertSee('x-data="SM.lineItemsEditor(false,', false)
+                ->assertSee('x-data="$SM.lineItemsEditor(false,', false)
                 ->assertSee(':key="lineItemKey(item)"', false);
         }
         $invoice = Invoice::factory()->create(['status' => Invoice::STATUS_ISSUED]);
         $this->get(route('admin.invoice.edit', $invoice))->assertOk()
             ->assertDontSee('aria-label="Move up"', false)
             ->assertDontSee('aria-label="Move down"', false)
-            ->assertSee('x-data="SM.lineItemsEditor(true,', false);
+            ->assertSee('x-data="$SM.lineItemsEditor(true,', false);
     }
 }

@@ -16,6 +16,68 @@ window.SM.lineItemsEditor = (isLocked = false, pricingPlans = [], selectedPricin
         roundingItem: null,
         roundingProposed: 0,
         roundingRequested: 0,
+        initializeLineItems() {
+            if (!isLocked) this.lineItems.forEach(item => window.SM.initializeWorkshopText(item));
+            this.serializeLineItems();
+        },
+        handleLineChange(item) {
+            window.SM.updateWorkshopLine(item);
+            this.serializeLineItems();
+        },
+        handleLineGstChange(item) {
+            window.SM.changeLineGst(item);
+            this.handleLineChange(item);
+        },
+        resetWorkshopNotes(item) {
+            window.SM.refreshWorkshopNotes(item);
+            this.serializeLineItems();
+        },
+        markWorkshopNotesEdited(item) {
+            window.SM.markWorkshopNotesEdited(item);
+            this.serializeLineItems();
+        },
+        commitWorkshopRow(item, row) {
+            window.SM.commitWorkshopSpacing(row);
+            this.handleLineChange(item);
+        },
+        updateTravelHours(item, row) {
+            row.travel_hours_user_changed = true;
+            row.travel_hours_defaulted = false;
+            row.details_json.travel ??= {};
+            row.details_json.travel.hours_user_changed = true;
+            row.details_json.travel.hours_defaulted = false;
+            this.handleLineChange(item);
+        },
+        moveWorkshopRowAndSave(item, rowIndex, direction) {
+            window.SM.moveWorkshopRow(item, rowIndex, direction);
+            this.serializeLineItems();
+        },
+        addWorkshopRowAndSave(item) {
+            window.SM.addWorkshopRow(item, this.multiWorkshopDefaults);
+            window.SM.updateWorkshopLine(item);
+            this.serializeLineItems();
+        },
+        addTravelRowAndSave(item) {
+            window.SM.addTravelRow(item);
+            window.SM.updateWorkshopLine(item);
+            this.serializeLineItems();
+        },
+        mobileLineItemKind() {
+            const item = this.mobileLineItemIndex === null ? null : this.lineItems[this.mobileLineItemIndex];
+            return item ? item.kind : '';
+        },
+        roundingItemName() {
+            const workshop = this.roundingItem && this.roundingItem.details_json
+                ? this.roundingItem.details_json.workshop
+                : null;
+            return workshop && workshop.name || (this.roundingItem && this.roundingItem.description)
+                || (this.roundingItem && typeof this.itemTypeLabel === 'function' ? this.itemTypeLabel(this.roundingItem.kind) : '') || '';
+        },
+        roundingChangeText() {
+            const original = this.roundingOriginal ? Number(this.roundingOriginal.gross) : 0;
+            const preview = this.roundingPreview ? Number(this.roundingPreview.gross) : 0;
+            return (preview >= original ? '+' : '−') + '$' + Math.abs(preview - original).toFixed(2);
+        },
         get selectedPricingPlan() {
             return this.pricingPlans.find(plan => Number(plan.id) === Number(this.selectedPricingVersionId)) || null;
         },
@@ -170,6 +232,37 @@ window.SM.lineItemsEditor = (isLocked = false, pricingPlans = [], selectedPricin
             window.SM.updateWorkshopLine(item);
             this.serializeLineItems();
             return true;
+        },
+    };
+};
+
+window.SM.lineTypePicker = () => ({
+    open: false,
+    menuTop: 0,
+    menuLeft: 0,
+    positionAndToggle(element) {
+        const rect = element.getBoundingClientRect();
+        this.menuTop = Math.max(8, Math.min(rect.bottom + 4, window.innerHeight - 320));
+        this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - 264));
+        this.open = !this.open;
+    },
+    choose(element, index, value) {
+        const scope = Alpine.$data(element);
+        if (typeof scope.selectItemType === 'function') scope.selectItemType(index, value);
+        scope.expanded = true;
+        this.open = false;
+    },
+});
+
+window.SM.mobileLineItemDetails = element => {
+    const parent = Alpine.$data(element.parentElement);
+    return {
+        expanded: true,
+        get item() {
+            return parent.lineItems[parent.mobileLineItemIndex];
+        },
+        get index() {
+            return parent.mobileLineItemIndex;
         },
     };
 };

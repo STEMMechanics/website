@@ -5,12 +5,12 @@
     $calculatorId = 'invoice-allocation-calculator-'.$invoice->id.($inline ? '-inline' : '-editor');
     $calculatorConfig = ['dialogId' => $calculatorId, 'plans' => $calculatorPlans, 'planId' => $calculatorPlans->contains('id', $allocation['version']->id) ? $allocation['version']->id : $calculatorPlans->first()['id'] ?? '', 'categories' => $allocation['categories']->map(fn ($category) => ['id' => $category->id, 'name' => $category->name])];
 @endphp
-<div x-data="SM.invoiceAllocationCalculator(@js($calculatorConfig))" x-on:open-allocation-calculator.window="if ($event.detail.dialogId === dialogId) launch($el.closest('form') ? Alpine.$data($el.closest('form')).total : 0)">
+<div x-data="$SM.invoiceAllocationCalculator(@js($calculatorConfig))" x-on:open-allocation-calculator.window="$event.detail.dialogId === dialogId &amp;&amp; launch($SM.formTotal($el))">
     <x-ui.list-dialog :id="$calculatorId" title="Calculate cost centre allocation" kind="bulk" draggable>
         <x-slot:headerActions>
             <x-ui.button type="button" variant="plain" x-on:click="minimise()" aria-label="Minimise allocation calculator" title="Minimise" class="rounded-lg text-slate-500" size="icon"><i class="fa-solid fa-minus" aria-hidden="true"></i></x-ui.button>
         </x-slot:headerActions>
-        <div class="space-y-6 p-5" x-on:keydown.enter="if ($event.target.matches('input')) $event.preventDefault()">
+        <div class="space-y-6 p-5" x-on:keydown.enter="$event.target.matches('input') &amp;&amp; $event.preventDefault()">
             <fieldset x-bind:disabled="!isOpen" class="space-y-5" x-on:input="recalculate()" x-on:change="recalculate()">
                 <x-ui.select label="Allocation plan" :name="$calculatorId.'-plan'" :id="$calculatorId.'-plan'" x-model="planId">
                     <template x-for="plan in plans" :key="plan.id"><option :value="plan.id" x-text="plan.name"></option></template>
@@ -51,7 +51,7 @@
     </x-ui.list-dialog>
     <template x-teleport="body">
         <div x-cloak x-show="minimised" class="fixed inset-x-3 bottom-3 z-50 flex items-center rounded-xl border border-slate-300 bg-white shadow-lg sm:left-auto sm:right-5 sm:w-80">
-            <x-ui.button variant="plain" type="button" x-ref="restoreCalculator" x-on:click="$dispatch('open-allocation-calculator', { dialogId })" aria-label="Restore allocation calculator" aria-haspopup="dialog" aria-controls="{{ $calculatorId }}" class="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-color">
+            <x-ui.button variant="plain" type="button" x-ref="restoreCalculator" x-on:click="$dispatch('open-allocation-calculator', { dialogId: dialogId })" aria-label="Restore allocation calculator" aria-haspopup="dialog" aria-controls="{{ $calculatorId }}" class="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-primary-color">
                 <i class="fa-solid fa-calculator text-primary-color" aria-hidden="true"></i>
                 <span class="flex-1">Allocation calculator</span>
                 <i class="fa-solid fa-window-restore text-slate-500" aria-hidden="true"></i>

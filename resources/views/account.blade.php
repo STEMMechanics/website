@@ -26,7 +26,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             id="account-settings-form"
             class="my-8"
             x-data
-            x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()"
+            x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)"
         >
             @csrf
             <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />
@@ -90,7 +90,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <h3 class="text-sm font-semibold text-gray-900">Shipping address</h3>
-                                        <x-ui.checkbox class="mt-4" label="Same as billing" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="SM.updateShippingAddress" />
+                                        <x-ui.checkbox class="mt-4" label="Same as billing" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="$SM.updateShippingAddress" />
                                     </div>
                                 </div>
                                 <div class="mt-0">
@@ -227,7 +227,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
 
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 @if($user->id !== 1)
-                    <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmAccountDelete($el)">
+                    <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="$SM.confirmAccountDelete($el)">
                         @csrf
                         @method('DELETE')
                         <x-ui.button type="submit" color="danger-outline" class="w-full sm:w-auto">Delete account</x-ui.button>

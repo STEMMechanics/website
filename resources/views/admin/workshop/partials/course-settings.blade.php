@@ -17,10 +17,10 @@
         <div class="divide-y divide-gray-200">
             <template x-for="(session, index) in courseSessions" :key="session.id">
                 <div class="grid items-center gap-3 py-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_3rem]">
-                    <input type="hidden" x-bind:name="`course_sessions[${index}][id]`" x-bind:value="session.id">
-                    <x-ui.input class="mb-0 min-w-0" labelClass="md:sr-only" label="Starts" type="datetime-local" x-bind:name="`course_sessions[${index}][starts_at]`" x-model="session.starts_at" x-on:change="sessionChanged()" />
-                    <x-ui.input class="mb-0 min-w-0" labelClass="md:sr-only" label="Ends" type="datetime-local" x-bind:name="`course_sessions[${index}][ends_at]`" x-model="session.ends_at" x-on:change="sessionChanged()" />
-                    <x-ui.button type="button" variant="plain" class="self-center text-red-600" aria-label="Remove session" x-on:click="courseSessions.splice(index, 1); sessionChanged()"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                    <input type="hidden" x-bind:name="('course_sessions[' + (index) + '][id]')" x-bind:value="session.id">
+                    <x-ui.input class="mb-0 min-w-0" labelClass="md:sr-only" label="Starts" type="datetime-local" x-bind:name="('course_sessions[' + (index) + '][starts_at]')" x-model="session.starts_at" x-on:change="sessionChanged()" />
+                    <x-ui.input class="mb-0 min-w-0" labelClass="md:sr-only" label="Ends" type="datetime-local" x-bind:name="('course_sessions[' + (index) + '][ends_at]')" x-model="session.ends_at" x-on:change="sessionChanged()" />
+                    <x-ui.button type="button" variant="plain" class="self-center text-red-600" aria-label="Remove session" x-on:click="removeCourseSession(index)"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
                 </div>
             </template>
         </div>
