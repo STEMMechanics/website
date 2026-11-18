@@ -353,6 +353,17 @@
                 const name = String(item?.item_name || '').trim();
                 return name === '' && !item?.product_id;
             },
+            setItemQuantity(index, value) {
+                const item = this.items[index];
+                if (item) item.quantity_value = value;
+            },
+            rectifyItemQuantity(index, value) {
+                const item = this.items[index];
+                if (!item) return;
+
+                const quantity = Number.parseInt(String(value ?? '').trim(), 10);
+                item.quantity_value = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+            },
             hasSingleTrailingBlank() {
                 if (this.items.length === 0) {
                     return false;
@@ -556,7 +567,7 @@
                                         <x-ui.row-action label="Notes, subtasks, and reminder" icon="fa-solid fa-sliders" tone="neutral" type="button" x-on:click="openTaskEditor(index)" />
                                         <x-ui.row-action label="Move up" icon="fa-solid fa-arrow-up" tone="neutral" type="button" x-on:click="moveTask(index, -1)" x-bind:disabled="index === 0 || isBlankTask(task)" />
                                         <x-ui.row-action label="Move down" icon="fa-solid fa-arrow-down" tone="neutral" type="button" x-on:click="moveTask(index, 1)" x-bind:disabled="index >= tasks.length - 2 || isBlankTask(task)" />
-                                        <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeTask(index)" />
+                                        <x-ui.row-action label="Remove" icon="fa-solid fa-trash" tone="danger" type="button" x-on:click="removeTask(index)" x-bind:disabled="isBlankTask(task)" />
                                     </x-ui.row-actions>
                                 </div>
                                 <div class="mt-1 pl-1 flex flex-wrap gap-2 text-xs text-gray-500">
@@ -709,8 +720,8 @@
                                                         step="1"
                                                         x-model="item.quantity_value"
                                                         x-bind:required="!isBlankItem(item)"
-                                                        x-on:input="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)"
-                                                        x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
+                                                        x-on:input="setItemQuantity(index, $event.target.value); handleRowChange(index)"
+                                                        x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
                                                 </div>
                                             </div>
                                         </x-ui.grid>
@@ -740,8 +751,8 @@
                                             step="1"
                                             x-model="item.quantity_value"
                                             x-bind:required="!isBlankItem(item)"
-                                            x-on:input="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)"
-                                            x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
+                                            x-on:input="setItemQuantity(index, $event.target.value); handleRowChange(index)"
+                                            x-on:blur="rectifyItemQuantity(index, $event.target.value)" />
                                     </td>
                                     <td class="w-44 p-2 align-middle">
                                         <x-ui.row-actions :menu="false" class="h-full">
