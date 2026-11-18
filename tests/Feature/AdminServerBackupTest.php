@@ -121,7 +121,7 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('Disabled; Laravel will serve files directly')
             ->assertSee('aria-label="Clear deploy output log"', false)
             ->assertSee('aria-label="Refresh deploy output log"', false)
-            ->assertSee('aria-label="Clear Laravel log"', false)
+            ->assertSee('aria-label="Clear selected Laravel log"', false)
             ->assertSee('aria-label="Refresh Laravel log"', false)
             ->assertSee('Run Update')
             ->assertSee('Backups &amp; Downloads', false)
