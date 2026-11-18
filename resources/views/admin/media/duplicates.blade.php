@@ -52,12 +52,19 @@
                         processing: false,
                         progressOpen: false,
                         complete: false,
-                        completed: 0,
-                        total: 0,
+                        batch: {completed: 0, total: 0},
+                        selectionActions: {},
                         failures: [],
                         queueError: '',
+                        selectedActionCount() {
+                            return Object.values(this.selectionActions).filter((action) => action === 'merge' || action === 'ignore').length;
+                        },
+                        selectedActionLabel() {
+                            const count = this.selectedActionCount();
+                            return count+' '+(count === 1 ? 'action' : 'actions')+' selected';
+                        },
                         progressPercent() {
-                            return this.total === 0 ? 0 : Math.round((this.completed / this.total) * 100);
+                            return this.batch.total === 0 ? 0 : Math.round((this.batch.completed / this.batch.total) * 100);
                         },
                         async saveActions() {
                             if (this.processing) return;
@@ -72,9 +79,14 @@
                                 metadata: JSON.parse(row.dataset.metadataSources || '{}'),
                             })).filter((item) => item.action === 'merge' || item.action === 'ignore');
                             if (actions.length === 0) {
-                                this.queueError = 'Choose Advanced merge or Ignore for at least one row.';
+                                this.selectionActions = {};
                                 return;
                             }
+
+                            this.selectionActions = Object.fromEntries(actions.map((item) => [
+                                JSON.stringify([item.left, item.right]),
+                                item.action,
+                            ]));
 
                             const mergeKeepers = new Set();
                             const mergeDuplicates = new Set();
@@ -110,8 +122,10 @@
                             this.processing = true;
                             this.progressOpen = true;
                             this.complete = false;
-                            this.completed = 0;
-                            this.total = actions.length;
+                            this.batch = {
+                                completed: 0,
+                                total: actions.length,
+                            };
                             this.failures = [];
 
                             for (const item of actions) {
@@ -141,7 +155,7 @@
                                 } catch (error) {
                                     this.failures.push({ row: item.left+' / '+item.right, message: error.message || 'The action could not be saved.' });
                                 }
-                                this.completed++;
+                                this.batch.completed++;
                             }
 
                             this.processing = false;
@@ -151,6 +165,7 @@
                             window.location.reload();
                         }
                     }"
+                    x-on:similar-pair-action-change.window="selectionActions[$event.detail.key] = $event.detail.action; queueError = ''"
                 >
                     <input x-ref="csrf" type="hidden" value="{{ csrf_token() }}">
                     <div x-ref="pairs" class="mt-5 space-y-5">
@@ -168,16 +183,17 @@
                         @endforeach
                     </div>
 
-                    <div class="mt-6 flex justify-end border-t border-gray-200 pt-5">
-                        <x-ui.button type="button" x-on:click="saveActions()" x-bind:disabled="processing">Save</x-ui.button>
+                    <div class="mt-6 flex items-center justify-between gap-4 border-t border-gray-200 pt-5">
+                        <p class="text-sm text-gray-600" x-text="selectedActionLabel()"></p>
+                        <x-ui.button type="button" x-on:click="saveActions()" x-bind:disabled="processing || selectedActionCount() === 0">Save</x-ui.button>
                     </div>
                     <p x-show="queueError" x-cloak x-text="queueError" class="mt-3 text-sm text-red-700" role="alert"></p>
 
                     <div x-show="progressOpen" x-cloak class="fixed inset-0 z-280 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="similar-progress-title">
                         <div class="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
                             <h3 id="similar-progress-title" class="text-lg font-semibold text-gray-900" x-text="complete ? 'Save complete' : 'Saving selected actions'"></h3>
-                            <p class="mt-2 text-sm text-gray-600" x-text="completed+' of '+total+' actions processed'"></p>
-                            <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Duplicate actions progress" aria-valuemin="0" x-bind:aria-valuemax="total" x-bind:aria-valuenow="completed">
+                            <p class="mt-2 text-sm text-gray-600" x-text="batch.completed+' of '+batch.total+' selected actions processed'"></p>
+                            <div class="mt-4 h-3 overflow-hidden rounded-full bg-gray-200" role="progressbar" aria-label="Duplicate actions progress" aria-valuemin="0" x-bind:aria-valuemax="batch.total" x-bind:aria-valuenow="batch.completed">
                                 <div class="h-full rounded-full bg-primary-color transition-all duration-300" x-bind:style="'width: '+progressPercent()+'%'" x-bind:class="processing ? 'animate-pulse' : ''"></div>
                             </div>
                             <div x-show="complete && failures.length === 0" x-cloak class="mt-4 text-sm text-green-800">All selected actions were processed.</div>
