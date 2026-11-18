@@ -48,8 +48,34 @@ export function productPreparationFields(model, catalog = []) {
     return {
         preparationItem: model,
         preparationCatalog: Array.isArray(catalog) ? catalog : [],
+        syncPreparationValues(item, catalog) {
+            this.preparationItem = item;
+            this.preparationCatalog = catalog;
+        },
+        syncQuantityChoice(element) {
+            const choice = this.quantityChoice;
+            this.$nextTick(() => { element.value = choice; });
+        },
         get linkedMaterial() {
             return this.preparationCatalog.find(option => String(option.id) === String(this.preparationItem.product_id));
+        },
+        get hasLinkedMaterialMeasurements() {
+            return Boolean(this.linkedMaterial?.has_material_measurements);
+        },
+        get linkedMaterialLabel() {
+            return this.linkedMaterial?.base_option_name || this.linkedMaterial?.name || '';
+        },
+        get linkedMaterialKind() {
+            return this.linkedMaterial?.material_kind || '';
+        },
+        get linkedMaterialIsPhysical() {
+            return this.linkedMaterial?.product_type === 'material';
+        },
+        get linkedMaterialPurchaseUnit() {
+            return this.linkedMaterial?.purchase_unit || 'roll';
+        },
+        get linkedMaterialCutSizes() {
+            return this.linkedMaterial?.cut_sizes || [];
         },
         get quantityUnit() {
             return productQuantityUnit(this.linkedMaterial, this.preparationItem);
