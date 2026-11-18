@@ -57,7 +57,7 @@ class StockItemController extends Controller
 
         $items = $query
             ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))
-            ->paginate(ListPageSize::resolve(20))
+            ->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
         $reservedQuantities = $inventory->reservedQuantitiesForStockItems($items->getCollection());
         $items->getCollection()->each(fn (StockItem $item) => $item->setAttribute(
@@ -104,7 +104,7 @@ class StockItemController extends Controller
 
         app(SiteListControls::class)->apply($query);
         $kits = $query
-            ->paginate(ListPageSize::resolve(20), ['*'], 'kits_page')
+            ->paginate(ListPageSize::resolve(25), ['*'], 'kits_page')
             ->onEachSide(1);
 
         return view('admin.shop.stock.kits.index', [

@@ -16,6 +16,7 @@ use App\Services\MediaImageEditor;
 use App\Services\MediaUsageService;
 use App\Services\MediaListFilters;
 use App\Services\ImagePerceptualHash;
+use App\Support\ListPageSize;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -429,7 +430,9 @@ class MediaController extends Controller
     public function getMedia(Request $request, bool $selectionOnly = false)
     {
         $query = Media::query();
-        $perPage = max(1, min(100, (int) $request->input('per_page', 25)));
+        $perPage = $request->routeIs('admin.media.index', 'account.media.index')
+            ? ListPageSize::resolve(25)
+            : max(1, min(100, (int) $request->input('per_page', 25)));
         $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
         $user = Auth::user();
         $ownedOnly = (bool) ($request->boolean('owned_only') && $user);

@@ -61,7 +61,7 @@ class StoreOrderController extends Controller
                 });
             })
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1)
             ->withQueryString();
 

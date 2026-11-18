@@ -60,7 +60,7 @@ class AnalyticsController extends Controller
             ->groupBy(DB::raw('DATE(analytics_events.created_at)'))
             ->orderByDesc(DB::raw('DATE(analytics_events.created_at)'))
             ->pipe(fn ($query) => (new SiteListControls('analytics_daily'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(7, 'daily_page'), ['*'], 'daily_page')
+            ->paginate(ListPageSize::resolve(25, 'daily_page'), ['*'], 'daily_page')
             ->onEachSide(1);
 
         $hoursFrom = now()->subHours(12);
@@ -83,7 +83,7 @@ class AnalyticsController extends Controller
             ->groupBy('analytics_events.path')
             ->orderByDesc('views')
             ->pipe(fn ($query) => (new SiteListControls('analytics_top_pages'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'top_pages_page'), ['*'], 'top_pages_page')
+            ->paginate(ListPageSize::resolve(25, 'top_pages_page'), ['*'], 'top_pages_page')
             ->onEachSide(1);
 
         $sessionEntries = DB::table('analytics_events as session_events')
@@ -109,7 +109,7 @@ class AnalyticsController extends Controller
         $normalizedSources = app(TrafficSourceNormalizer::class)->aggregate($sourceRows, true);
         $normalizedSources = (new SiteListControls('analytics_traffic_sources'))->applyCollection($normalizedSources);
         $trafficSourcesPage = max(1, (int) $request->query('traffic_sources_page', 1));
-        $sourcePageSize = ListPageSize::resolve(10, 'traffic_sources_page');
+        $sourcePageSize = ListPageSize::resolve(25, 'traffic_sources_page');
         $trafficSources = new LengthAwarePaginator(
             $normalizedSources->forPage($trafficSourcesPage, $sourcePageSize)->values(),
             $normalizedSources->count(),
@@ -134,7 +134,7 @@ class AnalyticsController extends Controller
             ->groupBy('landing_path')
             ->orderByDesc('sessions')
             ->pipe(fn ($query) => (new SiteListControls('analytics_landing_pages'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'landing_pages_page'), ['*'], 'landing_pages_page')
+            ->paginate(ListPageSize::resolve(25, 'landing_pages_page'), ['*'], 'landing_pages_page')
             ->onEachSide(1);
 
         $topWorkshops = (clone $pageQuery)
@@ -159,7 +159,7 @@ class AnalyticsController extends Controller
             )
             ->orderByDesc('views')
             ->pipe(fn ($query) => (new SiteListControls('analytics_top_workshops'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'top_workshops_page'), ['*'], 'top_workshops_page')
+            ->paginate(ListPageSize::resolve(25, 'top_workshops_page'), ['*'], 'top_workshops_page')
             ->onEachSide(1);
 
         $topSearches = (clone $pageQuery)
@@ -169,7 +169,7 @@ class AnalyticsController extends Controller
             ->groupBy('analytics_events.search_term')
             ->orderByDesc('uses')
             ->pipe(fn ($query) => (new SiteListControls('analytics_top_searches'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'top_searches_page'), ['*'], 'top_searches_page')
+            ->paginate(ListPageSize::resolve(25, 'top_searches_page'), ['*'], 'top_searches_page')
             ->onEachSide(1);
 
         $recentSessions = (clone $pageQuery)
@@ -177,7 +177,7 @@ class AnalyticsController extends Controller
             ->groupBy('analytics_events.session_token')
             ->orderByDesc(DB::raw('MAX(analytics_events.created_at)'))
             ->pipe(fn ($query) => (new SiteListControls('analytics_session_flows'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'session_flows_page'), ['*'], 'session_flows_page')
+            ->paginate(ListPageSize::resolve(25, 'session_flows_page'), ['*'], 'session_flows_page')
             ->onEachSide(1);
 
         $sessionTokens = $recentSessions->getCollection()->pluck('session_token')->all();
@@ -235,7 +235,7 @@ class AnalyticsController extends Controller
             ->orderByDesc('sessions')
             ->orderByDesc('views')
             ->pipe(fn ($query) => (new SiteListControls('analytics_returning_visitors'))->reportQuery($query))
-            ->paginate(ListPageSize::resolve(10, 'returning_visitors_page'), ['*'], 'returning_visitors_page')
+            ->paginate(ListPageSize::resolve(25, 'returning_visitors_page'), ['*'], 'returning_visitors_page')
             ->onEachSide(1);
 
         $recommendationViews = (clone $baseQuery)

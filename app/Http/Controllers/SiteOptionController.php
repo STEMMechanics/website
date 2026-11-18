@@ -41,7 +41,7 @@ class SiteOptionController extends Controller
         }
 
         return view('admin.site-option.index', [
-            'siteOptions' => $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(30))->onEachSide(1),
+            'siteOptions' => $query->orderBy('name')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1),
         ]);
     }
 

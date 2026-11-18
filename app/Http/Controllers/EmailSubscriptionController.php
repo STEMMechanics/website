@@ -34,7 +34,7 @@ class EmailSubscriptionController extends Controller
 
         $subscriptions = $query
             ->orderBy('created_at', 'desc')
-            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))
             ->onEachSide(1);
 
         $subscriptionEmails = $subscriptions->getCollection()

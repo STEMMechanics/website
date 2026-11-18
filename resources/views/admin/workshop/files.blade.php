@@ -1,6 +1,6 @@
 @php
     $workshopTabs = \App\Support\WorkshopNavigation::tabs($workshop);
-    $attachedFiles = $files ?? $workshop->files()->orderBy('name')->paginate(50);
+    $attachedFiles = $files ?? $workshop->files()->orderBy('name')->paginate(\App\Support\ListPageSize::resolve(25));
     $attachedFilesValue = $attachedFiles instanceof \Illuminate\Contracts\Pagination\Paginator
         ? collect($attachedFiles->items())
         : collect($attachedFiles);
