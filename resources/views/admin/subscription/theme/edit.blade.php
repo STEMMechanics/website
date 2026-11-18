@@ -8,7 +8,7 @@
 
     <x-mast :tabs="$newsletterTabs" backRoute="admin.subscription.theme.index" backTitle="Newsletter themes">{{ $theme->exists ? 'Edit' : 'Create' }} Newsletter Theme</x-mast>
     <x-container class="mt-4">
-        <form class="w-full" method="POST" action="{{ $theme->exists ? route('admin.subscription.theme.update', $theme) : route('admin.subscription.theme.store') }}" class="max-w-4xl" x-data="{ matchType: @js(old('match_type', $theme->match_type ?: 'random')) }">
+        <form class="w-full" method="POST" action="{{ $theme->exists ? route('admin.subscription.theme.update', $theme) : route('admin.subscription.theme.store') }}" class="max-w-4xl" x-data="{ matchType: {{ \Illuminate\Support\Js::encode(old('match_type', $theme->match_type ?: 'random')) }} }">
             @csrf
             @if($theme->exists) @method('PUT') @endif
             <div class="grid gap-x-5 md:grid-cols-2">

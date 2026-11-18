@@ -116,7 +116,7 @@
                                         @else
                                             <x-ui.row-action label="Ignore this Square payment ID" icon="fa-solid fa-ban" tone="warning"
                                                 type="button"
-                                                x-on:click.prevent="openIgnore({{ \Illuminate\Support\Js::from(route('admin.server.square-events.ignore', $event)) }}, {{ \Illuminate\Support\Js::from($squarePaymentId) }})" />
+                                                x-on:click.prevent="openIgnore({{ \Illuminate\Support\Js::encode(route('admin.server.square-events.ignore', $event)) }}, {{ \Illuminate\Support\Js::encode($squarePaymentId) }})" />
                                         @endif
                                     @endif
                                     <x-ui.row-action label="View" icon="fa-regular fa-eye" tone="neutral" href="{{ route('admin.server.square-events.show', $event) }}" />

@@ -72,7 +72,7 @@
         @elseif($hasSuggestions)
             <div
                 class="relative"
-                x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
+                x-data="$SM.autocompleteEditor({ value: {{ \Illuminate\Support\Js::encode($autocompleteValue) }}, options: {{ \Illuminate\Support\Js::encode($suggestions) }}, moneyFormat: {{ \Illuminate\Support\Js::encode($moneyFormat) }}, showOnFocus: {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }}, modelBinding: {{ \Illuminate\Support\Js::encode($xModelBinding) }}, inputHandler: {{ \Illuminate\Support\Js::encode($suggestionInputHandler) }} })"
                 @if($xModelBinding !== '')
                 x-effect="$SM.syncAutocompleteValue($el)"
                 @endif
@@ -86,7 +86,7 @@
                     type="{{ $type }}"
                     name="{{ $name }}"
                     x-model="rawValue"
-                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:focus="$SM.autocompleteFocus($el, {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }})"
                     x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
@@ -124,7 +124,7 @@
             @elseif($hasSuggestions)
                 <div
                     class="relative"
-                    x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
+                    x-data="$SM.autocompleteEditor({ value: {{ \Illuminate\Support\Js::encode($autocompleteValue) }}, options: {{ \Illuminate\Support\Js::encode($suggestions) }}, moneyFormat: {{ \Illuminate\Support\Js::encode($moneyFormat) }}, showOnFocus: {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }}, modelBinding: {{ \Illuminate\Support\Js::encode($xModelBinding) }}, inputHandler: {{ \Illuminate\Support\Js::encode($suggestionInputHandler) }} })"
                     @if($xModelBinding !== '')
                     x-effect="$SM.syncAutocompleteValue($el)"
                     @endif
@@ -140,7 +140,7 @@
                     type="{{ $type }}"
                     @if($name !== null && $name !== '') name="{{ $name }}" @endif
                     x-model="rawValue"
-                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:focus="$SM.autocompleteFocus($el, {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }})"
                     x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
@@ -186,7 +186,7 @@
             @elseif($hasSuggestions)
                 <div
                     class="relative mt-1"
-                    x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
+                    x-data="$SM.autocompleteEditor({ value: {{ \Illuminate\Support\Js::encode($autocompleteValue) }}, options: {{ \Illuminate\Support\Js::encode($suggestions) }}, moneyFormat: {{ \Illuminate\Support\Js::encode($moneyFormat) }}, showOnFocus: {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }}, modelBinding: {{ \Illuminate\Support\Js::encode($xModelBinding) }}, inputHandler: {{ \Illuminate\Support\Js::encode($suggestionInputHandler) }} })"
                     @if($xModelBinding !== '')
                     x-effect="$SM.syncAutocompleteValue($el)"
                     @endif
@@ -200,7 +200,7 @@
                     type="{{ $type }}"
                     name="{{ $name }}"
                     x-model="rawValue"
-                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:focus="$SM.autocompleteFocus($el, {{ \Illuminate\Support\Js::encode($showSuggestionsOnFocus) }})"
                     x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"

@@ -34,7 +34,7 @@
     @php
     $previewRules = json_decode($allocation['version']->rules, true);
 @endphp
-    <form x-on:allocation-calculated.stop="$SM.applyInvoiceAllocationCalculation($el, $event.detail)" @if($inline && $linkedWorkshops->isEmpty()) x-on:invoice-lines-updated.window="$SM.callDataMethodWhen($el, true, 'previewInvoice', [$event.detail, @js($previewRules), @js(json_decode($allocation['version']->prices, true))])" @endif method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline data-allocation-changed="{{ old('allocation') ? '1' : '0' }}" x-effect="$SM.syncAllocationPlan($el, allocationChanged, values, total)" @else data-record-form @endif x-data="$SM.allocationTally(@js(['values' => $values, 'products' => $productSnapshots, 'total' => $allocation['total'], 'exact' => false, 'enabled' => $inline && old('allocation') ? ! (bool) old('allocation.use_defaults', false) : (! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false))]))">
+    <form x-on:allocation-calculated.stop="$SM.applyInvoiceAllocationCalculation($el, $event.detail)" @if($inline && $linkedWorkshops->isEmpty()) x-on:invoice-lines-updated.window="$SM.callDataMethodWhen($el, true, 'previewInvoice', [$event.detail, {{ \Illuminate\Support\Js::encode($previewRules) }}, {{ \Illuminate\Support\Js::encode(json_decode($allocation['version']->prices, true)) }}])" @endif method="POST" action="{{ route('admin.invoice.allocation.store', $invoice) }}" @if($inline) data-allocation-inline data-allocation-changed="{{ old('allocation') ? '1' : '0' }}" x-effect="$SM.syncAllocationPlan($el, allocationChanged, values, total)" @else data-record-form @endif x-data="$SM.allocationTally({{ \Illuminate\Support\Js::encode(['values' => $values, 'products' => $productSnapshots, 'total' => $allocation['total'], 'exact' => false, 'enabled' => $inline && old('allocation') ? ! (bool) old('allocation.use_defaults', false) : (! $hasPricingDefaults || (bool) ($allocation['budget']->manual ?? false))]) }})">
         @unless($inline)
             <div class="mb-4 flex justify-end"><x-finance.allocation-calculator-button :invoice="$invoice" :inline="false" /></div>
         @endunless
@@ -48,7 +48,7 @@
         @if($inline)<input type="hidden" name="inline" value="1">@endif
         <input type="hidden" name="budget_id" value="{{ $allocation['budget']->id ?? '' }}">
         @if(! $allocation['budget'] && $hasPricingDefaults && $hasWorkshopPricing)
-            <div class="mb-5" x-data="{ versionId: @js((string) $allocation['version']->id), editorUrl: @js(route('admin.invoice.allocation.edit', $invoice)) }">
+            <div class="mb-5" x-data="{ versionId: {{ \Illuminate\Support\Js::encode((string) $allocation['version']->id) }}, editorUrl: {{ \Illuminate\Support\Js::encode(route('admin.invoice.allocation.edit', $invoice)) }} }">
                 <x-ui.select name="version_id" label="Allocation plan" x-model="versionId">
                     @foreach(\Illuminate\Support\Facades\DB::table('finance_pricing_versions')->where('is_snapshot', false)->where('archived', false)->orWhere('id', $allocation['version']->id)->orderByDesc('effective_from')->orderByDesc('id')->get() as $version)
                         <option value="{{ $version->id }}">{{ $version->name }}{{ $version->archived ? ' (archived)' : '' }}</option>

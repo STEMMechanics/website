@@ -74,7 +74,7 @@
         <input type="hidden" name="members[]" value="{{ $medium->name }}">
     @endforeach
     @foreach($fields as $field)
-        <input type="hidden" name="metadata_sources[{{ $field }}]" x-bind:value="metadata[@js($field)]">
+        <input type="hidden" name="metadata_sources[{{ $field }}]" x-bind:value="metadata[{{ \Illuminate\Support\Js::encode($field) }}]">
     @endforeach
 
     <div @class([
@@ -85,9 +85,9 @@
         @foreach($media as $medium)
             <div
                 class="min-w-0 cursor-pointer rounded-xl p-4 text-left transition"
-                x-on:click="chooseImage(@js((string) $medium->name))"
-                x-on:keydown.enter.prevent="chooseImage(@js((string) $medium->name))"
-                x-bind:class="keeper === @js((string) $medium->name) ? 'bg-primary-color-light/10 ring-2 ring-primary-color' : 'bg-gray-50 hover:bg-gray-100'"
+                x-on:click="chooseImage({{ \Illuminate\Support\Js::encode((string) $medium->name) }})"
+                x-on:keydown.enter.prevent="chooseImage({{ \Illuminate\Support\Js::encode((string) $medium->name) }})"
+                x-bind:class="keeper === {{ \Illuminate\Support\Js::encode((string) $medium->name) }} ? 'bg-primary-color-light/10 ring-2 ring-primary-color' : 'bg-gray-50 hover:bg-gray-100'"
                 role="button"
                 tabindex="0"
             >
@@ -107,7 +107,7 @@
                         <a href="{{ route('admin.media.edit', $medium) }}" target="_blank" rel="noopener" class="absolute right-0 top-0 text-sm font-medium text-primary-color hover:underline" x-on:click.stop aria-label="Open record"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
                     </div>
                 </div>
-                <div class="mt-4 text-center text-sm font-semibold text-primary-color" x-show="keeper === @js((string) $medium->name)">
+                <div class="mt-4 text-center text-sm font-semibold text-primary-color" x-show="keeper === {{ \Illuminate\Support\Js::encode((string) $medium->name) }}">
                     <i class="fa-solid fa-circle-check mr-1"></i> Image selected to keep
                 </div>
             </div>
@@ -173,7 +173,7 @@
                                     @foreach($media as $medium)
                                         <label for="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" @class(['flex min-w-0 items-center gap-2', 'text-gray-700' => $fieldDiffers])>
                                             @if($fieldDiffers)
-                                                <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $medium->name }}" x-model="metadata[{{ \Illuminate\Support\Js::from($field) }}]" />
+                                                <x-ui.input-control id="{{ $dialogId }}-metadata-{{ $field }}-{{ $loop->index }}" name="{{ $dialogId }}-metadata-{{ $field }}" type="radio" class="text-primary-color focus:ring-primary-color" value="{{ $medium->name }}" x-model="metadata[{{ \Illuminate\Support\Js::encode($field) }}]" />
                                             @else
                                                 <span class="w-4 shrink-0" aria-hidden="true"></span>
                                             @endif

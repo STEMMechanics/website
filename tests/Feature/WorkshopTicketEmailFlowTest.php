@@ -991,7 +991,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
             $this->withSession(['_old_input' => ['payment_method' => 'pay_at_door']])
                 ->get(route('workshop.ticket.flow.payment', $workshop))->assertOk()
                 ->assertDontSee('<option value="pay_at_door">', false)
-                ->assertSee("paymentMethod: 'bank_transfer'", false);
+                ->assertSee('paymentMethod: &quot;bank_transfer&quot;', false);
             $this->post(route('workshop.ticket.flow.payment.process', $workshop), ['payment_method' => 'pay_at_door'])
                 ->assertSessionHasErrors('payment_method');
             $this->assertDatabaseCount('invoices', 0);

@@ -323,7 +323,7 @@
                     />
                 </div>
 
-                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4" x-data="{ iconClass: @js($initialIconClass), iconSuggestions: @js($iconSuggestions) }">
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4" x-data="{ iconClass: {{ \Illuminate\Support\Js::encode($initialIconClass) }}, iconSuggestions: {{ \Illuminate\Support\Js::encode($iconSuggestions) }} }">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h3 class="text-sm font-semibold text-gray-900">Icon</h3>

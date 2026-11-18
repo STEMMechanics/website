@@ -1,7 +1,7 @@
 @props(['contentClass' => 'min-h-80', 'customLinks' => false, 'maxCharacters' => null, 'label' => 'Content'])
 
 <div
-    x-data="miniEditor({ customLinks: @js(filter_var($customLinks, FILTER_VALIDATE_BOOLEAN)), maxCharacters: @js($maxCharacters), label: @js($label) })"
+    x-data="miniEditor({ customLinks: {{ \Illuminate\Support\Js::encode(filter_var($customLinks, FILTER_VALIDATE_BOOLEAN)) }}, maxCharacters: {{ \Illuminate\Support\Js::encode($maxCharacters) }}, label: {{ \Illuminate\Support\Js::encode($label) }} })"
     x-modelable="content"
     {{ $attributes->merge(['class' => 'overflow-hidden rounded-lg border border-gray-300 bg-white']) }}
 >

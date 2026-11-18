@@ -866,7 +866,7 @@ if (isset($workshop)) {
                                     </div>
                                     <div x-show="$SM.string(task.notes || '').trim() === ''" class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 bg-white px-3 py-3 text-sm text-gray-600">
                                         <span>No notes added.</span>
-                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = {{ \Illuminate\Support\Js::from('<p></p>') }}">Add notes</x-ui.button>
+                                        <x-ui.button type="button" color="outline" x-on:click="task.notes = {{ \Illuminate\Support\Js::encode('<p></p>') }}">Add notes</x-ui.button>
                                     </div>
                                     <div class="mt-4 rounded-lg border border-gray-200 bg-white p-3">
                                         <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-800">

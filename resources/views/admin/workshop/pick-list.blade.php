@@ -32,25 +32,25 @@
             class="rounded-lg border border-gray-200 p-4 mb-6 bg-white"
             x-ref="runSheetForm"
             x-data="workshopPickListPage({
-                saveUrl: @js(route('admin.workshop.run-sheet.save', $workshop)),
-                csrfToken: @js(csrf_token()),
-                templateItems: @js($templateItems ?? []),
-                customItems: @js($customItems ?? []),
-                shelfPickRows: @js($shelfPickRows ?? []),
-                kitSummaries: @js($kitSummaries ?? []),
-                materialBudget: @js($materialBudget ?? []),
-                productCatalog: @js($productCatalog ?? []),
-                isCustomized: @js((bool) $isCustomized),
-                checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
-                completedTaskIds: @js(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
-                taskListIsCustomized: @js((bool) ($taskListIsCustomized ?? false)),
-                participantsInput: @js($pickListParticipantsInput),
-                notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
-                maxParticipants: @js($pickListParticipantsMax),
-                pickListCanvasDataJson: @js((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')),
-                pickListCanvasThumbnailUrl: @js((string) ($pickListCanvasThumbnailUrl ?? '')),
-                lastSavedAtIso: @js($lastSavedAt?->toIso8601String()),
-                lastSavedAbsolute: @js($lastSavedAt?->format('M j, Y g:i a')),
+                saveUrl: {{ \Illuminate\Support\Js::encode(route('admin.workshop.run-sheet.save', $workshop)) }},
+                csrfToken: {{ \Illuminate\Support\Js::encode(csrf_token()) }},
+                templateItems: {{ \Illuminate\Support\Js::encode($templateItems ?? []) }},
+                customItems: {{ \Illuminate\Support\Js::encode($customItems ?? []) }},
+                shelfPickRows: {{ \Illuminate\Support\Js::encode($shelfPickRows ?? []) }},
+                kitSummaries: {{ \Illuminate\Support\Js::encode($kitSummaries ?? []) }},
+                materialBudget: {{ \Illuminate\Support\Js::encode($materialBudget ?? []) }},
+                productCatalog: {{ \Illuminate\Support\Js::encode($productCatalog ?? []) }},
+                isCustomized: {{ \Illuminate\Support\Js::encode((bool) $isCustomized) }},
+                checkedItemIds: {{ \Illuminate\Support\Js::encode(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()) }},
+                completedTaskIds: {{ \Illuminate\Support\Js::encode(collect($completedTaskIds ?? [])->map(fn ($id) => (string) $id)->values()->all()) }},
+                taskListIsCustomized: {{ \Illuminate\Support\Js::encode((bool) ($taskListIsCustomized ?? false)) }},
+                participantsInput: {{ \Illuminate\Support\Js::encode($pickListParticipantsInput) }},
+                notes: {{ \Illuminate\Support\Js::encode((string) old('pick_list_notes', $pickListNotes ?? '')) }},
+                maxParticipants: {{ \Illuminate\Support\Js::encode($pickListParticipantsMax) }},
+                pickListCanvasDataJson: {{ \Illuminate\Support\Js::encode((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')) }},
+                pickListCanvasThumbnailUrl: {{ \Illuminate\Support\Js::encode((string) ($pickListCanvasThumbnailUrl ?? '')) }},
+                lastSavedAtIso: {{ \Illuminate\Support\Js::encode($lastSavedAt?->toIso8601String()) }},
+                lastSavedAbsolute: {{ \Illuminate\Support\Js::encode($lastSavedAt?->format('M j, Y g:i a')) }},
             })"
             x-init="init()"
             x-on:resize.window.debounce.100ms="$SM.updateViewportWidth($el)"
@@ -123,10 +123,10 @@
  x-on:change="scheduleAutosave()"
  />
                                                 <div class="min-w-0 flex-1 content-center">
-                                                    <div class="font-semibold" x-bind:class="completedTaskIds.includes(@js((string) $task->id)) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
+                                                    <div class="font-semibold" x-bind:class="completedTaskIds.includes({{ \Illuminate\Support\Js::encode((string) $task->id) }}) ? 'text-gray-400 line-through' : ''">{{ $presentedTask['label'] }}</div>
                                                     <div class="flex gap-3 items-center">
                                                         @if($task->notes || count($task->subtasks ?? []) > 0)
-                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="$SM.setDataValues($el, { taskName: {{ \Illuminate\Support\Js::from($task->name) }}, taskNote: {{ \Illuminate\Support\Js::from($renderedTaskNote) }}, taskSubtasks: {{ \Illuminate\Support\Js::from($renderedSubtasks) }} })"><i class="fa-regular fa-note-sticky mr-1" aria-hidden="true"></i>View notes</x-ui.button>
+                                                            <x-ui.button variant="plain" type="button" class="block text-xs text-primary-color hover:underline" x-on:click="$SM.setDataValues($el, { taskName: {{ \Illuminate\Support\Js::encode($task->name) }}, taskNote: {{ \Illuminate\Support\Js::encode($renderedTaskNote) }}, taskSubtasks: {{ \Illuminate\Support\Js::encode($renderedSubtasks) }} })"><i class="fa-regular fa-note-sticky mr-1" aria-hidden="true"></i>View notes</x-ui.button>
                                                         @endif
 
                                                         @if(($task->notes || count($task->subtasks ?? []) > 0) && $taskReminder)

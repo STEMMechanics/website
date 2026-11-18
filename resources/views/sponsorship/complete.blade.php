@@ -24,7 +24,7 @@
                 @foreach($errors->all() as $error)<p class="mt-3 text-sm text-red-600" role="alert">{{ $error }}</p>@endforeach
                 <details class="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4" @if($errors->any() || session('message')) open @endif>
                     <summary class="cursor-pointer font-semibold text-primary-color">Add invoice recipient details</summary>
-                    <form method="POST" action="{{ route('sponsor.complete.invoice-details') }}" class="mt-4 grid gap-x-4 sm:grid-cols-2" x-data="{ recipientType: @js(old('sponsor_type', 'individual')) }">
+                    <form method="POST" action="{{ route('sponsor.complete.invoice-details') }}" class="mt-4 grid gap-x-4 sm:grid-cols-2" x-data="{ recipientType: {{ \Illuminate\Support\Js::encode(old('sponsor_type', 'individual')) }} }">
                         @csrf
                         <x-ui.select name="sponsor_type" label="Recipient type" x-model="recipientType" required>
                             <option value="individual" @selected(old('sponsor_type', 'individual') === 'individual')>Individual</option>

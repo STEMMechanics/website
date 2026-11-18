@@ -27,7 +27,7 @@
         class="mt-1 rounded-lg border border-gray-300 bg-white px-2 py-1.5 focus-within:border-indigo-300"
         data-tag-editor
         x-on:sm-tags-clear="clear()"
-        x-data="$SM.tagEditor({ tags: @js(collect(explode(',', (string) $value))->map(fn ($tag) => trim($tag))->filter()->values()->all()), tagsBinding: @js($externalTagsBinding), draftBinding: @js($externalDraftBinding), mixedBinding: @js($externalMixedBinding) })"
+        x-data="$SM.tagEditor({ tags: {{ \Illuminate\Support\Js::encode(collect(explode(',', (string) $value))->map(fn ($tag) => trim($tag))->filter()->values()->all()) }}, tagsBinding: {{ \Illuminate\Support\Js::encode($externalTagsBinding) }}, draftBinding: {{ \Illuminate\Support\Js::encode($externalDraftBinding) }}, mixedBinding: {{ \Illuminate\Support\Js::encode($externalMixedBinding) }} })"
         @if($externalTagsBinding !== '' || $externalDraftBinding !== '' || $externalMixedBinding !== '')
         x-effect="syncExternal()"
         @endif
@@ -55,7 +55,7 @@
                 type="text"
                 x-model="draft"
                 @if($datalistId !== '') list="{{ $datalistId }}" @endif
-                x-bind:placeholder="tags.length === 0 ? @js($placeholder) : ''"
+                x-bind:placeholder="tags.length === 0 ? {{ \Illuminate\Support\Js::encode($placeholder) }} : ''"
                 x-bind:style="'order: ' + (cursorIndex * 2 + 1) + '; width: ' + (tags.length === 0 ? '12rem' : $SM.max(1, $SM.min(20, draft.length + 1)) + 'ch')"
                 x-bind:class="tags.length ? '-mx-1' : ''"
                 class="max-w-full border-0 px-0 text-sm focus:outline-none focus:ring-0"

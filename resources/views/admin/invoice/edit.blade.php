@@ -586,13 +586,13 @@
                             <x-ui.button color="danger-outline"
                                 type="button"
                                 x-data
-                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::encode($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::encode($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::encode($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::encode($invoiceCancelButtonText) }})"
                              ><i class="fa-solid fa-trash mr-2" aria-hidden="true"></i>Delete Draft</x-ui.button>
                         @elseif($canCancelInvoice)
                             <x-ui.button color="yellow-outline"
                                 type="button"
                                 x-data
-                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::encode($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::encode($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::encode($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::encode($invoiceCancelButtonText) }})"
                              ><i class="fa-solid fa-ban mr-2" aria-hidden="true"></i>Cancel Invoice</x-ui.button>
                         @else
                             <x-ui.button color="yellow-outline"

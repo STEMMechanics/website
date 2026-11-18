@@ -3,7 +3,7 @@
     $fixed = old('fixed', collect($rules['fixed'] ?? [])->map(fn ($value) => number_format($value / 100, 2, '.', ''))->all());
     $percent = old('percent', collect($rules['percent'] ?? [])->map(fn ($value) => number_format($value / 100, 2, '.', ''))->all());
 @endphp
-<div x-data="$SM.productAllocationFields(@js((object) $fixed), @js((object) $percent))">
+<div x-data="$SM.productAllocationFields({{ \Illuminate\Support\Js::encode((object) $fixed) }}, {{ \Illuminate\Support\Js::encode((object) $percent) }})">
     <p class="mb-4 text-sm text-slate-600">Recover the per-unit costs first, then split the remaining sale amount. Amounts exclude GST. Any remainder below 100% stays unallocated.</p>
     @error('fixed')<p class="mb-3 text-sm text-red-700">{{ $message }}</p>@enderror
     @error('percent')<p class="mb-3 text-sm text-red-700">{{ $message }}</p>@enderror

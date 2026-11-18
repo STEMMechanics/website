@@ -1,4 +1,4 @@
-<div class="flex items-start gap-3 p-3 text-sm" x-data="$SM.invoiceFollowup(@js(route('admin.workplan.invoice.follow-up', $invoice)), @js((string) $invoice->notes), @js($invoice->follow_up_contacted_at?->format('j M Y, g:ia')))">
+<div class="flex items-start gap-3 p-3 text-sm" x-data="$SM.invoiceFollowup({{ \Illuminate\Support\Js::encode(route('admin.workplan.invoice.follow-up', $invoice)) }}, {{ \Illuminate\Support\Js::encode((string) $invoice->notes) }}, {{ \Illuminate\Support\Js::encode($invoice->follow_up_contacted_at?->format('j M Y, g:ia')) }})">
     <i class="fa-solid fa-file-invoice-dollar mt-0.5 w-4 text-red-600" aria-hidden="true"></i>
     <x-ui.checkbox bare small labelHidden :label="'Done for now: invoice '.$invoice->invoice_number" title="Done for now" :checked="$invoice->follow_up_contacted_at !== null" x-bind:checked="contacted !== null" x-bind:disabled="saving" @change="save({ checked: $event.target.checked }, $event.target)" />
     <div class="min-w-0 flex-1">

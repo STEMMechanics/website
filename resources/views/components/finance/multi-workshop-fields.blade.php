@@ -24,7 +24,7 @@
                     <td x-cloak x-show="hasSuppliedCategories('workshop')" data-label="Supplied" data-mobile-wide class="space-y-2" x-bind:class="$SM.isWorkshopSpacing(row) ? 'bg-slate-50' : ''">
                         <div x-show="!$SM.isWorkshopSpacing(row)">
                             @foreach($supplyRules as $rule)
-                                <div x-show="hasPlanCategory(@js($rule['category_id']), 'workshop')">
+                                <div x-show="hasPlanCategory({{ \Illuminate\Support\Js::encode($rule['category_id']) }}, 'workshop')">
                                     <x-ui.checkbox :small="true" :noWrapper="true" :label="($rule['category_name'] ?? 'Cost centre').' supplied'" x-model="row.supplied_categories['{{ $rule['category_id'] }}']" x-bind:disabled="isLocked" x-on:change="handleLineChange(item)" />
                                 </div>
                             @endforeach

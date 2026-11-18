@@ -218,7 +218,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)">
+        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: {{ \Illuminate\Support\Js::encode($groupValue) }}, useOrganisationBillingAddress: {{ \Illuminate\Support\Js::encode((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)) }}, useOrganisationShippingAddress: {{ \Illuminate\Support\Js::encode((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)) }}, shippingSameBilling: {{ \Illuminate\Support\Js::encode((bool) old('shipping_same_billing', $shipping_same_billing)) }} }" x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)">
             @method('PUT')
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>

@@ -1449,7 +1449,7 @@
                                     'collection' => $collectionOpen ? [$collectionTypeValue, $collectionQtyValue, $collectionCollectedAtValue, $collectionNotesValue, $collectionStateValue] : null,
                                 ];
                             @endphp
-                                    <div id="item-{{ $item->id }}" class="sm-order-item rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4" x-data="{ itemDetailsOpen: false }" x-init="$SM.openOrderItemActions($el, {{ $item->id }}, @js($itemOpenActions))">
+                                    <div id="item-{{ $item->id }}" class="sm-order-item rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4" x-data="{ itemDetailsOpen: false }" x-init="$SM.openOrderItemActions($el, {{ $item->id }}, {{ \Illuminate\Support\Js::encode($itemOpenActions) }})">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                     $itemStoreUrl = $item->product instanceof \App\Models\Product && $item->product->isActive()

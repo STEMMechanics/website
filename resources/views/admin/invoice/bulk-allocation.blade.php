@@ -1,7 +1,7 @@
 <x-layout>
     <x-mast title="Allocate invoices" />
     <form method="POST" action="{{ route('admin.invoice.bulk-allocation.apply') }}" data-record-form data-record-wide
-        x-data="{ originalPlanId: @js((string) $version->id), previewBaseUrl: @js(route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'review' => 1])), planId: @js((string) $version->id), selected: @js($preview ? collect($preview['rows'])->filter(fn ($row) => !$row['warning'])->keys()->map(fn ($key) => (string) $key)->values()->all() : []) }">
+        x-data="{ originalPlanId: {{ \Illuminate\Support\Js::encode((string) $version->id) }}, previewBaseUrl: {{ \Illuminate\Support\Js::encode(route('admin.invoice.bulk-allocation.preview', ['invoice_ids' => $invoiceIds, 'review' => 1])) }}, planId: {{ \Illuminate\Support\Js::encode((string) $version->id) }}, selected: {{ \Illuminate\Support\Js::encode($preview ? collect($preview['rows'])->filter(fn ($row) => !$row['warning'])->keys()->map(fn ($key) => (string) $key)->values()->all() : []) }} }">
         @csrf
         <p class="mb-4 text-sm">{{ count($invoiceIds) }} invoices selected. Existing allocations and manual overrides are preserved.</p>
         <x-ui.select label="Allocation plan" x-model="planId">

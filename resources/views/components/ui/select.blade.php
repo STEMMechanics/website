@@ -38,7 +38,7 @@
     @endif
     <div class="{{ twMerge(['relative'], $inlineLabel ? 'inline-block flex-1' : '', $innerClass) }}">
         @if($multiple && $multipleOptions->isNotEmpty())
-            <div x-data="{ open: false, selected: @js($selectedValues), options: @js($multipleOptions) }" x-on:click.outside="open = false" x-on:keydown.escape.stop="open = false" class="relative">
+            <div x-data="{ open: false, selected: {{ \Illuminate\Support\Js::encode($selectedValues) }}, options: {{ \Illuminate\Support\Js::encode($multipleOptions) }} }" x-on:click.outside="open = false" x-on:keydown.escape.stop="open = false" class="relative">
                 <template x-for="selectedValue in selected" :key="selectedValue">
                     <input type="hidden" name="{{ $name }}" :value="selectedValue">
                 </template>

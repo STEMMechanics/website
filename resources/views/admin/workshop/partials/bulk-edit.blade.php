@@ -20,7 +20,7 @@
         </details>
 
         <form data-bulk-save method="POST" action="{{ route('admin.workshop.bulk.update') }}"
-              x-data="{ registration: @js(old('registration', $mixedFields['registration'] ? '__mixed' : $commonValues['registration'])) }">
+              x-data="{ registration: {{ \Illuminate\Support\Js::encode(old('registration', $mixedFields['registration'] ? '__mixed' : $commonValues['registration'])) }} }">
             @csrf
             @method('PUT')
             @foreach($selectedWorkshops as $selectedWorkshop)
@@ -133,7 +133,7 @@
                 @if($linkedCategories->isNotEmpty())
                     <div class="mb-5 flex flex-wrap gap-2">
                         @foreach($linkedCategories as $linked)
-                            <span x-data="{ removed: @js(in_array((string) $linked['category']->id, array_map('strval', old('remove_category_ids', [])), true)) }">
+                            <span x-data="{ removed: {{ \Illuminate\Support\Js::encode(in_array((string) $linked['category']->id, array_map('strval', old('remove_category_ids', [])), true)) }} }">
                                 <input
                                     x-bind:disabled="!removed"
                                     type="hidden"

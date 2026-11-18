@@ -11,7 +11,7 @@
 
 <div
     id="{{ $viewerId }}"
-    x-data="$SM.galleryViewer(@js($items), @js($visibleLimit), @js($viewerId))"
+    x-data="$SM.galleryViewer({{ \Illuminate\Support\Js::encode($items) }}, {{ \Illuminate\Support\Js::encode($visibleLimit) }}, {{ \Illuminate\Support\Js::encode($viewerId) }})"
     x-on:workshop-gallery-open.window="openFromEvent($event)"
     x-on:keydown.escape.window="handleEscape()"
     x-on:keydown.left.window="handlePreviousKey()"

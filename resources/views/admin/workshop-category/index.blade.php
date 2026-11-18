@@ -41,7 +41,7 @@
                                     <x-ui.row-action label="Edit" icon="fa-solid fa-pen-to-square" tone="primary" href="{{ route('admin.workshop-category.edit', $category) }}" />
                                     <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger"
                                         type="button"
-                                        x-on:click="openDeleteDialog({{ \Illuminate\Support\Js::from(route('admin.workshop-category.destroy', $category)) }}, {{ \Illuminate\Support\Js::from($category->name) }}, {{ \Illuminate\Support\Js::from((int) $category->workshops_count) }})"
+                                        x-on:click="openDeleteDialog({{ \Illuminate\Support\Js::encode(route('admin.workshop-category.destroy', $category)) }}, {{ \Illuminate\Support\Js::encode($category->name) }}, {{ \Illuminate\Support\Js::encode((int) $category->workshops_count) }})"
                                      />
                                 </x-ui.row-actions>
                             </td>
@@ -93,7 +93,7 @@
                     >
                         <option value="">Do not move them</option>
                         @foreach($categories as $category)
-                            <option x-bind:disabled="deleteName === @js($category->name)" value="{{ $category->id }}">{{ $category->name }}</option>
+                            <option x-bind:disabled="deleteName === {{ \Illuminate\Support\Js::encode($category->name) }}" value="{{ $category->id }}">{{ $category->name }}</option>
                         @endforeach
                     </x-ui.select>
                 </div>

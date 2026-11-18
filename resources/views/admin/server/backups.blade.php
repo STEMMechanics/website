@@ -4,8 +4,8 @@
     <x-container>
         <div
             x-data="serverBackupRunner({
-                initialRuns: @js($activeBackupRuns),
-                statusUrl: @js(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])),
+                initialRuns: {{ \Illuminate\Support\Js::encode($activeBackupRuns) }},
+                statusUrl: {{ \Illuminate\Support\Js::encode(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])) }},
             })"
             x-init="init()"
         >

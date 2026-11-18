@@ -287,8 +287,8 @@
                                                     data-workshop-key="{{ $workshop->getKey() }}"
                                                     style="cursor: pointer;"
                                                     x-bind:class="{
-                                                        'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === @js((string) $workshop->getKey()),
-                                                        'invisible pointer-events-none': @js((string) $workshop->status === 'cancelled') && ! showCancelled
+                                                        'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === {{ \Illuminate\Support\Js::encode((string) $workshop->getKey()) }},
+                                                        'invisible pointer-events-none': {{ \Illuminate\Support\Js::encode((string) $workshop->status === 'cancelled') }} && ! showCancelled
                                                     }"
                                                     @class([
                                                         'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
@@ -401,7 +401,7 @@
                                     <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
                                     <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
-                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
+                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::encode(route('workshop.show', $workshop)) }})" />
                                     @endif
                                     <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" href="{{ route('admin.workshop.duplicate', $workshop) }}" />
                                     <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />

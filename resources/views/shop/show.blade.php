@@ -174,10 +174,10 @@
                                                     @foreach($optionPayload as $option)
                                                         <x-ui.button variant="plain"
                                                                 type="button"
-                                                                x-data="{ option: {{ \Illuminate\Support\Js::from($option) }} }"
+                                                                x-data="{ option: {{ \Illuminate\Support\Js::encode($option) }} }"
                                                                 class="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
                                                     x-bind:class="$SM.string($SM.get(selectedVariantId, '')) === $SM.string($SM.get(option, 'input_value', '')) ? 'bg-sky-50' : ''"
-                                                                x-on:click="chooseOption($SM.string({{ \Illuminate\Support\Js::from((string) ($option['input_value'] ?? '')) }}))"
+                                                                x-on:click="chooseOption($SM.string({{ \Illuminate\Support\Js::encode((string) ($option['input_value'] ?? '')) }}))"
                                                         >
                                                             <span class="min-w-0 flex-1">
                                                                 <div>

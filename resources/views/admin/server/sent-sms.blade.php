@@ -121,9 +121,9 @@
                                 @endphp
                                 <div
                                     x-data="{
-                                        acknowledged: @js($isAcknowledged),
+                                        acknowledged: {{ \Illuminate\Support\Js::encode($isAcknowledged) }},
                                         busy: false,
-                                        ackUrl: @js(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))),
+                                        ackUrl: {{ \Illuminate\Support\Js::encode(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))) }},
                                     }"
                                     class="mt-4 rounded border border-gray-200 px-3 py-3"
                                     x-bind:class="acknowledged ? 'bg-white' : 'bg-amber-50'"
@@ -237,9 +237,9 @@
                                     @endphp
                                     <tr
                                         x-data="{
-                                            acknowledged: @js($isAcknowledged),
+                                            acknowledged: {{ \Illuminate\Support\Js::encode($isAcknowledged) }},
                                             busy: false,
-                                            ackUrl: @js(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))),
+                                            ackUrl: {{ \Illuminate\Support\Js::encode(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))) }},
                                         }"
                                         x-bind:class="acknowledged ? '' : 'highlight-row'"
                                         class="border-t-0"
@@ -304,9 +304,9 @@
                             @endphp
                             <div
                                 x-data="{
-                                    acknowledged: @js($isAcknowledged),
+                                    acknowledged: {{ \Illuminate\Support\Js::encode($isAcknowledged) }},
                                     busy: false,
-                                    ackUrl: @js(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))),
+                                    ackUrl: {{ \Illuminate\Support\Js::encode(route('admin.server.sent-sms.replies.acknowledge', data_get($reply, 'id'))) }},
                                 }"
                                 class="rounded-md border border-gray-200 bg-white px-4 py-3"
                                 x-bind:class="acknowledged ? '' : 'bg-amber-50'"

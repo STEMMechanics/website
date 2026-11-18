@@ -36,11 +36,11 @@
         <div
             class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6"
             x-data="shopCheckoutPaymentPage({
-                squareEnabled: @js($squareEnabled),
-                squareApplicationId: @js($squareApplicationId),
-                squareLocationId: @js($squareLocationId),
-                squareEnvironment: @js($squareEnvironment),
-                requiresPayment: @js($hasAmountDue),
+                squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }},
+                squareApplicationId: {{ \Illuminate\Support\Js::encode($squareApplicationId) }},
+                squareLocationId: {{ \Illuminate\Support\Js::encode($squareLocationId) }},
+                squareEnvironment: {{ \Illuminate\Support\Js::encode($squareEnvironment) }},
+                requiresPayment: {{ \Illuminate\Support\Js::encode($hasAmountDue) }},
             })"
         >
             <div class="flex-1">

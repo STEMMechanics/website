@@ -156,13 +156,13 @@
                                 class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color"
                                 title="Edit attendee details"
                                 x-on:click="openEditModal(
-                                                {{ \Illuminate\Support\Js::from(route('tickets.attendee.update', $ticket)) }},
-                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                                {{ \Illuminate\Support\Js::encode(route('tickets.attendee.update', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
                                                 {
-                                                    firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
-                                                    surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
-                                                    email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
-                                                    phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
+                                                    firstname: {{ \Illuminate\Support\Js::encode((string) ($ticket->firstname ?? '')) }},
+                                                    surname: {{ \Illuminate\Support\Js::encode((string) ($ticket->surname ?? '')) }},
+                                                    email: {{ \Illuminate\Support\Js::encode((string) ($ticket->email ?? '')) }},
+                                                    phone: {{ \Illuminate\Support\Js::encode((string) ($ticket->phone ?? '')) }}
                                                 }
                                             )">
                                 <i class="fa-solid fa-user-pen" aria-hidden="true"></i>
@@ -178,12 +178,12 @@
                                 class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
                                 title="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}"
                                 x-on:click="$SM.openTicketCancelModal(
-                                    {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
-                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
-                                    {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
+                                    {{ \Illuminate\Support\Js::encode(route('admin.ticket.cancel', $ticket)) }},
+                                    {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                    {{ \Illuminate\Support\Js::encode($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                     'Cancel Ticket',
-                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }},
-                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
+                                    {{ \Illuminate\Support\Js::encode($hasSquarePayment && $hasAnyPayment) }},
+                                    {{ \Illuminate\Support\Js::encode($hasSquarePayment && $hasAnyPayment) }}
                                 )">
                                 <i class="fa-solid fa-ban" aria-hidden="true"></i>
                                 Cancel
@@ -265,13 +265,13 @@
                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
                                 x-on:click="openEditModal(
-                                                {{ \Illuminate\Support\Js::from(route('tickets.attendee.update', $ticket)) }},
-                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                                {{ \Illuminate\Support\Js::encode(route('tickets.attendee.update', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
                                                 {
-                                                    firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
-                                                    surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
-                                                    email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
-                                                    phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
+                                                    firstname: {{ \Illuminate\Support\Js::encode((string) ($ticket->firstname ?? '')) }},
+                                                    surname: {{ \Illuminate\Support\Js::encode((string) ($ticket->surname ?? '')) }},
+                                                    email: {{ \Illuminate\Support\Js::encode((string) ($ticket->email ?? '')) }},
+                                                    phone: {{ \Illuminate\Support\Js::encode((string) ($ticket->phone ?? '')) }}
                                                 }
                                             )" />
                             @else
@@ -282,12 +282,12 @@
                             <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}" icon="fa-solid fa-ban" tone="warning"
                                 type="button"
                                 x-on:click="$SM.openTicketCancelModal(
-                                    {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
-                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
-                                    {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
+                                    {{ \Illuminate\Support\Js::encode(route('admin.ticket.cancel', $ticket)) }},
+                                    {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title) }},
+                                    {{ \Illuminate\Support\Js::encode($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                     'Cancel Ticket',
-                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }},
-                                    {{ \Illuminate\Support\Js::from($hasSquarePayment && $hasAnyPayment) }}
+                                    {{ \Illuminate\Support\Js::encode($hasSquarePayment && $hasAnyPayment) }},
+                                    {{ \Illuminate\Support\Js::encode($hasSquarePayment && $hasAnyPayment) }}
                                 )" />
                             @else
                             <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="neutral" disabled title="Ticket is not cancellable" />

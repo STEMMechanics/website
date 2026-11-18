@@ -211,10 +211,10 @@
                     <form method="POST"
                         action="{{ $isAccountView ? route('account.invoice.pay', $invoice) : ($isPublic ? route('invoice.public.pay.process', $invoice) : route('invoice.magic.pay', ['invoice' => $invoice, 'token' => $accessToken])) }}"
                         x-data="invoicePaymentPage({
-                            squareEnabled: @js($squareEnabled),
-                            squareApplicationId: @js($squareApplicationId),
-                            squareLocationId: @js($squareLocationId),
-                            squareEnvironment: @js($squareEnvironment),
+                            squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }},
+                            squareApplicationId: {{ \Illuminate\Support\Js::encode($squareApplicationId) }},
+                            squareLocationId: {{ \Illuminate\Support\Js::encode($squareLocationId) }},
+                            squareEnvironment: {{ \Illuminate\Support\Js::encode($squareEnvironment) }},
                         })"
                         x-on:submit.prevent="submitForm($event)">
                         @csrf

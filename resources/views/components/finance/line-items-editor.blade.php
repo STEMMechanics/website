@@ -19,7 +19,7 @@
     $lineItemsWrapperClass = $useMobileEditor ? 'sm-invoice-line-items' : '';
     $lineItemsTableClass = $invoiceLayout ? 'sm-invoice-line-items-table min-w-[44rem] w-full' : 'min-w-[44rem] w-full';
 @endphp
-<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="$SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }}, @js($pricingPlans), @js(old('pricing_version_id', $selectedPricingVersionId)), @js($workshopCatalog), @js($locationCatalog), @js($multiWorkshopDefaults))" x-init="initializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()" x-on:apply-current-gst.window="applyCurrentGst()">
+<div data-finance-line-items class="mt-4 mb-4 border-y border-slate-200 py-5" x-data="$SM.lineItemsEditor({{ $isLocked ? 'true' : 'false' }}, {{ \Illuminate\Support\Js::encode($pricingPlans) }}, {{ \Illuminate\Support\Js::encode(old('pricing_version_id', $selectedPricingVersionId)) }}, {{ \Illuminate\Support\Js::encode($workshopCatalog) }}, {{ \Illuminate\Support\Js::encode($locationCatalog) }}, {{ \Illuminate\Support\Js::encode($multiWorkshopDefaults) }})" x-init="initializeLineItems()" x-on:review-price-rounding.window="openPriceRounding($event.detail.item)" x-on:apply-price-rounding.window="applyPendingPriceRounding()" x-on:apply-current-gst.window="applyCurrentGst()">
     @if($pricingPlans !== [])
         <x-ui.select
             id="document-pricing-version"

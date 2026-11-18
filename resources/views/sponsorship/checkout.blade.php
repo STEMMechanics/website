@@ -19,7 +19,7 @@
         <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
             <x-sponsorship-flow-heading icon="fa-solid fa-credit-card" :title="$invoiceAvailable ? 'How would you like to pay?' : 'Complete your sponsorship'" :description="$invoiceAvailable ? ($frequency === 'monthly' ? 'Pay by card or receive a monthly invoice by email.' : 'Pay by card or request a one-time invoice.') : 'Pay securely by card in AUD.'" />
 
-            <form id="sponsorship-checkout" method="POST" action="{{ route('sponsor.process') }}" enctype="multipart/form-data" class="mt-7 space-y-5" x-data="sponsorshipSquareCheckout({ squareEnabled: @js($squareEnabled), invoiceAvailable: @js($invoiceAvailable), applicationId: @js($squareApplicationId), locationId: @js($squareLocationId), environment: @js($squareEnvironment), frequency: @js($frequency), paymentMethod: @js(old('payment_method', 'square')), billingContact: @js([
+            <form id="sponsorship-checkout" method="POST" action="{{ route('sponsor.process') }}" enctype="multipart/form-data" class="mt-7 space-y-5" x-data="sponsorshipSquareCheckout({ squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }}, invoiceAvailable: {{ \Illuminate\Support\Js::encode($invoiceAvailable) }}, applicationId: {{ \Illuminate\Support\Js::encode($squareApplicationId) }}, locationId: {{ \Illuminate\Support\Js::encode($squareLocationId) }}, environment: {{ \Illuminate\Support\Js::encode($squareEnvironment) }}, frequency: {{ \Illuminate\Support\Js::encode($frequency) }}, paymentMethod: {{ \Illuminate\Support\Js::encode(old('payment_method', 'square')) }}, billingContact: {{ \Illuminate\Support\Js::encode([
                 'email' => data_get($checkout, 'details.email', ''),
                 'contact_name' => data_get($checkout, 'details.contact_name', ''),
                 'country' => data_get($checkout, 'details.country', ''),
@@ -28,7 +28,7 @@
                 'billing_city' => data_get($checkout, 'details.billing_city', ''),
                 'billing_state' => data_get($checkout, 'details.billing_state', ''),
                 'billing_postcode' => data_get($checkout, 'details.billing_postcode', ''),
-            ]) })" @submit.prevent="submitForm($event)">
+            ]) }} })" @submit.prevent="submitForm($event)">
                 @csrf
 
             <dl class="mt-5 divide-y divide-gray-100 rounded-2xl border border-gray-200 px-4">

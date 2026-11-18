@@ -9,7 +9,7 @@
     $invoiceNet = app(\App\Services\Finance\FinancePlanner::class)->cents($invoice->subtotal_amount);
     $receivedNet = app(\App\Services\Finance\FinancePlanner::class)->income([$invoice->id])['net'];
 @endphp
-<x-finance.panel title="Cost centre allocation" x-data="$SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::from(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
+<x-finance.panel title="Cost centre allocation" x-data="$SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::encode(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
     <x-slot:actions>
         <div class="flex items-center gap-2" x-show="scope === 'invoice'">
             @if(!$invoiceAllocation['warning'])<x-finance.allocation-calculator-button :invoice="$invoice" />@endif
@@ -34,7 +34,7 @@
             <x-ui.button variant="plain" type="button" class="sm-preset-view" role="tab" x-bind:aria-selected="scope === 'overview'" x-bind:aria-current="scope === 'overview' ? 'page' : null" x-on:click="scope = 'overview'">Overview</x-ui.button>
             <x-ui.button variant="plain" type="button" class="sm-preset-view" role="tab" x-bind:aria-selected="scope === 'invoice'" x-bind:aria-current="scope === 'invoice' ? 'page' : null" x-on:click="scope = 'invoice'">Invoice items <span x-cloak x-show="needsInspection('invoice')" class="ml-1 inline-flex text-amber-700" role="img" x-bind:aria-label="inspectionReason('invoice')" x-bind:title="inspectionReason('invoice')"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span></x-ui.button>
             @foreach($workshopContexts as $context)
-                <x-ui.button variant="plain" type="button" class="sm-preset-view" role="tab" x-bind:aria-selected="scope === {{ \Illuminate\Support\Js::from('workshop-'.$context['workshop']->id) }}" x-bind:aria-current="scope === {{ \Illuminate\Support\Js::from('workshop-'.$context['workshop']->id) }} ? 'page' : null" x-on:click="scope = {{ \Illuminate\Support\Js::from('workshop-'.$context['workshop']->id) }}">{{ $context['workshop']->title }} <span x-cloak x-show="needsInspection(@js('workshop-'.$context['workshop']->id))" class="ml-1 inline-flex text-amber-700" role="img" x-bind:aria-label="inspectionReason(@js('workshop-'.$context['workshop']->id))" x-bind:title="inspectionReason(@js('workshop-'.$context['workshop']->id))"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span></x-ui.button>
+                <x-ui.button variant="plain" type="button" class="sm-preset-view" role="tab" x-bind:aria-selected="scope === {{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }}" x-bind:aria-current="scope === {{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }} ? 'page' : null" x-on:click="scope = {{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }}">{{ $context['workshop']->title }} <span x-cloak x-show="needsInspection({{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }})" class="ml-1 inline-flex text-amber-700" role="img" x-bind:aria-label="inspectionReason({{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }})" x-bind:title="inspectionReason({{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }})"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span></x-ui.button>
             @endforeach
         </nav>
         <div role="tabpanel" x-show="scope === 'overview'">
@@ -65,7 +65,7 @@
         </div>
     </div>
     @foreach($workshopContexts as $context)
-        <div role="tabpanel" x-show="scope === @js('workshop-'.$context['workshop']->id)" x-cloak>
+        <div role="tabpanel" x-show="scope === {{ \Illuminate\Support\Js::encode('workshop-'.$context['workshop']->id) }}" x-cloak>
             @include('admin.workshop.allocation-form', ['inline' => true, 'workshop' => $context['workshop'], 'allocation' => $context['allocation'], 'state' => $context['state']])
         </div>
     @endforeach

@@ -1,5 +1,5 @@
 @props(['variant' => false])
-<div class="mt-4 rounded-xl border border-sky-200 bg-sky-50/50 p-4" x-data="$SM.productPostagePreview(@js(route('admin.shop.product.postage-preview')), @js(csrf_token()))"
+<div class="mt-4 rounded-xl border border-sky-200 bg-sky-50/50 p-4" x-data="$SM.productPostagePreview({{ \Illuminate\Support\Js::encode(route('admin.shop.product.postage-preview')) }}, {{ \Illuminate\Support\Js::encode(csrf_token()) }})"
      x-effect="schedule({ product_type: productType, box_only: boxOnly,
         length_mm: {{ $variant ? "variant.length_mm === '' || variant.length_mm == null ? basePackedLength : variant.length_mm" : 'basePackedLength' }},
         width_mm: {{ $variant ? "variant.width_mm === '' || variant.width_mm == null ? basePackedWidth : variant.width_mm" : 'basePackedWidth' }},

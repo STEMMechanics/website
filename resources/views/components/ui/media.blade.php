@@ -51,7 +51,7 @@
                     x-data
                     type="button"
                     class="bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                    x-on:click.prevent="$SM.openSingleMediaPicker(@js($name), {require_mime_type: @js($mime_type), allow_multiple: @js(filter_var($allow_multiple, FILTER_VALIDATE_BOOLEAN)), allow_uploads: @js($allowUploads), public_usable_only: @js($publicUsableOnly), passwordless_only: @js(filter_var($passwordless_only, FILTER_VALIDATE_BOOLEAN))})"
+                    x-on:click.prevent="$SM.openSingleMediaPicker({{ \Illuminate\Support\Js::encode($name) }}, {require_mime_type: {{ \Illuminate\Support\Js::encode($mime_type) }}, allow_multiple: {{ \Illuminate\Support\Js::encode(filter_var($allow_multiple, FILTER_VALIDATE_BOOLEAN)) }}, allow_uploads: {{ \Illuminate\Support\Js::encode($allowUploads) }}, public_usable_only: {{ \Illuminate\Support\Js::encode($publicUsableOnly) }}, passwordless_only: {{ \Illuminate\Support\Js::encode(filter_var($passwordless_only, FILTER_VALIDATE_BOOLEAN)) }}})"
                 >
                     Select Image
                 </x-ui.button>
@@ -59,7 +59,7 @@
                     type="button"
                     id="{{ $clearButtonId }}"
                     class="hidden bg-white border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 px-5 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                    x-on:click="$SM.updateMedia(@js($name), '')"
+                    x-on:click="$SM.updateMedia({{ \Illuminate\Support\Js::encode($name) }}, '')"
                 >
                     Clear Image
                 </x-ui.button>

@@ -3,7 +3,7 @@
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="relative bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6">
             @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at']])
-            <div class="flex-1 min-w-0" x-data="$SM.workshopSuggestions(@js(['availability' => $availability, 'participantCount' => count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'], 'bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]))">
+            <div class="flex-1 min-w-0" x-data="$SM.workshopSuggestions({{ \Illuminate\Support\Js::encode(['availability' => $availability, 'participantCount' => count($session['review_draft'] ?? $session['participants'] ?? []) ?: $session['participant_count'], 'bookingId' => $workshop->id, 'selected' => $session['workshop_ids'], 'url' => route('workshop.ticket.flow.cart.update', $workshop), 'csrf' => csrf_token()]) }})">
             <div class="mb-3 flex items-center gap-3">
                 <x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.start', $workshop)" />
                 <h2 class="text-2xl font-bold">More workshops</h2>
@@ -23,7 +23,7 @@
                                 <p class="text-sm text-gray-600">{{ $additional->getLocationDisplay(true) }}</p>
                                 <p class="mb-3 text-sm text-gray-600">Ages: {{ $additional->ages }}</p>
                                 <div class="mt-auto flex flex-wrap items-center gap-3 justify-end">
-                                    <span class="text-sm font-semibold text-green-700" x-show="selected.includes(@js($additional->id))" x-cloak><i class="fa-solid fa-check" aria-hidden="true"></i> Added</span>
+                                    <span class="text-sm font-semibold text-green-700" x-show="selected.includes({{ \Illuminate\Support\Js::encode($additional->id) }})" x-cloak><i class="fa-solid fa-check" aria-hidden="true"></i> Added</span>
                                     <x-ui.button type="button" color="secondary" data-workshop-id="{{ $additional->id }}" x-on:click="change($el.dataset.workshopId)" x-bind:disabled="busy || (!selected.includes($el.dataset.workshopId) && (selected.length >= 10 || soldOut($el.dataset.workshopId)))" x-text="label($el.dataset.workshopId)">Add workshop</x-ui.button>
                                 </div>
                             </div>
