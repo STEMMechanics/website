@@ -21,13 +21,14 @@ class CspReportController extends Controller
             $directive = is_string($directive) && preg_match('/\A[a-z-]{1,60}\z/', $directive) ? $directive : 'unknown';
             $kind = in_array($blocked, ['inline', 'eval', 'self'], true) ? $blocked : 'external';
             $blockedHost = $this->reportedBlockedHost($blocked);
+            $blockedFile = $this->reportedBlockedFile($blocked);
             $routeName = $this->reportedRouteName($report, $request);
             $line = $this->reportPosition($report['line-number'] ?? null);
             $column = $this->reportPosition($report['column-number'] ?? null);
             try {
                 $dedupeKey = $kind === 'eval'
                     ? [$directive, $kind, 'global']
-                    : [$directive, $kind, $routeName, $blockedHost ?? 'unknown', $line ?? 'unknown'];
+                    : [$directive, $kind, $routeName, $blockedHost ?? 'unknown', $blockedFile ?? 'unknown', $line ?? 'unknown'];
                 $cacheKey = hash('sha256', implode('|', $dedupeKey));
                 if (Cache::add('csp-report:'.$cacheKey, true, 86400)) {
                     Log::notice('CSP report-only violation', [
@@ -35,6 +36,7 @@ class CspReportController extends Controller
                         'kind' => $kind,
                         'route' => $routeName,
                         'blocked_host' => $blockedHost,
+                        'blocked_file' => $blockedFile,
                         'line' => $line,
                         'column' => $column,
                     ]);
@@ -94,6 +96,27 @@ class CspReportController extends Controller
         return preg_match('/\A(?=.{1,253}\z)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\z/', $host) === 1
             ? $host
             : null;
+    }
+
+    private function reportedBlockedFile(mixed $blocked): ?string
+    {
+        if (! is_string($blocked) || strlen($blocked) > 2048) {
+            return null;
+        }
+
+        $path = parse_url($blocked, PHP_URL_PATH);
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $file = basename($path);
+        if (preg_match('/\A[a-z0-9][a-z0-9._-]{0,119}\.(?:js|mjs)\z/i', $file) !== 1) {
+            return null;
+        }
+
+        return str_starts_with($path, '/cdn-cgi/')
+            ? 'cdn-cgi/'.$file
+            : $file;
     }
 
     private function reportPosition(mixed $position): ?int
