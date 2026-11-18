@@ -64,7 +64,7 @@ class PaymentController extends Controller
         $payments = $query
             ->orderByDesc('received_on')
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         $creditPayments = Payment::query()
@@ -142,7 +142,7 @@ class PaymentController extends Controller
         if ($request->boolean('unallocated_only')) $unallocatedFilter($query);
 
 
-        $payments = $query->orderBy('received_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))->onEachSide(1);
+        $payments = $query->orderBy('received_on', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))->onEachSide(1);
         $paymentReplacementDialogDataById = $payments->getCollection()
             ->mapWithKeys(function (Payment $payment): array {
                 $matchingPayments = $this->matchingEftposPaymentsForReplacement($payment)
@@ -228,7 +228,7 @@ class PaymentController extends Controller
 
         $manualRefunds = $displayQuery
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         $summaryQuery = clone $query;

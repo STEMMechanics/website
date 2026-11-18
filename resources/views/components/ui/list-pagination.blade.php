@@ -2,7 +2,7 @@
 @php
     $paginator->withQueryString();
     $pageSizeName = \App\Support\ListPageSize::parameter($paginator->getPageName());
-    $pageSizes = collect([10, 25, 50, 100, $paginator->perPage()])->unique()->sort();
+    $pageSizes = [10, 25, 50, 100];
     $pageSizeQuery = request()->except([$paginator->getPageName(), $pageSizeName]);
 @endphp
 <div data-list-footer class="mt-5 flex flex-wrap items-center {{ $showSummary ? 'justify-between' : 'justify-end' }} gap-4 text-sm text-slate-500">

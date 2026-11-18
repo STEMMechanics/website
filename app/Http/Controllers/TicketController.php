@@ -83,7 +83,7 @@ class TicketController extends Controller
 
         $tickets = $query
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return view('account.tickets', [
@@ -136,7 +136,7 @@ class TicketController extends Controller
             $query->orderByDesc('created_at');
         }
 
-        $tickets = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(30))->onEachSide(1);
+        $tickets = $query->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))->onEachSide(1);
 
         return view('admin.ticket.index', [
             'tickets' => $tickets,
@@ -671,7 +671,7 @@ class TicketController extends Controller
         $receipts = $query
             ->orderByDesc('received_on')
             ->orderByDesc('created_at')
-            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(20))
+            ->tap(fn ($listingQuery) => app(\App\Services\SiteListControls::class)->apply($listingQuery))->paginate(\App\Support\ListPageSize::resolve(25))
             ->onEachSide(1);
 
         return view('tickets.invoice-receipts', [

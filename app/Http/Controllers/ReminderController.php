@@ -51,7 +51,7 @@ class ReminderController extends Controller
         }
 
         return view('admin.reminder.index', [
-            'reminders' => ($view === 'upcoming' ? $query->orderBy('scheduled_at') : $query->orderByDesc('sent_at'))->paginate(\App\Support\ListPageSize::resolve(30))->onEachSide(1),
+            'reminders' => ($view === 'upcoming' ? $query->orderBy('scheduled_at') : $query->orderByDesc('sent_at'))->paginate(\App\Support\ListPageSize::resolve(25))->onEachSide(1),
             'selectedView' => $view,
         ]);
     }

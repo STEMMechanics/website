@@ -130,7 +130,7 @@ class InvoiceController extends Controller
                 : 0;
         }), 2);
 
-        $invoices = $query->orderByRaw('CAST(invoice_number AS DECIMAL(20, 0)) DESC')->orderByDesc('invoice_number')->orderByDesc('created_at')->paginate(ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderByRaw('CAST(invoice_number AS DECIMAL(20, 0)) DESC')->orderByDesc('invoice_number')->orderByDesc('created_at')->paginate(ListPageSize::resolve(25))->onEachSide(1);
         $invoiceEmailDefaults = $invoices->getCollection()
             ->mapWithKeys(function (Invoice $invoice): array {
                 return [(string) $invoice->id => $this->invoiceEmailPayload($invoice)];
@@ -615,7 +615,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
+        $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1);
 
         return view('account.invoices', [
             'invoices' => $invoices,
@@ -661,7 +661,7 @@ class InvoiceController extends Controller
             });
         }
 
-        $receipts = $query->orderByDesc('received_on')->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(20))->onEachSide(1);
+        $receipts = $query->orderByDesc('received_on')->orderByDesc('created_at')->tap(fn ($listingQuery) => app(SiteListControls::class)->apply($listingQuery))->paginate(ListPageSize::resolve(25))->onEachSide(1);
 
         return view('account.invoice-receipts', [
             'invoice' => $invoice,
