@@ -102,7 +102,7 @@
     if ($isLink) {
         $attributes = $attributes->except(['rel', 'x-bind:disabled', ':disabled']);
         if ($boundHref !== null) {
-            $attributes = $attributes->except(['x-bind:href', ':href'])->merge(['x-bind:href' => 'SM.safeHref('.$boundHref.')']);
+            $attributes = $attributes->except(['x-bind:href', ':href'])->merge(['x-bind:href' => '$SM.safeHref('.$boundHref.')']);
         }
         if ($disabled) {
             $attributes = $attributes->except(['x-bind:href', ':href'])->merge(['aria-disabled' => 'true', 'tabindex' => '-1']);

@@ -76,6 +76,14 @@ class SiteHardeningTest extends TestCase
         }
     }
 
+    public function test_bound_button_links_use_the_alpine_safe_href_magic(): void
+    {
+        $html = Blade::render('<x-ui.button type="link" x-bind:href="targetUrl">Open</x-ui.button>');
+
+        $this->assertStringContainsString('x-bind:href="$SM.safeHref(targetUrl)"', $html);
+        $this->assertStringNotContainsString('x-bind:href="SM.safeHref(', $html);
+    }
+
     public function test_select_help_text_is_not_evaluated_as_javascript(): void
     {
         $html = Blade::render('<x-ui.select error="" name="facilitator" label="Facilitator" info="Workshop task reminders go here." />');
