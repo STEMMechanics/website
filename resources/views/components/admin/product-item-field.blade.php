@@ -32,8 +32,8 @@
     x-init="initializeModel()"
     x-effect="model = {{ $model }}"
     x-on:keydown.escape.window="close()"
-    x-on:resize.window="positionIfOpen($refs.productItemInput, menuWidth)"
-    x-on:scroll.window="positionIfOpen($refs.productItemInput, menuWidth)"
+    x-on:resize.window="positionIfOpen($refs.productItemInput)"
+    x-on:scroll.window="positionIfOpen($refs.productItemInput)"
     {{ $attributes->merge(['class' => 'relative']) }}
 >
     @if(is_string($label) && trim($label) !== '')
@@ -58,8 +58,7 @@
             x-ref="productItemInput"
             x-bind:disabled="{{ $disabledExpression }}"
             x-bind:id="$id('product-item-input')"
-            class="h-11 pr-10!"
-            x-bind:class="linkedProduct ? 'pl-10!' : ''"
+            class="h-11 pl-10! pr-10!"
             aria-label="{{ $ariaLabel }}"
             placeholder="{{ $placeholder }}"
             maxlength="255"
@@ -103,7 +102,7 @@
             x-show="open"
             x-on:click.outside="close()"
             class="fixed z-50 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
-            x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', width: menuWidth + 'px', maxHeight: menuMaxHeight + 'px' }"
+            x-bind:style="{ top: menuTop + 'px', left: menuLeft + 'px', maxHeight: menuMaxHeight + 'px' }"
         >
             <div role="listbox" x-bind:id="$id('product-item-options')">
                 <template x-for="(option, optionIndex) in matches" :key="option.id">

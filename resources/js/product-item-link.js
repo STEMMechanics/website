@@ -12,7 +12,6 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
     selected: requireSelection ? 0 : -1,
     menuTop: 0,
     menuLeft: 0,
-    menuWidth: 320,
     menuMaxHeight: 320,
     get linkedProduct() {
         const productId = String(this.model?.product_id ?? '');
@@ -75,15 +74,16 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
         return [...productMatches, ...blueprintTextMatches]
             .sort((a, b) => matchRank(a) - matchRank(b) || String(a.name).localeCompare(String(b.name)));
     },
-    position(element, width = 320) {
+    position(element) {
         const rect = element.getBoundingClientRect();
-        this.menuWidth = Math.min(width, window.innerWidth - 16);
+        const menuWidth = Math.min(Math.max(320, element.offsetWidth), window.innerWidth - 16);
         this.menuTop = rect.bottom + 4;
         this.menuMaxHeight = Math.max(96, Math.min(320, window.innerHeight - this.menuTop - 8));
-        this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - this.menuWidth - 8));
+        this.menuLeft = Math.max(8, Math.min(rect.left, window.innerWidth - menuWidth - 8));
+        this.$refs.productItemOptions?.style.setProperty('width', `${menuWidth}px`);
     },
-    positionIfOpen(element, width) {
-        if (this.open) this.position(element, width);
+    positionIfOpen(element) {
+        if (this.open) this.position(element);
     },
     editDescription(element) {
         const value = String(element.value || '');
@@ -101,7 +101,7 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
 
         this.query = value;
         this.selected = this.requireSelection ? 0 : -1;
-        this.position(element, Math.max(320, element.offsetWidth));
+        this.position(element);
         this.open = true;
     },
     browse(element) {
@@ -111,7 +111,7 @@ window.SM.productItemLinkEditor = (model, catalog = [], itemNameSuggestions = []
         }
 
         const input = this.$refs.productItemInput || element;
-        this.position(input, Math.max(320, input.offsetWidth));
+        this.position(input);
         this.query = String(input.value || '');
         this.selected = this.requireSelection ? 0 : -1;
         this.open = true;
