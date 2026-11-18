@@ -2287,9 +2287,68 @@ window.SM.productAllocationFields = (fixed, percent) => ({
         return Object.values(values).reduce((sum, value) => sum + (Number(value) || 0), 0);
     },
 });
+function createAlpineMagicBridge(namespace) {
+    if (!namespace || typeof namespace !== 'object') {
+        return Object.create(null);
+    }
+
+    const globalObjects = createAlpineMagicBridge.globalObjects || (createAlpineMagicBridge.globalObjects = (() => {
+        const values = new WeakSet();
+        Object.getOwnPropertyNames(window).forEach((key) => {
+            try {
+                const value = window[key];
+                if (value && typeof value === 'object') {
+                    values.add(value);
+                }
+            } catch (_error) {
+                // Some browser globals throw when read.
+            }
+        });
+        return values;
+    })());
+
+    const bridges = createAlpineMagicBridge.bridges || (createAlpineMagicBridge.bridges = new WeakMap());
+    const bridge = bridges.get(namespace) || Object.create(null);
+    const clones = createAlpineMagicBridge.clones || (createAlpineMagicBridge.clones = new WeakMap());
+
+    Object.keys(namespace).forEach((key) => {
+        const value = namespace[key];
+        if (typeof value === 'function') {
+            bridge[key] = value.bind(namespace);
+        } else if (value && typeof value === 'object' && globalObjects.has(value)) {
+            bridge[key] = createAlpineMagicBridge.cloneGlobalObject(value, globalObjects, clones);
+        } else {
+            bridge[key] = value;
+        }
+    });
+
+    bridges.set(namespace, bridge);
+    return bridge;
+}
+
+createAlpineMagicBridge.cloneGlobalObject = (value, globalObjects, clones) => {
+    if (clones.has(value)) {
+        return clones.get(value);
+    }
+
+    const clone = Array.isArray(value) ? [] : Object.create(null);
+    clones.set(value, clone);
+    Object.keys(value).forEach((key) => {
+        const member = value[key];
+        if (typeof member === 'function') {
+            clone[key] = member.bind(value);
+        } else if (member && typeof member === 'object' && globalObjects.has(member)) {
+            clone[key] = createAlpineMagicBridge.cloneGlobalObject(member, globalObjects, clones);
+        } else {
+            clone[key] = member;
+        }
+    });
+    return clone;
+};
+
 document.addEventListener('alpine:init', () => {
-    Alpine.magic('SM', () => window.SM);
-    Alpine.magic('SMMediaPicker', () => window.SMMediaPicker);
+    Alpine.magic('SM', () => createAlpineMagicBridge(window.SM));
+    Alpine.magic('SMMediaPicker', () => createAlpineMagicBridge(window.SMMediaPicker));
 });
 
 window.SM.confirmAndSubmit = (form, title, content, button) => window.SM.confirm(
