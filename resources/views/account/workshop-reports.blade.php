@@ -121,7 +121,7 @@
                                     @if($photos !== [] || $workshop->isPubliclyVisible())
                                         <x-ui.row-actions class="justify-end!">
                                             @if($photos !== [])
-                                                <x-ui.row-action label="View photos" icon="fa-solid fa-images" tone="neutral" type="button" x-on:click="$dispatch('workshop-gallery-open', { id: @js($galleryId) })" />
+                                                <x-ui.row-action label="View photos" icon="fa-solid fa-images" tone="neutral" type="button" x-on:click="$dispatch('workshop-gallery-open', { id: {{ \Illuminate\Support\Js::encode($galleryId) }} })" />
                                                 <x-ui.row-action
                                                     label="Download photos"
                                                     icon="fa-solid fa-download"

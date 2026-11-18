@@ -72,21 +72,21 @@
     <x-container class="max-w-4xl mt-6 mx-auto">
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 pt-20 md:pt-5 flex gap-6 relative"
             x-data="ticketPaymentPage({
-                        squareEnabled: @js($squareEnabled),
-                        squareApplicationId: @js($squareApplicationId),
-                        squareLocationId: @js($squareLocationId),
-                    squareEnvironment: @js($squareEnvironment),
-                    expiresAt: @js($session['expires_at']),
-                    accountCreditAvailable: @js($accountCreditAvailable),
-                    accountTermsDays: @js($accountTermsDays),
-                    canUseAccountTerms: @js($canUseAccountTerms),
-                    totalAmount: @js($ticketTotal),
-                    useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
-                    paymentMethod: @js($defaultPaymentMethod),
-                    voucherCode: @js($voucherCode),
-                    voucherDraft: @js(old('voucher_code', $voucherCode)),
-                    voucherError: @js($errors->first('voucher_code') ?: ''),
-                    voucherDialogOpen: @js($errors->has('voucher_code')),
+                        squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }},
+                        squareApplicationId: {{ \Illuminate\Support\Js::encode($squareApplicationId) }},
+                        squareLocationId: {{ \Illuminate\Support\Js::encode($squareLocationId) }},
+                    squareEnvironment: {{ \Illuminate\Support\Js::encode($squareEnvironment) }},
+                    expiresAt: {{ \Illuminate\Support\Js::encode($session['expires_at']) }},
+                    accountCreditAvailable: {{ \Illuminate\Support\Js::encode($accountCreditAvailable) }},
+                    accountTermsDays: {{ \Illuminate\Support\Js::encode($accountTermsDays) }},
+                    canUseAccountTerms: {{ \Illuminate\Support\Js::encode($canUseAccountTerms) }},
+                    totalAmount: {{ \Illuminate\Support\Js::encode($ticketTotal) }},
+                    useAccountCredit: {{ \Illuminate\Support\Js::encode((bool) old('apply_account_credit', $applyAccountCreditDefault)) }},
+                    paymentMethod: {{ \Illuminate\Support\Js::encode($defaultPaymentMethod) }},
+                    voucherCode: {{ \Illuminate\Support\Js::encode($voucherCode) }},
+                    voucherDraft: {{ \Illuminate\Support\Js::encode(old('voucher_code', $voucherCode)) }},
+                    voucherError: {{ \Illuminate\Support\Js::encode($errors->first('voucher_code') ?: '') }},
+                    voucherDialogOpen: {{ \Illuminate\Support\Js::encode($errors->has('voucher_code')) }},
                 })"
             x-init="$SM.initializeTicketPayment($el)">
         @include('workshop.tickets.partials.hold-countdown', ['holdExpiresAt' => $session['expires_at'] ?? null])

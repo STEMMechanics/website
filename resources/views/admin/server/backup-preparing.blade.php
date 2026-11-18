@@ -2,7 +2,7 @@
     <x-mast backRoute="admin.server.backups" backTitle="Backups">{{ $title }}</x-mast>
 
     <x-container>
-        <div class="mx-auto my-8 max-w-2xl rounded-xl border border-sky-200 bg-sky-50 p-6 shadow-sm" x-data="backupPreparation(@js($run), @js($statusUrl), @js($returnUrl))" x-init="start()">
+        <div class="mx-auto my-8 max-w-2xl rounded-xl border border-sky-200 bg-sky-50 p-6 shadow-sm" x-data="backupPreparation({{ \Illuminate\Support\Js::encode($run) }}, {{ \Illuminate\Support\Js::encode($statusUrl) }}, {{ \Illuminate\Support\Js::encode($returnUrl) }})" x-init="start()">
             <div class="flex items-center gap-3">
                 <i class="fa-solid fa-hard-drive text-2xl text-sky-700"></i>
                 <div>

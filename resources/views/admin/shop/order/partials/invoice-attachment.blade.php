@@ -1,9 +1,9 @@
-<div x-data="$SM.storeOrderInvoiceAttachment(@js([
+<div x-data="$SM.storeOrderInvoiceAttachment({{ \Illuminate\Support\Js::encode([
     'optionsUrl' => route('admin.shop.order.invoice.options', $order),
     'reviewUrl' => route('admin.shop.order.invoice.attach', $order),
     'initialInvoiceId' => (int) request()->query('attach_invoice', old('invoice_id', '0')),
     'autoOpen' => request()->has('attach_invoice') || (int) old('invoice_id', '0') > 0,
-]))" x-on:close.capture="dismiss()">
+]) }})" x-on:close.capture="dismiss()">
     <x-ui.button href="{{ route('admin.shop.order.invoice.attach', $order) }}" color="outline" x-ref="trigger" x-on:click.prevent="open($event.currentTarget)">Attach additional invoice</x-ui.button>
     <div x-ref="popup">
         <x-ui.list-dialog id="order-invoice-attachment" title="Attach additional invoice" kind="bulk" :centered="true">

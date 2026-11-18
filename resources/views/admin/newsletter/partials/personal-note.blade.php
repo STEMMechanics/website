@@ -18,7 +18,7 @@
 <x-admin.newsletter-editor-dialog id="newsletter-note-editor" title="Newsletter introduction" width="w-[min(56rem,calc(100%-2rem))]">
     <x-admin.ai-status-toast id="newsletter-note-ai-toast" message="Preparing your newsletter introduction…" detail="Your introduction is being drafted from this edition’s recent activity." progress-label="Newsletter introduction generation" />
     <p class="mb-5 text-sm text-slate-500">Add a short introduction to this edition. The AI draft can use recent workshops, upcoming events, store updates, attendance and configured holiday dates.</p>
-    <div class="mb-4" data-ai-widget x-data="{ noteHtml: @js(\App\Services\NewsletterNoteContent::html(['body' => old('personal_note.body', $personalNote['body'] ?? ''), 'format' => old('personal_note.format', $personalNote['format'] ?? 'text')])) }" x-on:mini-editor-link="$SM.callGlobal('SMNewsletterOpenNoteLink', [$event.detail])" x-on:sm-newsletter-ai-draft.window="$SM.setNewsletterNoteFromAi($el, $event)">
+    <div class="mb-4" data-ai-widget x-data="{ noteHtml: {{ \Illuminate\Support\Js::encode(\App\Services\NewsletterNoteContent::html(['body' => old('personal_note.body', $personalNote['body'] ?? ''), 'format' => old('personal_note.format', $personalNote['format'] ?? 'text')])) }} }" x-on:mini-editor-link="$SM.callGlobal('SMNewsletterOpenNoteLink', [$event.detail])" x-on:sm-newsletter-ai-draft.window="$SM.setNewsletterNoteFromAi($el, $event)">
         <label class="mb-1 block text-sm">Introduction</label>
         <x-ui.mini-editor label="Newsletter introduction" x-model="noteHtml" :custom-links="true" :max-characters="4000">
             <x-slot:toolbarActions>
@@ -52,7 +52,7 @@
 </x-admin.newsletter-editor-dialog>
 
 <x-admin.newsletter-editor-dialog id="newsletter-note-link-editor" title="Add a link">
-    <div x-data="{ search: '', links: @js($newsletterLinkOptions) }">
+    <div x-data="{ search: '', links: {{ \Illuminate\Support\Js::encode($newsletterLinkOptions) }} }">
         <x-ui.input label="Find a store item or workshop" x-model="search" placeholder="Search by name…" />
         <div class="mb-5 max-h-44 overflow-y-auto rounded-lg border border-slate-200">
             <template x-for="link in $SM.matchingNewsletterLinks(links, search)" :key="link.url">

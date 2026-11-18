@@ -230,8 +230,8 @@
                 id="expense-product-purchases"
                 class="mb-6 rounded-xl border border-slate-200 bg-white p-4"
                 data-expense-product-purchases
-                x-data="$SM.expenseProductPurchases(@js($purchaseCatalog), @js($purchaseRows), @js(route('admin.shop.product.quick-store')))"
-                x-init="expanded = rows.length > 0 || @js($errors->has('product_purchases'))"
+                x-data="$SM.expenseProductPurchases({{ \Illuminate\Support\Js::encode($purchaseCatalog) }}, {{ \Illuminate\Support\Js::encode($purchaseRows) }}, {{ \Illuminate\Support\Js::encode(route('admin.shop.product.quick-store')) }})"
+                x-init="expanded = rows.length > 0 || {{ \Illuminate\Support\Js::encode($errors->has('product_purchases')) }}"
                 x-on:sm-expense-product-purchases-ai="$SM.applyExpenseItemsAndExpand($el, $event)"
             >
                 <div class="flex flex-wrap items-center justify-between gap-3">

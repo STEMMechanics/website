@@ -89,16 +89,16 @@
                                     value="{{ old('refund_qty.'.$line->id, '0.00') }}"
                                     x-model="refundQty[{{ (int) $line->id }}]"
                                     x-on:blur="normalizeQty({{ (int) $line->id }})"
-                                    x-bind:disabled="{{ \Illuminate\Support\Js::from($remainingQty <= 0.0001) }}"
+                                    x-bind:disabled="{{ \Illuminate\Support\Js::encode($remainingQty <= 0.0001) }}"
                                     class="disabled:bg-gray-100 bg-white inline-block px-2.5 py-2 w-28 text-sm text-gray-900 rounded-lg border border-gray-300" />
                             </td>
-                            <td class="py-2 pr-3 text-center!" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 text-center!" x-data="{ row: {{ \Illuminate\Support\Js::encode($lineMeta) }} }">
                                 $<span x-text="money(lineRefundEx(row))"></span>
                             </td>
-                            <td class="py-2 pr-3 text-center!" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 text-center!" x-data="{ row: {{ \Illuminate\Support\Js::encode($lineMeta) }} }">
                                 $<span x-text="money(lineRefundGst(row))"></span>
                             </td>
-                            <td class="py-2 pr-3 font-medium text-center!" x-data="{ row: @js($lineMeta) }">
+                            <td class="py-2 pr-3 font-medium text-center!" x-data="{ row: {{ \Illuminate\Support\Js::encode($lineMeta) }} }">
                                 $<span x-text="money(lineRefundInc(row))"></span>
                             </td>
                         </tr>

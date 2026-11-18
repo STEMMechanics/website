@@ -9,7 +9,7 @@
     <section
         class="mt-20 pt-4 border-t  border-gray-300 p-4"
         x-data
-        x-init="$SM.trackWorkshopRecommendationImpression(@js(route('workshop.recommendation.impression')), @js(csrf_token()), @js($sourceWorkshop->id), @js($workshops->pluck('id')->values()->all()), @js($placement))"
+        x-init="$SM.trackWorkshopRecommendationImpression({{ \Illuminate\Support\Js::encode(route('workshop.recommendation.impression')) }}, {{ \Illuminate\Support\Js::encode(csrf_token()) }}, {{ \Illuminate\Support\Js::encode($sourceWorkshop->id) }}, {{ \Illuminate\Support\Js::encode($workshops->pluck('id')->values()->all()) }}, {{ \Illuminate\Support\Js::encode($placement) }})"
     >
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>

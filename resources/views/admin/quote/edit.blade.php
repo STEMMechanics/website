@@ -29,7 +29,7 @@
         @isset($quote)
             <div class="sm-quote-toolbar mb-4 flex flex-wrap items-center justify-end gap-2">
                 <x-ui.button type="button" size="icon-small" color="secondary" aria-label="Open PDF" title="Open PDF" x-data x-on:click.prevent="$SM.openUrl('{{ route('admin.quote.pdf', $quote) }}')"><i class="fa-regular fa-file-pdf" aria-hidden="true"></i></x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: {{ \Illuminate\Support\Js::encode(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')) }}, emailMessage: {{ \Illuminate\Support\Js::encode((string) old('email_message', $defaultQuoteEmailMessage)) }}, recipientEmails: {{ \Illuminate\Support\Js::encode((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))) }}, ccEmails: {{ \Illuminate\Support\Js::encode((string) old('cc_emails', '')) }} }">
                     @csrf
                     <x-ui.button type="submit" size="icon-small" color="secondary" aria-label="Email Quote" title="Email Quote" x-data x-on:click.prevent="$SM.setDataValues($el, { open: true })"><i class="fa-regular fa-envelope" aria-hidden="true"></i></x-ui.button>
 
@@ -234,7 +234,7 @@
             />
 
             @isset($quote)
-                <p id="quote-save-email-info" x-show="quoteStatus !== {{ \Illuminate\Support\Js::from(\App\Models\Quote::STATUS_OPEN) }}" x-cloak class="mt-4 text-sm text-gray-600">Save and Email is available when the quote status is Open.</p>
+                <p id="quote-save-email-info" x-show="quoteStatus !== {{ \Illuminate\Support\Js::encode(\App\Models\Quote::STATUS_OPEN) }}" x-cloak class="mt-4 text-sm text-gray-600">Save and Email is available when the quote status is Open.</p>
             @endisset
             <x-ui.editor-actions :sticky-mobile="true">
                 @isset($quote)
@@ -254,7 +254,7 @@
                         name="save_and_email"
                         value="1"
                         aria-describedby="quote-save-email-info"
-                        x-bind:disabled="quoteStatus !== {{ \Illuminate\Support\Js::from(\App\Models\Quote::STATUS_OPEN) }}"
+                        x-bind:disabled="quoteStatus !== {{ \Illuminate\Support\Js::encode(\App\Models\Quote::STATUS_OPEN) }}"
                     >
                         Save and Email
                     </x-ui.button>

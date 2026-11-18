@@ -3,7 +3,7 @@
     $allocationCategories = $allocationEditor->categories();
     $allocationEditorConfig = ['categories' => $allocationCategories->pluck('id')->all(), 'centres' => app(\App\Services\Finance\ProductCostAllocation::class)->centres(), 'taxRate' => (float) ($product->tax_rate ?? \App\Services\Finance\GstRate::current()), 'data' => $allocationEditor->data($product ?? null), 'old' => old('product_allocations_json') ? json_decode(old('product_allocations_json'), true) : null];
 @endphp
-<div x-data="$SM.productAllocationEditor(@js($allocationEditorConfig))" id="cost-centre-allocation">
+<div x-data="$SM.productAllocationEditor({{ \Illuminate\Support\Js::encode($allocationEditorConfig) }})" id="cost-centre-allocation">
     <x-ui.collapsible-section title="Cost centre allocation" variant="product" :open="!isset($product) || $errors->has('product_allocations_json')">
         <x-slot:summary><span x-text="summary" x-bind:class="summary.includes('need allocation review') ? 'text-amber-800' : ''"></span></x-slot:summary>
         <input type="hidden" name="product_allocations_json" x-bind:value="payload" x-bind:disabled="automaticAllocation">

@@ -42,7 +42,7 @@
                 </div>
             </div>
 
-            <form id="community-support-sponsorship-checkout" method="POST" enctype="multipart/form-data" action="{{ route('sponsor.community-support.process') }}" class="mt-6 space-y-6" x-data="sponsorshipCommunitySupportCheckout({ squareEnabled: @js($squareEnabled), applicationId: @js($squareApplicationId), locationId: @js($squareLocationId), environment: @js($squareEnvironment) }, { options: @js($communitySupportOptions), savedChoice: @js($savedChoice), savedFrequency: @js($savedFrequency), savedOption: @js((string) $savedOption), savedCustomAmount: @js((string) $savedCustomAmount) })" @submit.prevent="submitForm($event)">
+            <form id="community-support-sponsorship-checkout" method="POST" enctype="multipart/form-data" action="{{ route('sponsor.community-support.process') }}" class="mt-6 space-y-6" x-data="sponsorshipCommunitySupportCheckout({ squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }}, applicationId: {{ \Illuminate\Support\Js::encode($squareApplicationId) }}, locationId: {{ \Illuminate\Support\Js::encode($squareLocationId) }}, environment: {{ \Illuminate\Support\Js::encode($squareEnvironment) }} }, { options: {{ \Illuminate\Support\Js::encode($communitySupportOptions) }}, savedChoice: {{ \Illuminate\Support\Js::encode($savedChoice) }}, savedFrequency: {{ \Illuminate\Support\Js::encode($savedFrequency) }}, savedOption: {{ \Illuminate\Support\Js::encode((string) $savedOption) }}, savedCustomAmount: {{ \Illuminate\Support\Js::encode((string) $savedCustomAmount) }} })" @submit.prevent="submitForm($event)">
                 @csrf
 
                 <section class="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">

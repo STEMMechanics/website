@@ -266,7 +266,7 @@
             x-ref="assemblyDialog"
             class="m-auto max-h-[92vh] w-[min(76rem,calc(100%-1rem))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 shadow-2xl backdrop:bg-slate-900/50 sm:p-6"
             aria-labelledby="assembly-dialog-title"
-            x-init="$SM.initializeDialog($el, @js($assemblyPlan !== null), '[data-assembly-quantity]')"
+            x-init="$SM.initializeDialog($el, {{ \Illuminate\Support\Js::encode($assemblyPlan !== null) }}, '[data-assembly-quantity]')"
             x-on:input="handleAssemblyDialogInput($event)"
             x-on:submit="submitAssemblyDialog($event)"
             x-on:cancel.prevent="closeAssemblyDialog()"
@@ -287,7 +287,7 @@
                 @endif
             </div>
         </dialog>
-        <dialog x-ref="kitDeleteDialog" class="m-auto max-h-[90vh] w-[min(34rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" aria-labelledby="kit-delete-title" x-init="$SM.initializeDialog($el, @js($errors->has('disposition')))" x-on:cancel.prevent="$refs.kitDeleteDialog.close()" x-on:click.self="$refs.kitDeleteDialog.close()">
+        <dialog x-ref="kitDeleteDialog" class="m-auto max-h-[90vh] w-[min(34rem,calc(100%-2rem))] overflow-y-auto rounded-xl border border-slate-200 bg-white p-0 shadow-2xl backdrop:bg-slate-900/50" aria-labelledby="kit-delete-title" x-init="$SM.initializeDialog($el, {{ \Illuminate\Support\Js::encode($errors->has('disposition')) }})" x-on:cancel.prevent="$refs.kitDeleteDialog.close()" x-on:click.self="$refs.kitDeleteDialog.close()">
             <form method="POST" action="{{ route('admin.shop.stock.kit.destroy', $kit) }}">
                 @csrf
                 @method('DELETE')

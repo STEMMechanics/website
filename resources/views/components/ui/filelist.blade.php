@@ -57,9 +57,9 @@
 
 @if($value !== '' || $editor === true)
 <div
-        x-data="$SM.fileList(@js($name), @js($deferUploads), @js($uploadFields))"
+        x-data="$SM.fileList({{ \Illuminate\Support\Js::encode($name) }}, {{ \Illuminate\Support\Js::encode($deferUploads) }}, {{ \Illuminate\Support\Js::encode($uploadFields) }})"
     class="{{ twMerge(['mb-4'], $attributes->get('class')) }}"
-    x-show="$SM.currentFileList(@js($name)).length > 0 || {{ $editor === true ? 'true' : 'false' }}"
+    x-show="$SM.currentFileList({{ \Illuminate\Support\Js::encode($name) }}).length > 0 || {{ $editor === true ? 'true' : 'false' }}"
 >
     <h3 class="text-xl font-semibold">{{ $label }}</h3>
     @if($editor)
@@ -79,18 +79,18 @@
                     x-show="deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    x-on:click.prevent="$SM.openFileListPicker(@js($name), {allow_multiple:true,allow_uploads:false,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }}})"
+                    x-on:click.prevent="$SM.openFileListPicker({{ \Illuminate\Support\Js::encode($name) }}, {allow_multiple:true,allow_uploads:false,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }}})"
                 >Browse existing files</x-ui.button>
                 <x-ui.button variant="plain"
                     x-show="!deferredUploads"
                     type="button"
                     class="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-100"
-                    x-on:click.prevent="$SM.openFileListPicker(@js($name), {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:@js($uploadFields)})"
+                    x-on:click.prevent="$SM.openFileListPicker({{ \Illuminate\Support\Js::encode($name) }}, {allow_multiple:true,allow_uploads:true,public_usable_only:{{ $publicUsableOnly ? 'true' : 'false' }},upload_fields:{{ \Illuminate\Support\Js::encode($uploadFields) }}})"
                 >Browse media</x-ui.button>
             </div>
             <input class="hidden" id="filelist_upload_{{ $name }}" type="file" multiple x-on:change="uploadFilesFromInput($event.target)">
-            <ul x-show="$SM.currentStagedFileList(@js($name)).length > 0" class="mt-4 flex flex-col gap-4 rounded-lg border border-gray-300 bg-white p-3 text-left">
-                <template x-for="file in $SM.currentStagedFileList(@js($name))" :key="file.pending_id ? ('pending-' + file.pending_id) : file.name">
+            <ul x-show="$SM.currentStagedFileList({{ \Illuminate\Support\Js::encode($name) }}).length > 0" class="mt-4 flex flex-col gap-4 rounded-lg border border-gray-300 bg-white p-3 text-left">
+                <template x-for="file in $SM.currentStagedFileList({{ \Illuminate\Support\Js::encode($name) }})" :key="file.pending_id ? ('pending-' + file.pending_id) : file.name">
                     <li class="flex items-center min-h-10">
                         <template x-if="file.pending_id">
                             <div class="mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded bg-amber-50 text-gray-400">
@@ -119,23 +119,23 @@
                         </div>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                         <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="!file.pending_id && file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>
-                        <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="file.pending_id ? $SM.removePendingFile(@js($name), file.pending_id) : $SM.removeFile(@js($name), file.name)"></i>
+                        <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="file.pending_id ? $SM.removePendingFile({{ \Illuminate\Support\Js::encode($name) }}, file.pending_id) : $SM.removeFile({{ \Illuminate\Support\Js::encode($name) }}, file.name)"></i>
                     </li>
                 </template>
             </ul>
         </div>
-        <div x-show="$SM.currentPendingUploadState(@js($name)).uploading" class="mt-3 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
+        <div x-show="$SM.currentPendingUploadState({{ \Illuminate\Support\Js::encode($name) }}).uploading" class="mt-3 rounded-lg border border-sky-100 bg-sky-50 px-4 py-3">
             <div class="text-sm font-semibold text-sky-800">Uploading pending files</div>
-            <div class="mt-1 text-xs text-sky-700" x-text="$SM.currentPendingUploadState(@js($name)).message || 'Preparing upload…'"></div>
+            <div class="mt-1 text-xs text-sky-700" x-text="$SM.currentPendingUploadState({{ \Illuminate\Support\Js::encode($name) }}).message || 'Preparing upload…'"></div>
             <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
-                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($SM.currentPendingUploadState(@js($name)).progress || 0))) + '%'"></div>
+                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($SM.currentPendingUploadState({{ \Illuminate\Support\Js::encode($name) }}).progress || 0))) + '%'"></div>
             </div>
         </div>
         <div class="text-xs text-gray-500 mb-4 mt-1">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
         <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $hiddenValue }}" @if($deferUploads) data-filelist-deferred="1" data-filelist-name="{{ $name }}" data-filelist-upload-fields='@json($uploadFields)' @endif />
     @else
-    <ul x-show="$SM.currentFileList(@js($name)).length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-4 overflow-hidden">
-        <template x-for="file in $SM.currentFileList(@js($name))" :key="file.name">
+    <ul x-show="$SM.currentFileList({{ \Illuminate\Support\Js::encode($name) }}).length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-4 overflow-hidden">
+        <template x-for="file in $SM.currentFileList({{ \Illuminate\Support\Js::encode($name) }})" :key="file.name">
             <li class="flex items-center min-h-10">
                 <img class="w-10 mr-2" :src="file.thumbnail" src="" alt="thumbnail" />
                 <div class="flex grow flex-col">
@@ -158,7 +158,7 @@
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.download_url || (file.url + '?download=1')"><i class="fa-solid fa-download"></i></a>
                 <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" x-show="file.edit_url" :href="file.edit_url" title="Edit media"><i class="fa-solid fa-pen-to-square"></i></a>
                 @if($editor)
-                    <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="$SM.removeFile(@js($name), file.name)"></i>
+                    <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="$SM.removeFile({{ \Illuminate\Support\Js::encode($name) }}, file.name)"></i>
                 @endif
             </li>
         </template>

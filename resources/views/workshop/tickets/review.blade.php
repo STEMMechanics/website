@@ -6,7 +6,7 @@
             <div class="flex-1 min-w-0">
                 <div class="mb-4 flex items-center gap-3"><x-ui.row-action label="Back" icon="fa-arrow-left" :href="route('workshop.ticket.flow.cart', $workshop)" /><h2 class="text-2xl font-bold">Review booking</h2></div>
                 @foreach($errors->all() as $error)<p class="mb-3 text-sm text-red-600" role="alert">{{ $error }}</p>@endforeach
-                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="$SM.workshopBookingReview(@js(['reviewVersion' => $session['review_version'], 'draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]))">
+                <form x-on:submit="submitReview($event)" method="POST" action="{{ route('workshop.ticket.flow.review.save', $workshop) }}" x-data="$SM.workshopBookingReview({{ \Illuminate\Support\Js::encode(['reviewVersion' => $session['review_version'], 'draftUrl' => route('workshop.ticket.flow.review.draft', $workshop), 'csrf' => csrf_token(), 'bookingId' => $workshop->id, 'participants' => old('participants', $participants), 'prices' => $pricing, 'surname' => $session['purchaser']['surname']]) }})">
                     @csrf
                     <input type="hidden" name="review_version" value="{{ $session['review_version'] }}" x-bind:value="reviewVersion">
                     <p x-show="saveError" x-text="saveError" role="alert" class="mb-3 text-sm text-red-600"></p>
@@ -30,8 +30,8 @@
                             <p class="text-sm text-gray-600">{{ $item->getTicketTimeRangeLabel() }}</p>
                             <p class="mb-3 text-sm text-gray-600">{{ $item->getLocationDisplay(true) }}</p>
                             @if($pricing[$item->id]['capacity'] !== null)
-                                <p class="mb-3 text-sm font-medium text-amber-800" x-show="participants.length > @js($pricing[$item->id]['capacity'])" x-cloak>Only {{ $pricing[$item->id]['capacity'] }} {{ $pricing[$item->id]['capacity'] === 1 ? 'spot' : 'spots' }} available.</p>
-                                <p class="mb-3 text-sm text-red-600" role="alert" x-show="overCapacity(@js($item->id))" x-cloak>Please reduce the selected participants to match the available places.</p>
+                                <p class="mb-3 text-sm font-medium text-amber-800" x-show="participants.length > {{ \Illuminate\Support\Js::encode($pricing[$item->id]['capacity']) }}" x-cloak>Only {{ $pricing[$item->id]['capacity'] }} {{ $pricing[$item->id]['capacity'] === 1 ? 'spot' : 'spots' }} available.</p>
+                                <p class="mb-3 text-sm text-red-600" role="alert" x-show="overCapacity({{ \Illuminate\Support\Js::encode($item->id) }})" x-cloak>Please reduce the selected participants to match the available places.</p>
                             @endif
                             <template x-for="(person, index) in participants" :key="index">
                                 <label class="mb-2 flex cursor-pointer items-center gap-3">
@@ -39,8 +39,8 @@
                                     <span x-text="person.firstname.trim() ? [person.firstname, person.surname].filter(Boolean).join(' ') : 'Participant ' + (index + 1)"></span>
                                 </label>
                             </template>
-                            <p class="mt-3 text-sm font-semibold" x-show="quantity(@js($item->id)) > 0" x-text="quantity(@js($item->id)) + ' ticket' + (quantity(@js($item->id)) === 1 ? '' : 's') + ' · ' + (amount(@js($item->id)) > 0 ? money(amount(@js($item->id))) : 'Free')"></p>
-                            @if($item->id !== $workshop->id)<p class="mt-1 text-sm text-gray-600" x-show="quantity(@js($item->id)) === 0">Not included in your booking.</p>@endif
+                            <p class="mt-3 text-sm font-semibold" x-show="quantity({{ \Illuminate\Support\Js::encode($item->id) }}) > 0" x-text="quantity({{ \Illuminate\Support\Js::encode($item->id) }}) + ' ticket' + (quantity({{ \Illuminate\Support\Js::encode($item->id) }}) === 1 ? '' : 's') + ' · ' + (amount({{ \Illuminate\Support\Js::encode($item->id) }}) > 0 ? money(amount({{ \Illuminate\Support\Js::encode($item->id) }})) : 'Free')"></p>
+                            @if($item->id !== $workshop->id)<p class="mt-1 text-sm text-gray-600" x-show="quantity({{ \Illuminate\Support\Js::encode($item->id) }}) === 0">Not included in your booking.</p>@endif
                         </div>
                     @endforeach
                     <div class="my-5 flex justify-between border-t border-gray-200 pt-4 font-bold"><span>Subtotal</span><span x-text="total > 0 ? money(total) : 'Free'"></span></div>

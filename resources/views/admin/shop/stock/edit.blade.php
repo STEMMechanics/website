@@ -118,9 +118,9 @@
             @endphp
             <form
                 method="POST"
-                x-data="$SM.stockReceiptMovementForm(@js($initialMovementDate), @js($initialMovementCost), @js($initialMovementExpenseId), @js($stockMovementScope))"
+                x-data="$SM.stockReceiptMovementForm({{ \Illuminate\Support\Js::encode($initialMovementDate) }}, {{ \Illuminate\Support\Js::encode($initialMovementCost) }}, {{ \Illuminate\Support\Js::encode($initialMovementExpenseId) }}, {{ \Illuminate\Support\Js::encode($stockMovementScope) }})"
                 x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)"
-                x-bind:action="isReceipt ? @js(route('admin.shop.stock.receive', $stockItem)) : @js(route('admin.shop.stock.adjust', $stockItem))"
+                x-bind:action="isReceipt ? {{ \Illuminate\Support\Js::encode(route('admin.shop.stock.receive', $stockItem)) }} : {{ \Illuminate\Support\Js::encode(route('admin.shop.stock.adjust', $stockItem)) }}"
                 x-on:submit="formatTotalCost($el.querySelector('[name=total_cost_ex_tax]'))"
                 class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
             >
@@ -303,7 +303,7 @@
                 @endphp
 
                 <x-ui.list-dialog :id="$editDialogId" :title="'Edit stock receipt · '.$stockItem->name" kind="edit" centered>
-                    <form method="POST" action="{{ route('admin.shop.stock.receipt.update', [$stockItem, $receiptLine]) }}" x-data="$SM.stockReceiptMovementForm(@js($initialReceiptDate), @js($initialReceiptCost), @js($receipt->expense_id ?? ''), @js('receipt-'.$receiptLine->id))" x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)">
+                    <form method="POST" action="{{ route('admin.shop.stock.receipt.update', [$stockItem, $receiptLine]) }}" x-data="$SM.stockReceiptMovementForm({{ \Illuminate\Support\Js::encode($initialReceiptDate) }}, {{ \Illuminate\Support\Js::encode($initialReceiptCost) }}, {{ \Illuminate\Support\Js::encode($receipt->expense_id ?? '') }}, {{ \Illuminate\Support\Js::encode('receipt-'.$receiptLine->id) }})" x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)">
                         @csrf
                         @method('PUT')
                         <input type="hidden" name="stock_receipt_line_id" value="{{ $receiptLine->id }}">

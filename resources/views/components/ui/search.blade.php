@@ -28,7 +28,7 @@
     method="GET"
     action="{{ $action ?? url()->current() }}"
     class="{{ $attributes->get('class') }}"
-    x-data="{ search: {{ \Illuminate\Support\Js::from($currentValue) }}, advancedOpen: {{ \Illuminate\Support\Js::from((bool) $advancedOpen) }}, advancedActive: {{ \Illuminate\Support\Js::from((bool) $advancedActive) }} }"
+    x-data="{ search: {{ \Illuminate\Support\Js::encode($currentValue) }}, advancedOpen: {{ \Illuminate\Support\Js::encode((bool) $advancedOpen) }}, advancedActive: {{ \Illuminate\Support\Js::encode((bool) $advancedActive) }} }"
 >
     <div class="flex relative">
         @foreach($queryParams as $queryKey => $queryValue)
@@ -40,7 +40,7 @@
                 <input type="hidden" name="{{ $queryKey }}" value="{{ $queryValue }}" @if(in_array($queryKey, $advancedFields, true)) data-advanced-search-param @endif>
             @endif
         @endforeach
-        <x-ui.input-control class="{{ twMerge($classes, 'rounded-r-none') }}" aria-label="{{ $label }}" autocomplete="off" x-bind:placeholder="advancedActive && !search ? 'Advanced Search' : {{ \Illuminate\Support\Js::from($label) }}" x-model="search" type="{{ $type }}" name="{{ $name }}" />
+        <x-ui.input-control class="{{ twMerge($classes, 'rounded-r-none') }}" aria-label="{{ $label }}" autocomplete="off" x-bind:placeholder="advancedActive && !search ? 'Advanced Search' : {{ \Illuminate\Support\Js::encode($label) }}" x-model="search" type="{{ $type }}" name="{{ $name }}" />
         @if($hasAdvancedSearch)
             <x-ui.button
                 type="button"

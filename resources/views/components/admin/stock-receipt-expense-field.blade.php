@@ -16,7 +16,7 @@
 
 <div
     x-id="['stock-receipt-supplier', 'stock-receipt-expenses', 'stock-receipt-supplier-help']"
-    x-data="$SM.stockReceiptExpenseEditor(@js($initialSupplier), @js($initialExpenseId), @js($expenses), @js($scope))"
+    x-data="$SM.stockReceiptExpenseEditor({{ \Illuminate\Support\Js::encode($initialSupplier) }}, {{ \Illuminate\Support\Js::encode($initialExpenseId) }}, {{ \Illuminate\Support\Js::encode($expenses) }}, {{ \Illuminate\Support\Js::encode($scope) }})"
     x-on:keydown.escape.window="open = false"
     x-on:resize.window="positionIfOpen($refs.expenseTrigger)"
     x-on:scroll.window="positionIfOpen($refs.expenseTrigger)"

@@ -257,7 +257,7 @@
             </section>
 
             <section class="{{ $settingsCardClasses }} space-y-5"
-                x-data="{ selectedImage: @js(old('sidebar_shipping_image', $sidebarShippingImage) ?? '') }"
+                x-data="{ selectedImage: {{ \Illuminate\Support\Js::encode(old('sidebar_shipping_image', $sidebarShippingImage) ?? '') }} }"
                 x-on:sm-media-updated.window="$SM.updateDataFromEvent($el, $event, 'sidebar_shipping_image', 'selectedImage', 'value')"
                 x-on:click="$SM.clearSelectionIfButton($el, $event, 'sidebar_shipping_image_clear_', 'selectedImage')">
                 <div>

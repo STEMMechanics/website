@@ -63,7 +63,7 @@
     class="grid items-stretch gap-3 md:grid-cols-3 {{ $canMerge ? '' : 'opacity-80' }}"
 >
     @foreach([$left, $right] as $medium)
-        <div class="min-w-0 rounded-xl border p-4 transition" x-bind:class="!(action === 'merge' && advancedMerge) && keeper === @js((string) $medium->name) ? 'border-primary-color bg-primary-color-light/10 ring-2 ring-primary-color' : 'border-gray-200 bg-gray-50'">
+        <div class="min-w-0 rounded-xl border p-4 transition" x-bind:class="!(action === 'merge' && advancedMerge) && keeper === {{ \Illuminate\Support\Js::encode((string) $medium->name) }} ? 'border-primary-color bg-primary-color-light/10 ring-2 ring-primary-color' : 'border-gray-200 bg-gray-50'">
             <div class="flex gap-4">
                 <img src="{{ $medium->thumbnail }}" class="h-24 w-24 shrink-0 rounded-lg object-cover sm:h-28 sm:w-28" alt="">
                 <div class="relative min-w-0 flex-1">
@@ -81,9 +81,9 @@
                 </div>
             </div>
             @if($canMerge)
-                <button type="button" class="mt-3 w-full rounded-lg border px-3 py-2 text-sm font-semibold transition" x-bind:class="!(action === 'merge' && advancedMerge) && keeper === @js((string) $medium->name) ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-100'" x-on:click="selectKeeper(@js((string) $medium->name))">
-                    <span x-show="action === 'merge' && advancedMerge || keeper !== @js((string) $medium->name)">Select to keep</span>
-                    <span x-show="!(action === 'merge' && advancedMerge) && keeper === @js((string) $medium->name)" x-cloak><i class="fa-solid fa-circle-check mr-1" aria-hidden="true"></i>Selected to keep</span>
+                <button type="button" class="mt-3 w-full rounded-lg border px-3 py-2 text-sm font-semibold transition" x-bind:class="!(action === 'merge' && advancedMerge) && keeper === {{ \Illuminate\Support\Js::encode((string) $medium->name) }} ? 'border-primary-color bg-primary-color text-white' : 'border-gray-300 bg-white text-gray-800 hover:bg-gray-100'" x-on:click="selectKeeper({{ \Illuminate\Support\Js::encode((string) $medium->name) }})">
+                    <span x-show="action === 'merge' && advancedMerge || keeper !== {{ \Illuminate\Support\Js::encode((string) $medium->name) }}">Select to keep</span>
+                    <span x-show="!(action === 'merge' && advancedMerge) && keeper === {{ \Illuminate\Support\Js::encode((string) $medium->name) }}" x-cloak><i class="fa-solid fa-circle-check mr-1" aria-hidden="true"></i>Selected to keep</span>
                 </button>
             @endif
         </div>

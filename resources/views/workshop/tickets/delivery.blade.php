@@ -11,7 +11,7 @@
         @endforeach
         @foreach($errors->all() as $error)<p class="mb-2 text-sm text-red-600">{{ $error }}</p>@endforeach
         @php($customer = $session['equipment_customer'] ?? [])
-        <form method="POST" action="{{ route('workshop.ticket.flow.delivery.save', $workshop) }}" x-data="$SM.workshopDelivery(@js(['summary' => $summary, 'ticketAmount' => $ticketAmount]))" x-on:input="scheduleQuote()" x-on:change="scheduleQuote()" x-on:submit="$SM.preventIf($event, loading || quoteError)">
+        <form method="POST" action="{{ route('workshop.ticket.flow.delivery.save', $workshop) }}" x-data="$SM.workshopDelivery({{ \Illuminate\Support\Js::encode(['summary' => $summary, 'ticketAmount' => $ticketAmount]) }})" x-on:input="scheduleQuote()" x-on:change="scheduleQuote()" x-on:submit="$SM.preventIf($event, loading || quoteError)">
             @csrf
             @if($lines->isNotEmpty())
                 <x-finance.panel title="Delivery">

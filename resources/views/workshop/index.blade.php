@@ -220,7 +220,7 @@
                                                         data-calendar-lane="{{ $lane }}"
                                                         data-workshop-key="{{ $workshop->getKey() }}"
                                                         style="cursor: pointer;"
-                                                        x-bind:class="{ 'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === @js((string) $workshop->getKey()) }"
+                                                        x-bind:class="{ 'border-primary-color! bg-primary-color-light/10! text-primary-color-dark!': hoveredWorkshop === {{ \Illuminate\Support\Js::encode((string) $workshop->getKey()) }} }"
                                                         @class([
                                                         'relative block min-h-18 cursor-pointer rounded-md border border-gray-200 bg-gray-50 px-2 py-1 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark',
                                                         'lg:relative lg:z-10 lg:ml-[-9px] lg:rounded-l-none lg:border-l-0 lg:pl-4' => $continuation['before'],

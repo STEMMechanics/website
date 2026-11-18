@@ -20,7 +20,7 @@
 
     <x-container>
 
-        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" x-data="fileBackupArchive(@js($archiveRun), @js(route('admin.server.files.archive', ['mode' => $backupMode, 'filename' => $backup['filename']])), @js(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])))" x-init="init()">
+        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm" x-data="fileBackupArchive({{ \Illuminate\Support\Js::encode($archiveRun) }}, {{ \Illuminate\Support\Js::encode(route('admin.server.files.archive', ['mode' => $backupMode, 'filename' => $backup['filename']])) }}, {{ \Illuminate\Support\Js::encode(route('admin.server.backups.status', ['backupRun' => '__RUN_ID__'])) }})" x-init="init()">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <div class="font-semibold text-gray-900">Download complete backup</div>

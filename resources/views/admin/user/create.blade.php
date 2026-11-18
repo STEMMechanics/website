@@ -2,7 +2,7 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Create User</x-mast>
 
     <x-container>
-        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{ groupsRaw: @js(old('groups', '')), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', false)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', false)), shippingSameBilling: @js((bool) old('shipping_same_billing', true)) }" x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)">
+        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{ groupsRaw: {{ \Illuminate\Support\Js::encode(old('groups', '')) }}, useOrganisationBillingAddress: {{ \Illuminate\Support\Js::encode((bool) old('use_organisation_billing_address', false)) }}, useOrganisationShippingAddress: {{ \Illuminate\Support\Js::encode((bool) old('use_organisation_shipping_address', false)) }}, shippingSameBilling: {{ \Illuminate\Support\Js::encode((bool) old('shipping_same_billing', true)) }} }" x-on:submit.prevent="$SM.updateShippingAddressAndSubmit($el)">
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">

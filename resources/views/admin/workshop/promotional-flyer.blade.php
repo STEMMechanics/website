@@ -7,10 +7,10 @@
             action="{{ route('admin.workshop-flyer.generate') }}"
             target="_blank"
             x-data="workshopFlyerBuilder(
-                @js($previewWorkshops),
-                @js(array_map('strval', old('workshop_ids', []))),
-                @js(old('customizations', [])),
-                @js(old('footer', $defaultFooter))
+                {{ \Illuminate\Support\Js::encode($previewWorkshops) }},
+                {{ \Illuminate\Support\Js::encode(array_map('strval', old('workshop_ids', []))) }},
+                {{ \Illuminate\Support\Js::encode(old('customizations', [])) }},
+                {{ \Illuminate\Support\Js::encode(old('footer', $defaultFooter)) }}
             )"
         >
             @csrf
@@ -49,13 +49,13 @@
                             <x-ui.grid class="gap-3 md:grid-cols-2">
                                 @foreach($workshops as $workshop)
                                     @php($workshopId = (string) $workshop->id)
-                                    <label class="flex cursor-pointer gap-3 rounded-xl border p-4 transition" :class="selected.includes(@js($workshopId)) ? 'border-primary-color bg-sky-50 ring-1 ring-primary-color' : 'border-gray-200 bg-white hover:border-gray-300'">
+                                    <label class="flex cursor-pointer gap-3 rounded-xl border p-4 transition" :class="selected.includes({{ \Illuminate\Support\Js::encode($workshopId) }}) ? 'border-primary-color bg-sky-50 ring-1 ring-primary-color' : 'border-gray-200 bg-white hover:border-gray-300'">
                                         <x-ui.checkbox
  :noWrapper="true"
  name="workshop_ids[]"
  value="{{ $workshopId }}"
  x-model="selected"
- x-bind:disabled="selected.length>= 6 && !selected.includes({{ \Illuminate\Support\Js::from($workshopId) }})"
+ x-bind:disabled="selected.length>= 6 && !selected.includes({{ \Illuminate\Support\Js::encode($workshopId) }})"
  inputClass="mt-1"
  />
                                         <span class="min-w-0">

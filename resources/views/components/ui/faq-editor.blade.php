@@ -1,7 +1,7 @@
 @props(['faqs' => []])
 
 <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
-    x-data="$SM.faqEditor(@js(array_values($faqs)))">
+    x-data="$SM.faqEditor({{ \Illuminate\Support\Js::encode(array_values($faqs)) }})">
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
             <div class="flex items-center gap-2">

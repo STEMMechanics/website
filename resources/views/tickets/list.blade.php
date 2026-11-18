@@ -95,14 +95,14 @@
                                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                                 type="button"
                                                 x-on:click="openEditModal(
-                                                    {{ \Illuminate\Support\Js::from(route('tickets.attendee.update', ['ticket' => $ticket, 'token' => $accessToken])) }},
-                                                    {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
+                                                    {{ \Illuminate\Support\Js::encode(route('tickets.attendee.update', ['ticket' => $ticket, 'token' => $accessToken])) }},
+                                                    {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
                                                     {
-                                                        firstname: {{ \Illuminate\Support\Js::from((string) ($ticket->firstname ?? '')) }},
-                                                        surname: {{ \Illuminate\Support\Js::from((string) ($ticket->surname ?? '')) }},
-                                                        age: {{ \Illuminate\Support\Js::from($ticket->age) }},
-                                                        email: {{ \Illuminate\Support\Js::from((string) ($ticket->email ?? '')) }},
-                                                        phone: {{ \Illuminate\Support\Js::from((string) ($ticket->phone ?? '')) }}
+                                                        firstname: {{ \Illuminate\Support\Js::encode((string) ($ticket->firstname ?? '')) }},
+                                                        surname: {{ \Illuminate\Support\Js::encode((string) ($ticket->surname ?? '')) }},
+                                                        age: {{ \Illuminate\Support\Js::encode($ticket->age) }},
+                                                        email: {{ \Illuminate\Support\Js::encode((string) ($ticket->email ?? '')) }},
+                                                        phone: {{ \Illuminate\Support\Js::encode((string) ($ticket->phone ?? '')) }}
                                                     }
                                                 )"
                                              />
@@ -119,8 +119,8 @@
                                         <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-on:click="openCancelModal(
-                                                {{ \Illuminate\Support\Js::from(route('tickets.cancel', ['ticket' => $ticket, 'token' => $accessToken])) }},
-                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }}
+                                                {{ \Illuminate\Support\Js::encode(route('tickets.cancel', ['ticket' => $ticket, 'token' => $accessToken])) }},
+                                                {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }}
                                             )"
                                          />
                                     @else

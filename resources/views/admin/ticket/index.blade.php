@@ -147,12 +147,12 @@
                                         <x-ui.row-action label="{{ $hasAnyPayment ? 'Cancel (leave credit on account)' : 'Cancel' }}" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-on:click="$SM.openTicketCancelModal(
-                                                {{ \Illuminate\Support\Js::from(route('admin.ticket.cancel', $ticket)) }},
-                                                {{ \Illuminate\Support\Js::from(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
-                                                {{ \Illuminate\Support\Js::from($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
+                                                {{ \Illuminate\Support\Js::encode(route('admin.ticket.cancel', $ticket)) }},
+                                                {{ \Illuminate\Support\Js::encode(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle) }},
+                                                {{ \Illuminate\Support\Js::encode($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?') }},
                                                 'Cancel Ticket',
-                                                {{ \Illuminate\Support\Js::from($showSquareRefundOption) }},
-                                                {{ \Illuminate\Support\Js::from($showSquareRefundOption) }}
+                                                {{ \Illuminate\Support\Js::encode($showSquareRefundOption) }},
+                                                {{ \Illuminate\Support\Js::encode($showSquareRefundOption) }}
                                             )"
                                          />
                                     @else

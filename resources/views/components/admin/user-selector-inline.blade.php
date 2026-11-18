@@ -80,7 +80,7 @@ $errorClass = $mobileStacked
     : 'text-xs text-red-600 ml-2 mt-1';
 @endphp
 
-<div class="{{ $layoutClass }}" x-data="$SM.userSelectorInline({ label: @js($resolvedLookupLabel), submissionValue: @js($resolvedSubmissionValue), userMap: @js($userLookupMap), users: @js($userLookupOptions->all()), createUrl: @js(route('admin.user.store-inline')), csrfToken: @js(csrf_token()) })" x-init="syncLinkedUserId()">
+<div class="{{ $layoutClass }}" x-data="$SM.userSelectorInline({ label: {{ \Illuminate\Support\Js::encode($resolvedLookupLabel) }}, submissionValue: {{ \Illuminate\Support\Js::encode($resolvedSubmissionValue) }}, userMap: {{ \Illuminate\Support\Js::encode($userLookupMap) }}, users: {{ \Illuminate\Support\Js::encode($userLookupOptions->all()) }}, createUrl: {{ \Illuminate\Support\Js::encode(route('admin.user.store-inline')) }}, csrfToken: {{ \Illuminate\Support\Js::encode(csrf_token()) }} })" x-init="syncLinkedUserId()">
     <div class="{{ $layoutInnerClass }}">
         <div class="min-w-0 flex-1">
             <div class="{{ $mobileStacked ? 'flex items-center justify-between gap-3 sm:block' : '' }}">

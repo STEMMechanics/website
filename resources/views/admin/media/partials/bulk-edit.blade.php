@@ -102,7 +102,7 @@
             </div>
 
             <div class="mb-6 rounded-xl border border-gray-200 bg-white p-4"
-                 x-data="bulkWorkshopEditor(@js(collect($workshopOptions)->map(function ($workshop) {
+                 x-data="bulkWorkshopEditor({{ \Illuminate\Support\Js::encode(collect($workshopOptions)->map(function ($workshop) {
                     $location = $workshop->location?->name ?: $workshop->getLocationName();
                     $date = $workshop->starts_at ? $workshop->starts_at->format('j M Y') : 'No date';
                     return [
@@ -111,7 +111,7 @@
                         'meta' => $location.' · '.$date,
                         'search' => strtolower($workshop->title.' '.$location.' '.$date),
                     ];
-                 })->values()), @js(old('add_workshop_ids', [])))">
+                 })->values()) }}, {{ \Illuminate\Support\Js::encode(old('add_workshop_ids', [])) }})">
                 <h2 class="text-base font-semibold text-gray-900">Workshop links</h2>
                 <p class="mb-4 text-sm text-gray-500">Remove affects only selected media currently linked to that workshop. Add links the workshop to every selected item.</p>
 

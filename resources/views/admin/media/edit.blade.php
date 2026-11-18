@@ -74,7 +74,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     <div class="flex justify-center rounded-lg border border-gray-200 bg-gray-100 p-3">
                         <a href="{{ $medium->url }}" target="_blank" rel="noopener noreferrer" class="inline-block overflow-hidden rounded-lg">
                             <div class="flex max-h-96 min-h-48 min-w-48 items-center justify-center overflow-hidden">
-                                <canvas class="block h-full w-full" x-effect="$SM.trackAndCallPreviewCanvas($el, @js($editorImageUrl))"></canvas>
+                                <canvas class="block h-full w-full" x-effect="$SM.trackAndCallPreviewCanvas($el, {{ \Illuminate\Support\Js::encode($editorImageUrl) }})"></canvas>
                             </div>
                         </a>
                     </div>
@@ -257,7 +257,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                             <x-ui.row-actions>
                                                 <x-ui.row-action label="Copy protected URL" icon="fa-solid fa-copy" tone="neutral"
 
-                                                    x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::from($protectedDownloadLink) }})"
+                                                    x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::encode($protectedDownloadLink) }})"
                                                     x-bind:class="protectedLinkActionsDisabled() ? 'pointer-events-none opacity-50' : ''"
                                                  />
                                                 <x-ui.row-action label="Revoke protected URL" icon="fa-solid fa-trash" tone="danger"
@@ -284,7 +284,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                 x-data="smCspAdminMediaEdit2"
             >
                 <h3 class="mb-3 text-base font-semibold">Links &amp; Usage</h3>
-                <div class="mb-4 overflow-x-auto rounded-lg border border-gray-200" x-show="links.length > 0 || @js(! empty($mediaUsages ?? []))">
+                <div class="mb-4 overflow-x-auto rounded-lg border border-gray-200" x-show="links.length > 0 || {{ \Illuminate\Support\Js::encode(! empty($mediaUsages ?? [])) }}">
                     <x-ui.table table-class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">
                             <tr>
@@ -340,7 +340,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                     </x-ui.table>
                 </div>
 
-                <div class="mb-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="links.length === 0 && @js(empty($mediaUsages ?? []))" x-cloak>
+                <div class="mb-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500" x-show="links.length === 0 && {{ \Illuminate\Support\Js::encode(empty($mediaUsages ?? [])) }}" x-cloak>
                     No current links or usage found.
                 </div>
 

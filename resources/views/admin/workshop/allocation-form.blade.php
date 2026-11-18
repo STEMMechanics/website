@@ -16,7 +16,7 @@
     $enabled = $inline ? (bool) old('workshop_allocations.'.$workshop->id.'.override', $allocation['budget']->manual ?? false) : (bool) ($allocation['budget']->manual ?? false);
 @endphp
 <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
-    <div><h3 class="font-semibold">{{ $workshop->title }}</h3><p class="mt-1 text-sm text-slate-500" x-data="{ participants: @js($allocation['assumptions']['participants']), hours: @js($allocation['assumptions']['hours']) }" @if($inline) x-on:workshop-allocation-inputs.window="$SM.updateWorkshopAllocationInputs($el, $event.detail, @js($workshop->id))" @endif>{{ $allocation['version']->name }} · <span x-text="participants"></span> participants · <span x-text="hours"></span> hours</p></div>
+    <div><h3 class="font-semibold">{{ $workshop->title }}</h3><p class="mt-1 text-sm text-slate-500" x-data="{ participants: {{ \Illuminate\Support\Js::encode($allocation['assumptions']['participants']) }}, hours: {{ \Illuminate\Support\Js::encode($allocation['assumptions']['hours']) }} }" @if($inline) x-on:workshop-allocation-inputs.window="$SM.updateWorkshopAllocationInputs($el, $event.detail, {{ \Illuminate\Support\Js::encode($workshop->id) }})" @endif>{{ $allocation['version']->name }} · <span x-text="participants"></span> participants · <span x-text="hours"></span> hours</p></div>
     @unless($inline)<x-ui.badge :color="$state['current'] ? 'success' : 'gray'">{{ $state['status'] }}</x-ui.badge>@endunless
 </div>
 @unless($state['status'] === 'No allocation required')
@@ -31,7 +31,7 @@
     @endif
     <form method="POST" action="{{ route('admin.workshop.allocation.store', $workshop) }}"
         @if($inline) data-workshop-allocation="{{ $workshop->id }}" data-allocation-ready="{{ $state['ready'] ? '1' : '0' }}" data-allocation-changed="{{ $state['ready'] && !$state['current'] ? '1' : '0' }}" @endif
-        x-data="$SM.allocationTally(@js(['workshopId' => $workshop->id, 'received' => $allocation['income']['net'], 'workshopInputs' => $allocation['assumptions'], 'workshopRules' => $rules, 'values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $planningTotal, 'exact' => false, 'enabled' => $enabled]))"
+        x-data="$SM.allocationTally({{ \Illuminate\Support\Js::encode(['workshopId' => $workshop->id, 'received' => $allocation['income']['net'], 'workshopInputs' => $allocation['assumptions'], 'workshopRules' => $rules, 'values' => $values, 'workshopDefaults' => $workshopDefaults, 'total' => $planningTotal, 'exact' => false, 'enabled' => $enabled]) }})"
         @if($inline) x-on:workshop-allocation-inputs.window="previewWorkshop($event.detail)" x-on:invoice-lines-updated.window="previewWorkshopFunding($event.detail)" @endif
         x-effect="$SM.syncWorkshopAllocationPlan($el, allocationChanged, values, total, '{{ $allocationKey }}', {{ $state['ready'] && !$state['current'] ? 'true' : 'false' }})">
         @csrf

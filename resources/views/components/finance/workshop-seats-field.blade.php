@@ -2,7 +2,7 @@
 @php
     $workshopCatalog = app(\App\Support\RequestMemo::class)->remember('workshop-funding-catalog', fn () => app(\App\Services\Finance\WorkshopFunding::class)->catalog());
 @endphp
-<div x-data="$SM.workshopFundingEditor({{ $model }}, @js($workshopCatalog), @js($billingLocked))" x-init="syncLiveSeatValue()" x-effect="syncAllocationInputs()" x-on:keydown.escape.window="menuOpen = false" x-on:resize.window="menuOpen = false" x-on:scroll.window="positionSeatsIfOpen()">
+<div x-data="$SM.workshopFundingEditor({{ $model }}, {{ \Illuminate\Support\Js::encode($workshopCatalog) }}, {{ \Illuminate\Support\Js::encode($billingLocked) }})" x-init="syncLiveSeatValue()" x-effect="syncAllocationInputs()" x-on:keydown.escape.window="menuOpen = false" x-on:resize.window="menuOpen = false" x-on:scroll.window="positionSeatsIfOpen()">
     <div class="relative">
         <x-ui.input-control class="h-11 pr-9!" aria-label="Workshop seats" type="number" min="0" max="10000" step="1" x-model="seatValue" x-bind:title="basisLabel" x-on:input="$dispatch('workshop-line-changed')" />
         <x-ui.button type="button" variant="plain" class="absolute right-0 top-0 h-11 w-8 p-0! text-slate-500" x-ref="seatsTrigger" aria-label="Seats options" x-bind:aria-expanded="menuOpen" x-on:click="toggleSeatsMenu($el)"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></x-ui.button>

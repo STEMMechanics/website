@@ -12,7 +12,7 @@
     <x-container class="py-8">
         <x-ui.dynamic-list name="search">
 
-        <div x-data="{ searchProducts: @js($searchProducts), searchWorkshops: @js($searchWorkshops), searchScopeError: @js($searchScopeError) }">
+        <div x-data="{ searchProducts: {{ \Illuminate\Support\Js::encode($searchProducts) }}, searchWorkshops: {{ \Illuminate\Support\Js::encode($searchWorkshops) }}, searchScopeError: {{ \Illuminate\Support\Js::encode($searchScopeError) }} }">
         <section class="mb-8 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-6">
             <form method="GET" action="{{ route('search.index') }}" x-ref="searchForm" x-on:submit="$SM.validateSearchAndOpenFilters($el, $event)">
                 <label for="results-search-query" class="sr-only">Search the site</label>

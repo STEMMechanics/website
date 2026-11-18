@@ -20,8 +20,8 @@
     <div id="{{ $field->id }}-label" class="text-sm pl-1">{{ $label }}</div>
     @endif
     <div
-        x-data="editor($store[@js($name.'_content')], @js(route('custom-page.link-options')), @js($editorOptions))"
-        x-on:sm-editor-set-content.window="handleExternalContent($event, @js($name))"
+        x-data="editor($store[{{ \Illuminate\Support\Js::encode($name.'_content') }}], {{ \Illuminate\Support\Js::encode(route('custom-page.link-options')) }}, {{ \Illuminate\Support\Js::encode($editorOptions) }})"
+        x-on:sm-editor-set-content.window="handleExternalContent($event, {{ \Illuminate\Support\Js::encode($name) }})"
         data-has-error="{{ $hasError ? 'true' : 'false' }}"
         class="{{ twMerge(['editor','mt-1'], $attributes->get('class')) }}">
         <template x-if="isLoaded()">

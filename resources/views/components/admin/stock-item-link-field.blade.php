@@ -42,10 +42,10 @@
         @if($usesItemNameSuggestionsExpression)
             x-data="$SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, {{ $itemNameSuggestionsExpression }})"
         @else
-            x-data="$SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, @js($itemNameSuggestions))"
+            x-data="$SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, {{ \Illuminate\Support\Js::encode($itemNameSuggestions) }})"
         @endif
     @else
-        x-data="$SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions))"
+        x-data="$SM.stockItemLinkEditor({{ $model }}, {{ \Illuminate\Support\Js::encode($catalog) }}, {{ \Illuminate\Support\Js::encode($itemNameSuggestions) }})"
     @endif
     x-init="initializeModel()"
     x-on:keydown.escape.window="open = false"

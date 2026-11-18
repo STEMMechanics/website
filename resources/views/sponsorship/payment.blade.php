@@ -43,7 +43,7 @@
         <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
             <x-sponsorship-flow-heading icon="fa-solid fa-coins" title="Choose your sponsorship" description="Compare the options, then choose one-time or monthly sponsorship." />
 
-            <form method="POST" action="{{ route('sponsor.payment.save') }}" enctype="multipart/form-data" class="mt-6" x-data="sponsorshipBusinessAmountChoice({ options: @js($businessOptions), savedFrequency: @js($savedFrequency), savedChoice: @js($savedChoice), savedOption: @js((string) $savedOption), savedCustomAmount: @js((string) $savedCustomAmount), monthlyAvailable: @js($monthlyEnabled), squareEnabled: @js($squareEnabled) })">
+            <form method="POST" action="{{ route('sponsor.payment.save') }}" enctype="multipart/form-data" class="mt-6" x-data="sponsorshipBusinessAmountChoice({ options: {{ \Illuminate\Support\Js::encode($businessOptions) }}, savedFrequency: {{ \Illuminate\Support\Js::encode($savedFrequency) }}, savedChoice: {{ \Illuminate\Support\Js::encode($savedChoice) }}, savedOption: {{ \Illuminate\Support\Js::encode((string) $savedOption) }}, savedCustomAmount: {{ \Illuminate\Support\Js::encode((string) $savedCustomAmount) }}, monthlyAvailable: {{ \Illuminate\Support\Js::encode($monthlyEnabled) }}, squareEnabled: {{ \Illuminate\Support\Js::encode($squareEnabled) }} })">
                 @csrf
                 <input type="hidden" name="payment_method" value="square">
                 <input type="hidden" name="frequency" x-model="frequency">

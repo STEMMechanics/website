@@ -1,5 +1,5 @@
 <x-layout><x-mast title="Record contribution" /><x-container>
-    <form method="POST" action="{{ route('admin.timesheet.contribution.store') }}" data-record-form x-data="$SM.allocationTally(@js(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 0, 'totalInput' => 'contribution-amount', 'exact' => true, 'enabled' => true, 'message' => 'Allocate the full contribution to cost centres.']))">@csrf
+    <form method="POST" action="{{ route('admin.timesheet.contribution.store') }}" data-record-form x-data="$SM.allocationTally({{ \Illuminate\Support\Js::encode(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 0, 'totalInput' => 'contribution-amount', 'exact' => true, 'enabled' => true, 'message' => 'Allocate the full contribution to cost centres.']) }})">@csrf
         <input type="hidden" name="token" value="{{ \Illuminate\Support\Str::uuid() }}">
         <div class="grid gap-x-5 sm:grid-cols-2">
             <x-ui.input name="date" label="Date" type="date" :value="today()->toDateString()" required />

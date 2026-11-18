@@ -198,7 +198,7 @@
  class="mt-1"
  x-model="bankTransferCleared"
  x-on:change="$dispatch('bank-transfer-cleared-updated', { checked: $event.target.checked })"
- x-bind:disabled="{{ \Illuminate\Support\Js::from(isset($customerPayment) && $customerPayment->cleared_at !== null) }}"
+ x-bind:disabled="{{ \Illuminate\Support\Js::encode(isset($customerPayment) && $customerPayment->cleared_at !== null) }}"
  :checked="old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)" />
                     <span>
                         <span class="block text-sm font-semibold text-gray-900">Mark this bank transfer as cleared</span>

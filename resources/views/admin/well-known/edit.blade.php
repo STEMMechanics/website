@@ -6,7 +6,7 @@
     </x-mast>
     <x-container class="py-6">
         <form method="POST" enctype="multipart/form-data" action="{{ $filename ? route('admin.well-known.update', $filename) : route('admin.well-known.store') }}"
-            x-data="{ mode: @js(old('mode', $canEditText ? 'text' : 'upload')), filename: @js(old('filename', $filename ?? '')) }">
+            x-data="{ mode: {{ \Illuminate\Support\Js::encode(old('mode', $canEditText ? 'text' : 'upload')) }}, filename: {{ \Illuminate\Support\Js::encode(old('filename', $filename ?? '')) }} }">
             @csrf
             @if($filename) @method('PUT') @endif
             <x-ui.input name="filename" label="Filename" :value="$filename ?? ''" x-model="filename" :readonly="(bool) $filename" required info="Use an extensionless name, or .txt, .json or .xml. Files go directly inside /.well-known/." />
