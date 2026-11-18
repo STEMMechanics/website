@@ -93,7 +93,7 @@
                             const metadataByKeeper = new Map();
                             for (const item of actions.filter((candidate) => candidate.action === 'merge')) {
                                 if (item.keeper !== item.left && item.keeper !== item.right) {
-                                    this.queueError = 'Choose an image to keep in each Advanced merge dialog.';
+                                    this.queueError = 'Choose an image to keep for each merge action.';
                                     return;
                                 }
                                 const duplicate = item.keeper === item.left ? item.right : item.left;
