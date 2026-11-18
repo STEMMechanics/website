@@ -250,6 +250,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
 
     public function test_workshop_presets_count_the_whole_list_and_filter_cancelled_items(): void
     {
+        $this->travelTo(Carbon::parse('2026-11-18 10:00:00'));
         $admin = $this->createAdminUser();
         $this->createWorkshop('Workshop yesterday', today()->subDay());
         $this->createWorkshop('Workshop today', today());
