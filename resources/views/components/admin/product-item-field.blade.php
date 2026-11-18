@@ -24,10 +24,10 @@
         @if($usesItemNameSuggestionsExpression)
             x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
         @else
-            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, @js($itemNameSuggestions), {{ $selectionExpression }})"
+            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ \Illuminate\Support\Js::encode($itemNameSuggestions) }}, {{ $selectionExpression }})"
         @endif
     @else
-        x-data="$SM.productItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions), {{ $selectionExpression }})"
+        x-data="$SM.productItemLinkEditor({{ $model }}, {{ \Illuminate\Support\Js::encode($catalog) }}, {{ \Illuminate\Support\Js::encode($itemNameSuggestions) }}, {{ $selectionExpression }})"
     @endif
     x-init="initializeModel()"
     x-effect="model = {{ $model }}"
@@ -58,7 +58,8 @@
             x-ref="productItemInput"
             x-bind:disabled="{{ $disabledExpression }}"
             x-bind:id="$id('product-item-input')"
-            class="h-11 pl-10! pr-10!"
+            class="h-11 pr-10!"
+            x-bind:class="linkedProduct ? 'pl-8!' : ''"
             aria-label="{{ $ariaLabel }}"
             placeholder="{{ $placeholder }}"
             maxlength="255"
