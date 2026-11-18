@@ -53,6 +53,10 @@ window.SM.allocationPlanPreview = (initialRules = []) => ({
         basis: rule.basis === 'venue_hour' ? 'hour' : rule.basis,
         suppliable: !!rule.suppliable || rule.basis === 'venue_hour', venue_default: !!rule.venue_default || rule.basis === 'venue_hour' })),
     nextCostRuleId: initialRules.length, preview: null, supplies: [],
+    previewValue(path, fallback = null) {
+        const value = String(path).split('.').reduce((current, key) => current == null ? undefined : current[key], this.preview);
+        return value == null ? fallback : value;
+    },
     money(value) { return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value || 0); },
     rate(value) { return '$' + window.SM.formatUnitPrice(value || 0); },
     approximateMoney(value) { return (Math.abs(Number(value) * 100 - Math.round(Number(value) * 100)) > 0.000001 ? '≈ ' : '') + this.money(value); },

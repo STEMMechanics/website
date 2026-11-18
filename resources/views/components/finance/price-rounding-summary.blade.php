@@ -1,5 +1,5 @@
 @props(['documentLabel' => 'document'])
-<div data-price-rounding-review x-data="{ get roundingSummary() { return $SM.priceRoundingSummary(lineItems); } }" x-cloak x-show="!isLocked &amp;&amp; (roundingSummary.pending || roundingSummary.adjusted)" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm" role="status">
+<div data-price-rounding-review x-data="$SM.priceRoundingReview(lineItems)" x-cloak x-show="!isLocked &amp;&amp; (roundingSummary.pending || roundingSummary.adjusted)" class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm" role="status">
     <div class="min-w-0">
         <div x-show="roundingSummary.pending">
             <p class="font-medium text-amber-900" x-text="roundingSummary.pending + (roundingSummary.pending === 1 ? ' rate needs' : ' rates need') + ' a rounding review at the current quantity.'"></p>

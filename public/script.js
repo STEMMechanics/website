@@ -1815,6 +1815,13 @@ let SM = {
 
 window.SM = SM;
 
+window.SM.productAllocationFields = (fixed, percent) => ({
+    fixed,
+    percent,
+    total(values) {
+        return Object.values(values).reduce((sum, value) => sum + (Number(value) || 0), 0);
+    },
+});
 document.addEventListener('alpine:init', () => {
     Alpine.magic('SM', () => window.SM);
     Alpine.magic('SMMediaPicker', () => window.SMMediaPicker);

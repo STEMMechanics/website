@@ -47,10 +47,10 @@
     @else
         x-data="$SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions))"
     @endif
-    x-init="if (linkedStockItem && !model.item_name) model.item_name = linkedStockItem.name"
+    x-init="initializeModel()"
     x-on:keydown.escape.window="open = false"
-    x-on:resize.window="if (open) position($refs.stockItemInput, menuWidth)"
-    x-on:scroll.window="if (open) position($refs.stockItemInput, menuWidth)"
+    x-on:resize.window="positionIfOpen($refs.stockItemInput, menuWidth)"
+    x-on:scroll.window="positionIfOpen($refs.stockItemInput, menuWidth)"
     {{ $attributes->merge(['class' => 'relative']) }}
 >
     @if(is_string($label) && trim($label) !== '')
@@ -60,7 +60,7 @@
         <i
             x-show="linkedStockItem"
             class="fa-solid fa-link pointer-events-none absolute left-3 text-xs text-sky-600"
-            x-bind:title="linkedStockItem?.name"
+            x-bind:title="linkedStockItemName()"
             aria-hidden="true"
         ></i>
         <x-ui.input-control
@@ -80,7 +80,7 @@
             x-bind:aria-controls="$id('stock-item-options')"
             x-bind:aria-activedescendant="open && matches.length ? $id('stock-item-options') + '-' + selected : null"
             x-on:input="editDescription($el)"
-            x-on:keydown.arrow-down.prevent.stop="if (!open) browse($el); else move(1)"
+            x-on:keydown.arrow-down.prevent.stop="handleArrowDown($el)"
             x-on:keydown.arrow-up.prevent.stop="move(-1)"
             x-on:keydown.enter="handleEnter($event)"
         />

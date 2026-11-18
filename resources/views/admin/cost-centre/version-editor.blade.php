@@ -58,21 +58,21 @@
                 <div class="min-w-0">
                     <p class="text-xs text-slate-600">Workshop rate / hr / participant</p>
                     <p class="flex gap-3 text-sm">
-                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitEx)"></strong> <span class="text-xs">ex GST</span></span>
-                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitInc)"></span> <span class="text-xs">inc GST</span></span>
+                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="money(previewValue('workshopRounding.suggested.unitEx'))"></strong> <span class="text-xs">ex GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="money(previewValue('workshopRounding.suggested.unitInc'))"></span> <span class="text-xs">inc GST</span></span>
                     </p>
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-600">Actual cost / participant</p>
                     <p class="flex gap-3 text-sm">
-                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant)"></strong> <span class="text-xs">ex GST</span></span>
-                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * (1 + $SM.currentGstRate()))"></span> <span class="text-xs">inc GST</span></span>
+                        <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="approximateMoney(previewValue('costPerParticipant'))"></strong> <span class="text-xs">ex GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(previewValue('costPerParticipant') * (1 + $SM.currentGstRate()))"></span> <span class="text-xs">inc GST</span></span>
                     </p>
                 </div>
                 <div class="min-w-0">
                     <p class="text-xs text-slate-600">Example quote total</p>
-                    <p class="text-sm"><strong class="tabular-nums" x-text="money(preview?.cleanInvoiceGross)"></strong> <span class="whitespace-nowrap text-xs">inc GST</span></p>
-                    <p x-show="preview?.roundingIncrease" class="text-xs text-amber-800" x-text="'Includes ' + money(preview?.roundingIncrease) + ' GST cent adjustment'"></p>
+                    <p class="text-sm"><strong class="tabular-nums" x-text="money(previewValue('cleanInvoiceGross'))"></strong> <span class="whitespace-nowrap text-xs">inc GST</span></p>
+                    <p x-show="previewValue('roundingIncrease')" class="text-xs text-amber-800" x-text="'Includes ' + money(previewValue('roundingIncrease')) + ' GST cent adjustment'"></p>
                 </div>
             </div>
             <p x-show="!preview" class="text-sm text-slate-600">Enter valid preview quantities to see costs.</p>

@@ -1300,6 +1300,38 @@ document.addEventListener('alpine:init', () => {
                     this.updatedAt = Date.now();
                 }
             },
+            handleExternalContent(event, name) {
+                const detail = event && event.detail ? event.detail : {};
+                if (detail.name !== name) return;
+
+                const html = detail.html || '';
+                if (detail.append) {
+                    this.appendExternalContent(html);
+                    return;
+                }
+
+                this.setExternalContent(html, { focusEnd: !!detail.focusEnd });
+            },
+            runToolbarAction(element, method, args = []) {
+                const action = this[method];
+                if (typeof action === 'function') action.apply(this, args);
+
+                const dropdown = element && element.closest('.editor-toolbar-dropdown');
+                const dropdownState = dropdown ? Alpine.$data(dropdown) : null;
+                if (dropdownState) dropdownState.open = false;
+            },
+            closeEditorDropdown(element) {
+                const dropdown = element && element.closest('.editor-toolbar-dropdown');
+                const dropdownState = dropdown ? Alpine.$data(dropdown) : null;
+                if (!dropdownState || !dropdownState.open) return;
+
+                dropdownState.open = false;
+                SM.nextTickFocus(element);
+            },
+            clearFormatting() {
+                this.clearNodes();
+                this.unsetAllMarks();
+            },
             appendExternalContent(html = '') {
                 let addition = SM.decodeHtml(html);
                 if (!addition.trim()) return;

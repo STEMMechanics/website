@@ -11,17 +11,17 @@
             <h3 class="font-semibold">Workshop rate</h3>
             <p class="text-xs">Per hour, per participant</p>
             <p class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
-                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitEx)"></strong> ex GST</span>
-                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(preview?.workshopRounding.suggested.unitInc)"></strong> inc GST</span>
+                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(previewValue('workshopRounding.suggested.unitEx'))"></strong> ex GST</span>
+                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(previewValue('workshopRounding.suggested.unitInc'))"></strong> inc GST</span>
             </p>
-            <p class="mt-2 text-xs">Based on <strong x-text="preview?.pricingParticipants"></strong> pricing participants for the example’s delivery duration.</p>
+            <p class="mt-2 text-xs">Based on <strong x-text="previewValue('pricingParticipants')"></strong> pricing participants for the example’s delivery duration.</p>
         </div>
         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
             <h3 class="font-semibold">Travel rate</h3>
             <p class="text-xs">Per billable hour</p>
             <p class="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
-                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(preview?.travelRate.suggested.unitEx)"></strong> ex GST</span>
-                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(preview?.travelRate.suggested.unitInc)"></strong> inc GST</span>
+                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(previewValue('travelRate.suggested.unitEx'))"></strong> ex GST</span>
+                <span class="whitespace-nowrap"><strong class="text-lg tabular-nums" x-text="money(previewValue('travelRate.suggested.unitInc'))"></strong> inc GST</span>
             </p>
             <p class="mt-2 text-xs">Travel costs above are entered per 15 minutes. This is the hourly rate used on quotes.</p>
         </div>
@@ -45,25 +45,25 @@
         </div>
         <p x-show="!preview" class="text-sm text-slate-600">Enter valid hours, participants and billable travel hours to calculate prices.</p>
         <dl x-show="preview" class="space-y-2 text-sm" x-cloak>
-            <div class="flex justify-between gap-4"><dt>Workshop <span class="text-slate-500" x-text="'(' + preview?.quantity + ' × ' + money(preview?.workshopRounding.suggested.unitInc) + ')' "></span></dt><dd class="whitespace-nowrap tabular-nums" x-text="money(preview?.cleanWorkshopGross)"></dd></div>
-            <div x-show="preview?.travelRounding" class="flex justify-between gap-4"><dt>Travel <span class="text-slate-500" x-text="'(' + (preview?.travelRounding?.quantity || 0) + ' hrs × ' + money(preview?.travelRate.suggested.unitInc) + ')' "></span></dt><dd class="whitespace-nowrap tabular-nums" x-text="money(preview?.cleanTravelGross)"></dd></div>
-            <div class="flex justify-between gap-4 border-t border-slate-200 pt-3 font-semibold"><dt>Quote total inc GST</dt><dd class="whitespace-nowrap tabular-nums" x-text="money(preview?.cleanInvoiceGross)"></dd></div>
+            <div class="flex justify-between gap-4"><dt>Workshop <span class="text-slate-500" x-text="'(' + previewValue('quantity') + ' × ' + money(previewValue('workshopRounding.suggested.unitInc')) + ')' "></span></dt><dd class="whitespace-nowrap tabular-nums" x-text="money(previewValue('cleanWorkshopGross'))"></dd></div>
+            <div x-show="previewValue('travelRounding')" class="flex justify-between gap-4"><dt>Travel <span class="text-slate-500" x-text="'(' + (previewValue('travelRounding.quantity') || 0) + ' hrs × ' + money(previewValue('travelRate.suggested.unitInc')) + ')' "></span></dt><dd class="whitespace-nowrap tabular-nums" x-text="money(previewValue('cleanTravelGross'))"></dd></div>
+            <div class="flex justify-between gap-4 border-t border-slate-200 pt-3 font-semibold"><dt>Quote total inc GST</dt><dd class="whitespace-nowrap tabular-nums" x-text="money(previewValue('cleanInvoiceGross'))"></dd></div>
         </dl>
-        <div x-show="preview?.roundingNeeded" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status" x-cloak>
+        <div x-show="previewValue('roundingNeeded')" class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status" x-cloak>
             <p class="font-semibold">Automatic GST cent adjustment</p>
-            <p x-show="preview?.workshopRounding &amp;&amp; !preview.workshopRounding.clean" class="mt-1">Workshop rate: <span x-text="rate(preview?.workshopRounding.current.unitInc)"></span> → <strong x-text="money(preview?.workshopRounding.suggested.unitInc)"></strong> inc GST.</p>
-            <p x-show="preview?.travelRounding &amp;&amp; !preview.travelRounding.clean" class="mt-1">Travel rate per hour: <span x-text="rate(preview?.travelRounding?.current.unitInc)"></span> → <strong x-text="money(preview?.travelRounding?.suggested.unitInc)"></strong> inc GST.</p>
-            <p class="mt-1" x-text="'Adds ' + money(preview?.roundingIncrease) + ' to this example’s total (inc GST). Already included above.'"></p>
+            <p x-show="previewValue('workshopRounding') &amp;&amp; !previewValue('workshopRounding.clean')" class="mt-1">Workshop rate: <span x-text="rate(previewValue('workshopRounding.current.unitInc'))"></span> → <strong x-text="money(previewValue('workshopRounding.suggested.unitInc'))"></strong> inc GST.</p>
+            <p x-show="previewValue('travelRounding') &amp;&amp; !previewValue('travelRounding.clean')" class="mt-1">Travel rate per hour: <span x-text="rate(previewValue('travelRounding.current.unitInc'))"></span> → <strong x-text="money(previewValue('travelRounding.suggested.unitInc'))"></strong> inc GST.</p>
+            <p class="mt-1" x-text="'Adds ' + money(previewValue('roundingIncrease')) + ' to this example’s total (inc GST). Already included above.'"></p>
         </div>
         <details x-show="preview" class="mt-4 border-t border-slate-200 pt-3" x-cloak>
             <summary class="cursor-pointer text-sm font-medium">Actual cost breakdown <span class="font-normal text-slate-500">(ex GST)</span></summary>
             <dl class="mt-3 space-y-2 text-sm">
-                <div class="flex justify-between gap-4"><dt>Per-workshop costs</dt><dd x-text="money(preview?.costs.workshop / 100)"></dd></div>
-                <div class="flex justify-between gap-4"><dt>Delivery-hour costs</dt><dd x-text="money(preview?.costs.hour / 100)"></dd></div>
-                <div class="flex justify-between gap-4"><dt>Participant costs</dt><dd x-text="money(preview?.costs.participant / 100)"></dd></div>
-                <div class="flex justify-between gap-4"><dt>Travel costs</dt><dd x-text="money(preview?.costs.travel / 100)"></dd></div>
-                <div class="flex justify-between gap-4 border-t border-slate-200 pt-2 font-semibold"><dt>Total costs</dt><dd x-text="money(preview?.totalCost)"></dd></div>
-                <div class="flex justify-between gap-4"><dt>Actual cost per participant <span class="text-slate-500">(including travel)</span></dt><dd class="whitespace-nowrap tabular-nums" x-text="approximateMoney(preview?.costPerParticipant)"></dd></div>
+                <div class="flex justify-between gap-4"><dt>Per-workshop costs</dt><dd x-text="money(previewValue('costs.workshop') / 100)"></dd></div>
+                <div class="flex justify-between gap-4"><dt>Delivery-hour costs</dt><dd x-text="money(previewValue('costs.hour') / 100)"></dd></div>
+                <div class="flex justify-between gap-4"><dt>Participant costs</dt><dd x-text="money(previewValue('costs.participant') / 100)"></dd></div>
+                <div class="flex justify-between gap-4"><dt>Travel costs</dt><dd x-text="money(previewValue('costs.travel') / 100)"></dd></div>
+                <div class="flex justify-between gap-4 border-t border-slate-200 pt-2 font-semibold"><dt>Total costs</dt><dd x-text="money(previewValue('totalCost'))"></dd></div>
+                <div class="flex justify-between gap-4"><dt>Actual cost per participant <span class="text-slate-500">(including travel)</span></dt><dd class="whitespace-nowrap tabular-nums" x-text="approximateMoney(previewValue('costPerParticipant'))"></dd></div>
             </dl>
         </details>
     </div>
