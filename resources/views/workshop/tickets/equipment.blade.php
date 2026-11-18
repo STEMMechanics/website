@@ -19,7 +19,7 @@
             });
             $config = ['options' => $equipmentOptions, 'selected' => (object) old('quantities', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['quantity'] ?? 0])->all()), 'variants' => (object) old('variants', $products->mapWithKeys(fn ($product) => [$product->id => $savedLines->get($product->id)['variant_id'] ?? ''])->all()), 'quantity' => 0, 'ticketPrice' => 0, 'regularPrice' => 0, 'earlyBirdRemaining' => null];
         @endphp
-        <form x-data="SM.workshopEquipmentCheckout(@js($config))" method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
+        <form x-data="$SM.workshopEquipmentCheckout(@js($config))" method="POST" action="{{ route('workshop.ticket.flow.equipment.save', $workshop) }}">
             @csrf
             <dl class="mb-5 space-y-2 text-sm" aria-live="polite">
                 <div class="flex justify-between"><dt>Tickets</dt><dd>{{ money($ticketAmount) }}</dd></div>

@@ -199,7 +199,7 @@
                                 title="Remove attachment"
                                 aria-label="Remove attachment"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove attachment?', 'Are you sure you want to remove this attachment?', '{{ route('admin.expense.document.remove', $expense) }}')"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Remove attachment?', 'Are you sure you want to remove this attachment?', '{{ route('admin.expense.document.remove', $expense) }}')"
                             >
                                 <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                             </x-ui.button>
@@ -230,7 +230,7 @@
                 id="expense-product-purchases"
                 class="mb-6 rounded-xl border border-slate-200 bg-white p-4"
                 data-expense-product-purchases
-                x-data="SM.expenseProductPurchases(@js($purchaseCatalog), @js($purchaseRows), @js(route('admin.shop.product.quick-store')))"
+                x-data="$SM.expenseProductPurchases(@js($purchaseCatalog), @js($purchaseRows), @js(route('admin.shop.product.quick-store')))"
                 x-init="expanded = rows.length > 0 || @js($errors->has('product_purchases'))"
                 x-on:sm-expense-product-purchases-ai="$event.detail.appliedCount = applyAiItems($event.detail.items); if ($event.detail.appliedCount > 0) expanded = true"
             >
@@ -287,9 +287,9 @@
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.product_id'">
                                             <input type="hidden" x-bind:name="'product_purchases[' + index + '][id]'" x-model="row.id">
                                             <input type="hidden" x-bind:name="'product_purchases[' + index + '][product_id]'" x-model="row.product_id">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][product_variant_id]`" x-model="row.product_variant_id">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][individual_units]`" x-bind:value="row.individual_units ? 1 : 0">
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][purchase_pack]`" x-bind:value="row.purchase_pack ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][product_variant_id]')" x-model="row.product_variant_id">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][individual_units]')" x-bind:value="row.individual_units ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][purchase_pack]')" x-bind:value="row.purchase_pack ? 1 : 0">
                                             <div class="flex items-center gap-2">
                                                 <x-admin.product-item-field class="min-w-0 flex-1" model="row" catalog-expression="catalog" :require-selection="true" placeholder="Find a product or material" ariaLabel="Product or Material" noMatchesText="No matching active items. Use Create material above." />
                                                 <label x-cloak x-show="['physical', 'kit'].includes(productFor(row)?.product_type) && (productFor(row)?.variants?.length || productFor(row)?.pack_units > 1 || productFor(row)?.purchase_pack_units > 1 || row.purchase_pack)" class="block w-52 shrink-0">
@@ -324,7 +324,7 @@
                                                     Add to stock
                                                 </label>
                                             </div>
-                                            <input type="hidden" x-bind:name="`product_purchases[${index}][add_inventory]`" x-bind:value="row.add_inventory ? 1 : 0">
+                                            <input type="hidden" x-bind:name="('product_purchases[' + (index) + '][add_inventory]')" x-bind:value="row.add_inventory ? 1 : 0">
                                             <p x-bind:id="'expense-purchase-quantity-' + index + '-error'" data-validation-error role="alert" class="mt-1 text-xs text-red-600" hidden></p>
                                         </td>
                                         <td class="px-3 py-2.5" x-bind:data-validation-field="'product_purchases.' + index + '.total_cost_ex_tax'">
@@ -377,7 +377,7 @@
 
             <x-ui.editor-actions>
                 @isset($expense)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete expense?', 'Are you sure you want to delete this expense?', '{{ route('admin.expense.destroy', $expense) }}')">Delete</x-ui.button>
                 @endisset
                 @if($expenseImport)
                     <x-ui.button type="button" color="outline" id="expense-skip-button" data-expense-import-skip>

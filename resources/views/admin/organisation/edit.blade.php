@@ -145,7 +145,7 @@
                     <h3 class="font-semibold text-gray-900">Shipping Address</h3>
                     <p class="text-xs text-gray-500">Used for deliveries when a contact inherits the organisation shipping address.</p>
                 </div>
-                <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shippingSameBilling" x-model="shippingSameBilling" x-on:change="SM.updateShippingAddress()" />
+                <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shippingSameBilling" x-model="shippingSameBilling" x-on:change="$SM.updateShippingAddress()" />
                 <div x-show="!shippingSameBilling" x-cloak>
                 <x-ui.input label="Address" name="shipping_address" value="{{ old('shipping_address', $organisation->shipping_address ?? '') }}" />
                 <x-ui.input label="Address 2" name="shipping_address2" value="{{ old('shipping_address2', $organisation->shipping_address2 ?? '') }}" />
@@ -199,7 +199,7 @@
                             <template x-for="(contact, index) in contacts" :key="contact.id">
                                 <tr>
                                     <td class="px-3 py-2">
-                                        <input type="hidden" x-bind:name="`contact_ids[${index}]`" :value="contact.id">
+                                        <input type="hidden" x-bind:name="('contact_ids[' + (index) + ']')" :value="contact.id">
                                         <a :href="contact.edit_url" class="text-primary-color hover:underline" x-text="contact.name"></a>
                                     </td>
                                     <td class="px-3 py-2 text-gray-600" x-text="contact.email"></td>
@@ -242,7 +242,7 @@
                             <i class="fa-solid fa-plus mt-1 text-primary-color" aria-hidden="true"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="contact.name"></span>
-                                <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
+                                <span class="block text-xs text-gray-500" x-text="('' + (contact.email) + '' + (contact.organisation_name ? (' · ' + (contact.organisation_name) + '') : '') + '')"></span>
                             </span>
                         </x-ui.button>
                     </template>
@@ -262,7 +262,7 @@
 
             <x-ui.editor-actions>
                 @if($editing)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete organisation?', 'Workshops and contacts will be retained but unlinked from this organisation.', '{{ route('admin.organisation.destroy', $organisation) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete organisation?', 'Workshops and contacts will be retained but unlinked from this organisation.', '{{ route('admin.organisation.destroy', $organisation) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

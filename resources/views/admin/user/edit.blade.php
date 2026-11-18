@@ -140,7 +140,7 @@
                                     <template x-for="candidate in mergeResults" :key="candidate.id">
                                         <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:click="chooseMergeTarget(candidate)">
                                             <span class="block text-sm text-gray-900" x-text="candidate.name"></span>
-                                            <span class="block text-xs text-gray-500" x-text="`${candidate.email || 'No email'}${candidate.organisation_name ? ` · ${candidate.organisation_name}` : ''}`"></span>
+                                            <span class="block text-xs text-gray-500" x-text="('' + (candidate.email || 'No email') + '' + (candidate.organisation_name ? (' · ' + (candidate.organisation_name) + '') : '') + '')"></span>
                                         </x-ui.button>
                                     </template>
                                 </div>
@@ -255,7 +255,7 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{ groupsRaw: @js($groupValue), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', $user->use_organisation_billing_address)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', $user->use_organisation_shipping_address)), shippingSameBilling: @js((bool) old('shipping_same_billing', $shipping_same_billing)) }" x-on:submit.prevent="$SM.updateShippingAddress(); $el.submit()">
             @method('PUT')
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
@@ -308,7 +308,7 @@
                 :value="$groupValue"
                 info="Slug format only. Uppercase/spaces/symbols are normalized."
                 x-model="groupsRaw"
-                x-on:input="groupsRaw = groupsRaw.split(/[\\s,]+/).map(v => v.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')).filter(Boolean).join(', ')"
+                x-on:input="groupsRaw = $SM.normalizeGroupList(groupsRaw)"
             />
 
             <section x-data="{ open: true }">
@@ -369,7 +369,7 @@
  x-bind:disabled="shippingSameBilling"
  />
                     @endif
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; SM.updateShippingAddress()" />
+                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="$shipping_same_billing" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; $SM.updateShippingAddress()" />
                     <fieldset x-bind:disabled="useOrganisationShippingAddress">
                         <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
                         <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
@@ -389,7 +389,7 @@
 
             <x-ui.editor-actions>
                 @if($user->id !== 1)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', '{{ route('admin.user.destroy', $user) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', '{{ route('admin.user.destroy', $user) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

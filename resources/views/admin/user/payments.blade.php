@@ -125,7 +125,7 @@
                                             method="POST"
                                             action="{{ route('admin.payment.square.refund', $payment) }}"
                                             x-data
-                                            x-on:submit.prevent="SM.confirm('Refund card credit?', 'Refund {{ money($squareRefundable) }} to the customer using Square?', 'Refund', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })"
+                                            x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Refund card credit?', 'Refund {{ money($squareRefundable) }} to the customer using Square?', 'Refund')"
                                         >
                                             @csrf
                                             <input type="hidden" name="amount" value="{{ number_format($squareRefundable, 2, '.', '') }}">

@@ -105,7 +105,7 @@
                             <template x-for="(item, index) in results" :key="item.id">
                                 <x-ui.button variant="plain" type="button" role="option" x-bind:aria-selected="selectedIndex === index" x-bind:class="selectedIndex === index ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left last:border-0 hover:bg-sky-50" x-on:mouseenter="selectedIndex = index" x-on:click="choose(item)">
                                     <span class="block text-sm text-gray-900" x-text="item.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${item.email}${item.organisation_name ? ` · ${item.organisation_name}` : ''}`"></span>
+                                    <span class="block text-xs text-gray-500" x-text="('' + (item.email) + '' + (item.organisation_name ? (' · ' + (item.organisation_name) + '') : '') + '')"></span>
                                 </x-ui.button>
                             </template>
                         </div>

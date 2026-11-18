@@ -199,7 +199,7 @@
                                                     min="0"
                                                     max="100000"
                                                     step="1"
-                                                    x-bind:name="additionalItem.stock_item_id && !isDuplicateAdditionalItem(index) ? `actual_used[${Number(additionalItem.stock_item_id)}]` : null"
+                                                    x-bind:name="additionalItem.stock_item_id && !isDuplicateAdditionalItem(index) ? ('actual_used[' + (Number(additionalItem.stock_item_id)) + ']') : null"
                                                     x-bind:required="Boolean(additionalItem.stock_item_id) && !isDuplicateAdditionalItem(index)"
                                                     x-bind:disabled="isDuplicateAdditionalItem(index)"
                                                     x-model.number="additionalItem.used"

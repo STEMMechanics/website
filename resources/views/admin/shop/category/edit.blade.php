@@ -393,7 +393,7 @@
                     method="POST"
                     action="{{ route('admin.shop.category.destroy', $category) }}"
                     x-data
-                    x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete category?', 'Are you sure you want to delete this category? Products must be detached first.', $el)"
+                    x-on:submit.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete category?', 'Are you sure you want to delete this category? Products must be detached first.', $el)"
                 >
                     @csrf
                     @method('DELETE')

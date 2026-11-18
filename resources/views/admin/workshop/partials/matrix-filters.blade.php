@@ -125,7 +125,7 @@
             <div class="mt-3 flex flex-wrap gap-2" x-show="selected.length > 0">
                 <template x-for="(organisation, index) in selected" :key="organisation.id">
                     <x-ui.badge color="sky" size="sm" class="max-w-full py-1 pl-3 pr-1.5 font-normal">
-                        <input type="hidden" x-bind:name="`organisation_ids[${index}]`" :value="organisation.id">
+                        <input type="hidden" x-bind:name="('organisation_ids[' + (index) + ']')" :value="organisation.id">
                         <span class="truncate" x-text="organisation.label"></span>
                         <x-ui.button variant="plain"
                                 type="button"

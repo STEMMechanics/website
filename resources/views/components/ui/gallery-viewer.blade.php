@@ -11,33 +11,11 @@
 
 <div
     id="{{ $viewerId }}"
-    x-data="{
-        gallery: @js($items),
-        thumbnailLimit: @js($visibleLimit),
-        modelIndex: -1,
-        openGallery(index = 0) {
-            if (this.gallery.length) this.modelIndex = Math.max(0, Math.min(index, this.gallery.length - 1));
-        },
-        closeGallery() { this.modelIndex = -1; },
-        thumbnailItems() {
-            const limit = Number(this.thumbnailLimit);
-            return Number.isInteger(limit) && limit > 0 ? this.gallery.slice(0, limit) : this.gallery;
-        },
-        remainingThumbnails() {
-            const limit = Number(this.thumbnailLimit);
-            return Number.isInteger(limit) && limit > 0 ? Math.max(0, this.gallery.length - limit) : 0;
-        },
-        previousImage() {
-            if (this.gallery.length > 1) this.modelIndex = this.modelIndex <= 0 ? this.gallery.length - 1 : this.modelIndex - 1;
-        },
-        nextImage() {
-            if (this.gallery.length > 1) this.modelIndex = this.modelIndex >= this.gallery.length - 1 ? 0 : this.modelIndex + 1;
-        }
-    }"
-    x-on:workshop-gallery-open.window="if ($event.detail?.id === @js($viewerId)) openGallery($event.detail?.index ?? 0)"
-    x-on:keydown.escape.window="if (modelIndex !== -1) closeGallery()"
-    x-on:keydown.left.window="if (modelIndex !== -1) previousImage()"
-    x-on:keydown.right.window="if (modelIndex !== -1) nextImage()"
+    x-data="$SM.galleryViewer(@js($items), @js($visibleLimit), @js($viewerId))"
+    x-on:workshop-gallery-open.window="openFromEvent($event)"
+    x-on:keydown.escape.window="handleEscape()"
+    x-on:keydown.left.window="handlePreviousKey()"
+    x-on:keydown.right.window="handleNextKey()"
 >
     <div
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
@@ -92,7 +70,7 @@
                     <div class="min-w-0 max-w-xl rounded bg-black/45 px-3 py-2 text-left text-white">
                         <p class="truncate text-sm font-semibold" x-text="file.title || file.alt || ''"></p>
                         <p class="truncate text-xs text-white/80" x-show="file.caption" x-text="file.caption"></p>
-                        <p class="mt-1 text-xs text-white/70" x-text="`${index + 1} of ${gallery.length}`"></p>
+                        <p class="mt-1 text-xs text-white/70" x-text="(index + 1) + ' of ' + gallery.length"></p>
                     </div>
                     <div class="pointer-events-auto flex shrink-0 items-center gap-2 rounded bg-black/45 px-1 py-1">
                         @if($downloads)
@@ -131,7 +109,7 @@
                     type="button"
                     class="h-full w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                     x-on:click="openGallery(index)"
-                    x-bind:aria-label="`Open ${file.title || file.alt || 'image'} in the photo gallery`"
+                    x-bind:aria-label="'Open ' + (file.title || file.alt || 'image') + ' in the photo gallery'"
                 >
                     <img class="h-full w-full object-cover" x-bind:src="file.thumbnail_url || file.url" x-bind:alt="file.alt || file.title || ''" loading="lazy" />
                     <template x-if="file.is_video">
@@ -146,9 +124,9 @@
                     type="button"
                     class="flex h-full w-full flex-col items-center justify-center text-xs font-semibold leading-tight text-slate-700 transition hover:bg-slate-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
                     x-on:click="openGallery(thumbnailLimit)"
-                    x-bind:aria-label="`Open ${remainingThumbnails()} more photos in the gallery`"
+                    x-bind:aria-label="'Open ' + remainingThumbnails() + ' more photos in the gallery'"
                 >
-                    <span x-text="`+${remainingThumbnails()}`"></span>
+                    <span x-text="'+' + remainingThumbnails()"></span>
                     <span class="text-[10px] font-normal">more</span>
                 </button>
             </li>

@@ -401,10 +401,10 @@
                                     <x-ui.row-action label="Run Sheet" icon="fa-solid fa-list-check" tone="neutral" href="{{ route('admin.workshop.run-sheet', $workshop) }}" />
                                     <x-ui.row-action label="Media" icon="fa-solid fa-images" tone="neutral" href="{{ route('admin.workshop.media', $workshop) }}" />
                                     @if((string) $workshop->status !== 'draft')
-                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
+                                        <x-ui.row-action label="Copy public page link" icon="fa-solid fa-link" tone="neutral" x-data x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::from(route('workshop.show', $workshop)) }})" />
                                     @endif
                                     <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" href="{{ route('admin.workshop.duplicate', $workshop) }}" />
-                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')" />
                                     </x-ui.row-actions>
                                 </td>
                             </tr>

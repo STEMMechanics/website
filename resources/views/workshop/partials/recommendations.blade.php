@@ -9,7 +9,7 @@
     <section
         class="mt-20 pt-4 border-t  border-gray-300 p-4"
         x-data
-        x-init="fetch('{{ route('workshop.recommendation.impression') }}', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' }, body: JSON.stringify({ source_workshop_id: '{{ $sourceWorkshop->id }}', workshop_ids: '{{ $workshops->pluck('id')->implode(',') }}'.split(','), placement: '{{ $placement }}' }) }).catch(() => {})"
+        x-init="$SM.trackWorkshopRecommendationImpression(@js(route('workshop.recommendation.impression')), @js(csrf_token()), @js($sourceWorkshop->id), @js($workshops->pluck('id')->values()->all()), @js($placement))"
     >
         <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>

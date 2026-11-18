@@ -308,7 +308,7 @@
 
                             this.stagedWorkshopFiles.push(placeholder);
                             attachNames.push(fileName);
-                            SM.mediaDetails(fileName, (details) => {
+                            $SM.mediaDetails(fileName, (details) => {
                                 if (!details || typeof details !== 'object') {
                                     return;
                                 }
@@ -371,7 +371,7 @@
                                         reject(new Error(message || 'The file could not be uploaded.'));
                                     };
 
-                                    SM.upload([item.file], (result) => {
+                                    $SM.upload([item.file], (result) => {
                                         if (settled) return;
                                         if (!result?.success || !result.files?.[0]?.data?.upload_token) {
                                             rejectOnce(result?.message || 'The file could not be uploaded.');
@@ -433,7 +433,7 @@
                             this.workshopFilesUploadError = error?.response?.status === 413
                                 ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
                                 : (payload?.message || Object.values(payload?.errors || {}).flat().join(' ') || error.message || 'Upload failed.');
-                            window.SM?.notice?.('Upload failed', this.workshopFilesUploadError, 'danger');
+                            $SM?.notice?.('Upload failed', this.workshopFilesUploadError, 'danger');
                             [...this.stagedWorkshopFiles].filter((item) => item.kind === 'pending').forEach((item) => this.removeWorkshopFileByKey(item.key));
                         }
                     }
@@ -488,9 +488,9 @@
                             </div>
                             <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700" x-text="workshopFilesUploadMessage || ''"></div>
                             <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${workshopFilesUploadProgress}%`"></div>
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (workshopFilesUploadProgress) + '%')"></div>
                             </div>
-                            <div class="mt-2 flex items-center justify-between text-sm font-semibold text-gray-700"><span x-text="`${workshopFilesUploadIndex} of ${workshopFilesUploadTotal}`"></span><span x-text="`${workshopFilesUploadProgress}%`"></span></div>
+                            <div class="mt-2 flex items-center justify-between text-sm font-semibold text-gray-700"><span x-text="('' + (workshopFilesUploadIndex) + ' of ' + (workshopFilesUploadTotal) + '')"></span><span x-text="('' + (workshopFilesUploadProgress) + '%')"></span></div>
                         </div>
                     </div>
                 </template>
@@ -504,7 +504,7 @@
         @if($attachedFiles->isEmpty())
             <x-none-found item="files" search="{{ request()->get('search') }}" />
         @else
-            <div x-data="{ selected: [], allNames: @js($attachedFilesValue->pluck('name')->values()), bulkOpen: false, bulkStorage: '', bulkVisibility: '', bulkSaving: false, toggleAll(checked) { this.selected = checked ? [...this.allNames] : []; }, zipUrl() { const query = new URLSearchParams(); this.selected.forEach((name) => query.append('media_names[]', name)); return @js(route('admin.workshop.files.zip', $workshop)) + '?' + query.toString(); }, async applyBulk() { this.bulkSaving = true; try { await axios.put(@js(route('admin.workshop.files.bulk-update', $workshop)), { media_names: this.selected, storage_disk: this.bulkStorage || null, visibility: this.bulkVisibility || null }, { headers: { Accept: 'application/json' } }); window.location.reload(); } catch (error) { window.SM?.notice?.('Update failed', error.response?.data?.message || 'Could not update selected files.', 'danger'); } finally { this.bulkSaving = false; } } }">
+            <div x-data="{ selected: [], allNames: @js($attachedFilesValue->pluck('name')->values()), bulkOpen: false, bulkStorage: '', bulkVisibility: '', bulkSaving: false, toggleAll(checked) { this.selected = checked ? [...this.allNames] : []; }, zipUrl() { const query = new URLSearchParams(); this.selected.forEach((name) => query.append('media_names[]', name)); return @js(route('admin.workshop.files.zip', $workshop)) + '?' + query.toString(); }, async applyBulk() { this.bulkSaving = true; try { await axios.put(@js(route('admin.workshop.files.bulk-update', $workshop)), { media_names: this.selected, storage_disk: this.bulkStorage || null, visibility: this.bulkVisibility || null }, { headers: { Accept: 'application/json' } }); window.location.reload(); } catch (error) { $SM?.notice?.('Update failed', error.response?.data?.message || 'Could not update selected files.', 'danger'); } finally { this.bulkSaving = false; } } }">
 
                 <x-ui.table variant="listing" :mobile-cards="true" class="sm-workshop-media-cards" table-class="w-full">
                         <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox aria-label="Select all existing files" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="selected.length > 0 && selected.length === allNames.length" x-effect="$el.indeterminate = selected.length > 0 && selected.length < allNames.length" x-on:change="toggleAll($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
@@ -529,7 +529,7 @@
                                     </td>
                                     <td class="hidden px-3 py-3 text-center capitalize md:table-cell">{{ $file->storageDiskName() }}</td>
                                     <td class="hidden px-3 py-3 text-center md:table-cell"><x-ui.badge :color="$fileVisibility === 'public' ? 'success' : ($fileVisibility === 'protected' ? 'warning' : 'slate')" class="capitalize">{{ $fileVisibility }}</x-ui.badge></td>
-                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-file-actions-'.md5($file->name)" :title="$file->title"><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.action-menu></x-ui.row-actions></td>
+                                    <td data-label="Actions" data-mobile-actions class="px-3 py-3"><x-ui.row-actions :menu="false"><x-ui.action-menu :id="'workshop-file-actions-'.md5($file->name)" :title="$file->title"><x-ui.row-action label="Edit" icon="fa-pen-to-square" tone="primary" href="{{ route('admin.media.edit', $file) }}" target="_blank" rel="noopener noreferrer" /><x-ui.row-action label="Download" icon="fa-download" tone="neutral" href="{{ $file->download_url ?? (($file->url ?? '/media/'.rawurlencode((string) $file->name)).'?download=1') }}" /><x-ui.row-action label="Remove from workshop" icon="fa-ban" tone="warning" x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Remove file from workshop?', 'This will remove the file from this workshop only. The media item will remain in the media library.', '{{ route('admin.workshop.files.destroy', [$workshop, $file]) }}', 'Remove from workshop')" /></x-ui.action-menu></x-ui.row-actions></td>
                                 </tr>
                             @endforeach
                         </tbody>

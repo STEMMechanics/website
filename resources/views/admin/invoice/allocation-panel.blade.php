@@ -9,12 +9,12 @@
     $invoiceNet = app(\App\Services\Finance\FinancePlanner::class)->cents($invoice->subtotal_amount);
     $receivedNet = app(\App\Services\Finance\FinancePlanner::class)->income([$invoice->id])['net'];
 @endphp
-<x-finance.panel title="Cost centre allocation" x-data="SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::from(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
+<x-finance.panel title="Cost centre allocation" x-data="$SM.invoiceAllocationWorkspace({{ \Illuminate\Support\Js::from(['plans' => $plans, 'income' => $invoiceNet, 'scope' => $workshopContexts->isEmpty() ? 'invoice' : 'overview']) }})" x-on:allocation-plan-updated="updatePlan($event.detail)" x-on:invoice-lines-updated.window="income = $event.detail.total">
     <x-slot:actions>
         <div class="flex items-center gap-2" x-show="scope === 'invoice'">
             @if(!$invoiceAllocation['warning'])<x-finance.allocation-calculator-button :invoice="$invoice" />@endif
             @if($invoice->lines->contains('kind', 'product'))
-                <form method="POST" action="{{ route('admin.product-allocation.apply', $invoice) }}" class="flex" x-data x-on:submit.prevent="window.SM.confirm('Apply current defaults', 'Replace this invoice allocation, including any manual override, with the current product and pricing defaults?', 'Apply defaults', confirmed => { if (confirmed) $el.submit() })">
+                <form method="POST" action="{{ route('admin.product-allocation.apply', $invoice) }}" class="flex" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Apply current defaults', 'Replace this invoice allocation, including any manual override, with the current product and pricing defaults?', 'Apply defaults')">
                     @csrf
                     <x-ui.button type="submit" color="outline" class="size-10 p-0!" aria-label="Apply current product allocations" title="Apply current product allocations"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></x-ui.button>
                 </form>

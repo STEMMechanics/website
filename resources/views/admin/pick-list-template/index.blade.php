@@ -62,7 +62,7 @@
                                         @csrf
                                         <x-ui.row-action label="Duplicate" icon="fa-regular fa-copy" tone="neutral" type="submit" />
                                     </form>
-                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete blueprint?', 'Are you sure you want to delete this workshop blueprint?', '{{ route('admin.workshop-blueprint.destroy', $template) }}')" />
+                                    <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete blueprint?', 'Are you sure you want to delete this workshop blueprint?', '{{ route('admin.workshop-blueprint.destroy', $template) }}')" />
                                 </x-ui.row-actions>
                             </td>
                         </tr>

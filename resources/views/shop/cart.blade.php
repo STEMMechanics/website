@@ -27,7 +27,7 @@
                     <div class="font-semibold text-amber-900">Stock availability changed</div>
                     <p class="mt-1">Review these updates before continuing. Your cart has already been adjusted to the latest available stock.</p>
                     <div class="mt-3 space-y-2">
-                        <template x-for="notice in cartState.inventory_change_notices" :key="`${notice.type}-${notice.key}`">
+                        <template x-for="notice in cartState.inventory_change_notices" :key="('' + (notice.type) + '-' + (notice.key) + '')">
                             <div class="rounded-xl border border-amber-200 bg-white/80 px-3 py-2" x-text="notice.message"></div>
                         </template>
                     </div>
@@ -45,7 +45,7 @@
                                 <div x-show="line.variant_name" class="mt-1 text-sm font-medium text-gray-700" x-text="line.variant_name"></div>
                                 <div class="mt-1 text-sm text-gray-600" x-text="line.product.product_type_label"></div>
                                 <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-sm" :class="line.is_preorder ? 'text-amber-800' : (Number(line.delayed_quantity || 0) > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
-                                <div class="text-sm text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                <div class="text-sm text-gray-500" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                             </div>
                             <div>
                                 <div class="mb-1 text-sm font-medium text-gray-700">Qty</div>
@@ -128,7 +128,7 @@
                                     <span class="block">
                                         <span class="block text-sm font-semibold text-gray-900" x-text="method.name"></span>
                                         <span x-show="method.description" class="mt-1 block text-sm text-gray-600" x-text="method.description"></span>
-                                        <span x-show="method.delivery_estimate_label" class="mt-2 block text-xs uppercase tracking-[0.14em] text-gray-500" x-text="`Delivery ETA ${method.delivery_estimate_label}`"></span>
+                                        <span x-show="method.delivery_estimate_label" class="mt-2 block text-xs uppercase tracking-[0.14em] text-gray-500" x-text="('Delivery ETA ' + (method.delivery_estimate_label) + '')"></span>
                                     </span>
                                 </span>
                                 <span class="text-sm font-semibold text-gray-900" x-text="shippingMethodAmountLabel(method)"></span>
@@ -186,7 +186,7 @@
                     <template x-for="(shipment, shipmentIndex) in cartState.summary.shipping_quote.shipments" :key="shipment.key">
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 text-sm text-gray-700">
                             <div>
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500" x-text="cartState.summary.shipping_quote.shipments.length > 1 ? `Delivery ${shipmentIndex + 1}` : 'Delivery'"></div>
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500" x-text="cartState.summary.shipping_quote.shipments.length > 1 ? ('Delivery ' + (shipmentIndex + 1) + '') : 'Delivery'"></div>
                                 <div class="mt-1 text-base font-semibold text-gray-900" x-text="shipment.delivery_estimate_label || shipment.title_meta || shipment.dispatch_label || 'Timing to be confirmed'"></div>
                                 <div x-show="shipment.delivery_estimate_label && shipment.title_meta" x-cloak class="mt-1 max-w-sm text-xs text-gray-500" x-text="shipment.title_meta"></div>
                                 <div x-show="!shipment.delivery_estimate_label && shipment.title_primary" x-cloak class="mt-1 max-w-sm text-xs text-gray-500" x-text="shipment.title_primary"></div>
@@ -194,10 +194,10 @@
 
                             <template x-if="Array.isArray(shipment.items) && shipment.items.length > 0">
                                 <ul class="mt-3 list-disc space-y-2 border-t border-gray-200 pl-5 pt-3">
-                                    <template x-for="item in shipment.items" :key="`${shipment.key}-${item.display_title}-${item.quantity}`">
+                                    <template x-for="item in shipment.items" :key="('' + (shipment.key) + '-' + (item.display_title) + '-' + (item.quantity) + '')">
                                         <li class="text-xs text-gray-600">
                                             <div>
-                                                <div class="font-medium text-gray-800" x-text="`${item.display_title} x ${item.quantity}`"></div>
+                                                <div class="font-medium text-gray-800" x-text="('' + (item.display_title) + ' x ' + (item.quantity) + '')"></div>
                                             </div>
                                         </li>
                                     </template>
@@ -245,7 +245,7 @@
 
                 <div class="space-y-3 text-sm text-gray-700">
                     <div class="flex items-center justify-between gap-4">
-                        <span x-text="`Items (${Number(cartState.summary.item_count || 0)})`"></span>
+                        <span x-text="('Items (' + (Number(cartState.summary.item_count || 0)) + ')')"></span>
                         <span x-text="formatMoney(cartState.summary.subtotal)"></span>
                     </div>
                     <div class="flex items-center justify-between gap-4">
@@ -253,8 +253,8 @@
                         <span x-text="cartState.summary.can_checkout ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'Manual quote'"></span>
                     </div>
                     <div x-show="Number(cartState.summary.discount || 0) > 0" class="flex items-center justify-between gap-4 text-emerald-700">
-                        <span x-text="cartState.summary.coupon_code ? `Discount (${cartState.summary.coupon_code})` : 'Discount'"></span>
-                        <span x-text="`- ${formatMoney(cartState.summary.discount)}`"></span>
+                        <span x-text="cartState.summary.coupon_code ? ('Discount (' + (cartState.summary.coupon_code) + ')') : 'Discount'"></span>
+                        <span x-text="('- ' + (formatMoney(cartState.summary.discount)) + '')"></span>
                     </div>
                     <div class="flex items-center justify-between gap-4 text-gray-500">
                         <span>GST included</span>

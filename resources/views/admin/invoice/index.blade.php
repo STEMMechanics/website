@@ -145,11 +145,11 @@
                                                 if (!data || !data.url) {
                                                     throw new Error('Unable to generate payment link.');
                                                 }
-                                                SM.copyToClipboard(data.url);
-                                                SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                                $SM.copyToClipboard(data.url);
+                                                $SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
                                             })
                                             .catch((error) => {
-                                                SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                                $SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
                                             });
                                         "
                                      />
@@ -159,7 +159,7 @@
                                 <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                     type="button"
                                     x-data
-                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
+                                    x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
                                  />
                             @else
                                 @if($canCancelInvoice)
@@ -169,7 +169,7 @@
                                     <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                         type="button"
                                         x-data
-                                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
+                                        x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                      />
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}">
@@ -181,7 +181,7 @@
                                 @if($canWriteOffInvoice)
                                     <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                         type="button"
-                                        x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                        x-on:click.prevent="$SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                      />
                                 @else
                                     <span class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-200 bg-gray-100 text-gray-300" title="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}">
@@ -315,11 +315,11 @@
                                                         if (!data || !data.url) {
                                                             throw new Error('Unable to generate payment link.');
                                                         }
-                                                        SM.copyToClipboard(data.url);
-                                                        SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                                        $SM.copyToClipboard(data.url);
+                                                        $SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
                                                     })
                                                     .catch((error) => {
-                                                        SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                                        $SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
                                                     });
                                             " />
                                             @endif
@@ -328,7 +328,7 @@
                                             <x-ui.row-action label="Delete draft" icon="fa-solid fa-trash" tone="danger"
                                                 type="button"
                                                 x-data
-                                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
+                                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
                                              />
                                         @else
                                             @if($canCancelInvoice)
@@ -338,7 +338,7 @@
                                                 <x-ui.row-action label="Cancel" icon="fa-solid fa-ban" tone="warning"
                                                     type="button"
                                                     x-data
-                                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
+                                                    x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel invoice', 'Keep invoice')"
                                                  />
                                             @else
                                                 <x-ui.row-action label="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}" icon="fa-solid fa-ban" tone="warning"
@@ -351,7 +351,7 @@
                                             @if($canWriteOffInvoice)
                                                 <x-ui.row-action label="Write off" icon="fa-solid fa-file-circle-minus" tone="neutral"
                                                     type="button"
-                                                    x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                                    x-on:click.prevent="$SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                                  />
                                             @else
                                                 <x-ui.row-action label="{{ $writeOffBlockReason ?? 'Cannot write off invoice' }}" icon="fa-solid fa-file-circle-minus" tone="neutral"

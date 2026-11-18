@@ -20,7 +20,7 @@
             />
 
             @if(($siteOption->name ?? '') === \App\Services\Finance\ProductCostAllocation::REMAINDER_OPTION)
-                <div x-data="SM.allocationRemainder({{ \Illuminate\Support\Js::from(json_decode(old('value', $siteOption->value ?? '{}'), true) ?: (object) []) }})">
+                <div x-data="$SM.allocationRemainder({{ \Illuminate\Support\Js::from(json_decode(old('value', $siteOption->value ?? '{}'), true) ?: (object) []) }})">
                     <x-admin.allocation-remainder name="value" :categories="app(\App\Services\Finance\ProductAllocationEditor::class)->categories()" />
                 </div>
             @elseif($inputType === 'boolean')
@@ -76,7 +76,7 @@
             <x-ui.editor-actions>
                 @if(isset($siteOption) && ! \App\Models\SiteOption::hasDefault((string) $siteOption->name))
                     <x-ui.button data-editor-delete type="button" color="danger" x-data
-                        x-on:click.prevent="SM.confirmDelete(@js(csrf_token()), 'Delete setting?', @js('Delete '.e($siteOption->name).' and its saved value? Any configured fallback will be used.'), @js(route('admin.site_option.destroy', $siteOption)))">Delete</x-ui.button>
+                        x-on:click.prevent="$SM.confirmDelete(@js(csrf_token()), 'Delete setting?', @js('Delete '.e($siteOption->name).' and its saved value? Any configured fallback will be used.'), @js(route('admin.site_option.destroy', $siteOption)))">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

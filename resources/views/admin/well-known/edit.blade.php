@@ -24,7 +24,7 @@
             </div>
             <x-ui.editor-actions>
                 @if($filename)
-                    <x-ui.button type="button" color="danger" x-on:click="SM.confirmDelete('{{ csrf_token() }}', 'Delete verification file?', 'Services relying on this file may no longer be able to verify your domain.', '{{ route('admin.well-known.destroy', $filename) }}')">Delete</x-ui.button>
+                    <x-ui.button type="button" color="danger" x-on:click="$SM.confirmDelete('{{ csrf_token() }}', 'Delete verification file?', 'Services relying on this file may no longer be able to verify your domain.', '{{ route('admin.well-known.destroy', $filename) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit" class="ml-auto">Save file</x-ui.button>
             </x-ui.editor-actions>

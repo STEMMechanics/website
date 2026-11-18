@@ -118,7 +118,7 @@
                                             <x-ui.row-action label="Restore as draft" icon="fa-solid fa-box-open" tone="neutral" type="submit" aria-label="Restore {{ $product->title }} as draft" />
                                         </form>
                                     @else
-                                        <form method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                                        <form method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product')">
                                             @csrf
                                             @method('PATCH')
                                             <x-ui.row-action label="Archive" icon="fa-solid fa-box-archive" tone="neutral" type="submit" aria-label="Archive {{ $product->title }}" />
@@ -129,7 +129,7 @@
                                             type="button"
                                             aria-label="Delete {{ $product->title }}"
                                             x-data
-                                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
+                                            x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')"
                                          />
                                     @endif
                                     @if($product->isActive() && $product->isSellable())

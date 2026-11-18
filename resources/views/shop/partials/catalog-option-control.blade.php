@@ -167,7 +167,7 @@
                 return;
             }
 
-            if (!window.SM?.shopCart) {
+            if (!$SM?.shopCart) {
                 form.submit();
                 return;
             }
@@ -175,7 +175,7 @@
             this.busyCartLineKey = lineKey;
 
             try {
-                await window.SM.shopCart.submitAddForm(form, {
+                await $SM.shopCart.submitAddForm(form, {
                     addedLineKey: lineKey,
                 });
             } finally {
@@ -200,13 +200,13 @@
             }
         },
         async changeCartQuantity(nextQuantity) {
-            if (!this.selectedOption || this.busyCartLineKey || !window.SM?.shopCart) {
+            if (!this.selectedOption || this.busyCartLineKey || !$SM?.shopCart) {
                 return;
             }
 
             const lineKey = this.activeLineKey();
             const maxQuantity = this.cartMaxQuantity();
-            const resolvedQuantity = window.SM.toBoundedInt(nextQuantity, {
+            const resolvedQuantity = $SM.toBoundedInt(nextQuantity, {
                 min: 0,
                 max: maxQuantity,
                 allowNull: false,
@@ -216,17 +216,17 @@
 
             try {
                 if (resolvedQuantity <= 0) {
-                    await window.SM.shopCart.removeLine(lineKey, {
+                    await $SM.shopCart.removeLine(lineKey, {
                         shippingCountry: this.cartState?.shipping_country || 'Australia',
                         showNotice: false,
                     });
-                    if (typeof window.SM.alert === 'function') {
-                        window.SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
+                    if (typeof $SM.alert === 'function') {
+                        $SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
                     }
                     return;
                 }
 
-                await window.SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
+                await $SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
                     max: maxQuantity,
                     shippingCountry: this.cartState?.shipping_country || 'Australia',
                     showNotice: false,
@@ -236,20 +236,20 @@
             }
         },
         init() {
-            if (!window.SM?.shopCart) {
+            if (!$SM?.shopCart) {
                 return;
             }
 
-            const currentState = typeof window.SM.shopCart.getState === 'function'
-                ? window.SM.shopCart.getState()
+            const currentState = typeof $SM.shopCart.getState === 'function'
+                ? $SM.shopCart.getState()
                 : null;
 
             if (currentState && typeof currentState === 'object') {
                 this.cartState = currentState;
             }
 
-            if (typeof window.SM.shopCart.subscribe === 'function') {
-                window.SM.shopCart.subscribe((cart) => {
+            if (typeof $SM.shopCart.subscribe === 'function') {
+                $SM.shopCart.subscribe((cart) => {
                     this.cartState = cart;
                 });
             }

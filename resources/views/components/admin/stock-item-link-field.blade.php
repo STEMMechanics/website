@@ -40,12 +40,12 @@
     x-id="['stock-item-options', 'stock-item-input']"
     @if($usesStockItemsExpression)
         @if($usesItemNameSuggestionsExpression)
-            x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, {{ $itemNameSuggestionsExpression }})"
+            x-data="$SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, {{ $itemNameSuggestionsExpression }})"
         @else
-            x-data="SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, @js($itemNameSuggestions))"
+            x-data="$SM.stockItemLinkEditor({{ $model }}, {{ $stockItemsExpression }}, @js($itemNameSuggestions))"
         @endif
     @else
-        x-data="SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions))"
+        x-data="$SM.stockItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions))"
     @endif
     x-init="if (linkedStockItem && !model.item_name) model.item_name = linkedStockItem.name"
     x-on:keydown.escape.window="open = false"

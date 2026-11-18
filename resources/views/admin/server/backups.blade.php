@@ -19,7 +19,7 @@
                     <span class="text-xs font-semibold uppercase tracking-wide" x-text="run.status"></span>
                 </div>
                 <div x-show="!run.finished" class="mt-3 h-2.5 overflow-hidden rounded-full bg-white/80">
-                    <div class="h-full rounded-full bg-sky-600 transition-all duration-700" :class="run.status === 'running' ? 'animate-pulse' : ''" :style="`width: ${Math.max(5, Number(run.progress || 0))}%`"></div>
+                    <div class="h-full rounded-full bg-sky-600 transition-all duration-700" :class="run.status === 'running' ? 'animate-pulse' : ''" :style="('width: ' + (Math.max(5, Number(run.progress || 0))) + '%')"></div>
                 </div>
             </div>
         </template>

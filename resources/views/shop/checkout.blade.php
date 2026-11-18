@@ -125,7 +125,7 @@
                             <div class="font-semibold">Stock availability changed</div>
                             <div class="mt-1">Review these updates before moving to payment.</div>
                             <div class="mt-3 space-y-2">
-                                <template x-for="notice in cartState.inventory_change_notices" :key="`${notice.type}-${notice.key}`">
+                                <template x-for="notice in cartState.inventory_change_notices" :key="('' + (notice.type) + '-' + (notice.key) + '')">
                                     <div class="rounded-xl border border-amber-200 bg-white/80 px-3 py-2" x-text="notice.message"></div>
                                 </template>
                             </div>
@@ -232,7 +232,7 @@
                                 <div>
                                     <h4 class="text-lg font-bold text-gray-900">List of items</h4>
                                 </div>
-                                <div class="text-sm font-medium text-gray-500" x-text="`${Number(cartState?.summary?.item_count || {{ $itemCount }})} item${Number(cartState?.summary?.item_count || {{ $itemCount }}) === 1 ? '' : 's'}`">{{ $itemCount }} items</div>
+                                <div class="text-sm font-medium text-gray-500" x-text="('' + (Number(cartState?.summary?.item_count || {{ $itemCount }})) + ' item' + (Number(cartState?.summary?.item_count || {{ $itemCount }}) === 1 ? '' : 's') + '')">{{ $itemCount }} items</div>
                             </div>
 
                             <div class="mt-5 space-y-4">
@@ -257,7 +257,7 @@
                                             </div>
 
                                             <div class="flex items-center justify-between gap-4 lg:justify-end">
-                                                <div class="hidden text-xs text-gray-500 xl:block" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                                <div class="hidden text-xs text-gray-500 xl:block" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                                                 <div class="flex items-center gap-2">
                                                     <span class="text-xs font-medium uppercase tracking-[0.14em] text-gray-500">Qty</span>
                                                     <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
@@ -315,7 +315,7 @@
                                             <span class="block">
                                                 <span class="block text-sm font-semibold text-gray-900" x-text="method.name"></span>
                                                 <span x-show="method.description" class="mt-0.5 block text-xs text-gray-500" x-text="method.description"></span>
-                                                <span x-show="method.delivery_estimate_label" class="mt-1 block text-xs font-medium text-gray-600" x-text="`ETA ${method.delivery_estimate_label}`"></span>
+                                                <span x-show="method.delivery_estimate_label" class="mt-1 block text-xs font-medium text-gray-600" x-text="('ETA ' + (method.delivery_estimate_label) + '')"></span>
                                             </span>
                                         </span>
                                         <span class="text-sm font-semibold text-gray-900" x-text="shippingMethodAmountLabel(method)"></span>

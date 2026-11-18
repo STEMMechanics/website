@@ -15,12 +15,12 @@
         >
             @csrf
 
-            <template x-for="workshopId in selected" :key="`customization-${workshopId}`">
+            <template x-for="workshopId in selected" :key="('customization-' + (workshopId) + '')">
                 <div>
-                    <input type="hidden" :name="`customizations[${workshopId}][description]`" :value="customizations[workshopId].description">
-                    <input type="hidden" :name="`customizations[${workshopId}][image_zoom]`" :value="customizations[workshopId].image_zoom">
-                    <input type="hidden" :name="`customizations[${workshopId}][image_x]`" :value="customizations[workshopId].image_x">
-                    <input type="hidden" :name="`customizations[${workshopId}][image_y]`" :value="customizations[workshopId].image_y">
+                    <input type="hidden" :name="('customizations[' + (workshopId) + '][description]')" :value="customizations[workshopId].description">
+                    <input type="hidden" :name="('customizations[' + (workshopId) + '][image_zoom]')" :value="customizations[workshopId].image_zoom">
+                    <input type="hidden" :name="('customizations[' + (workshopId) + '][image_x]')" :value="customizations[workshopId].image_x">
+                    <input type="hidden" :name="('customizations[' + (workshopId) + '][image_y]')" :value="customizations[workshopId].image_y">
                 </div>
             </template>
 
@@ -105,7 +105,7 @@
                                         <div class="relative flex h-full flex-col overflow-hidden border-r border-dashed border-gray-400 bg-slate-50 px-2 py-3 last:border-r-0">
                                             <div class="flex h-[8%] items-center justify-center"><img src="{{ asset('logo.png') }}" alt="STEMMechanics" class="w-3/5"></div>
                                             <div class="my-2 flex min-h-0 flex-1 flex-col gap-1">
-                                                <template x-for="workshopId in selected.slice(3, 6)" :key="`back-layout-${workshopId}-{{ $copy }}`">
+                                                <template x-for="workshopId in selected.slice(3, 6)" :key="('back-layout-' + (workshopId) + '-{{ $copy }}')">
                                                     <div class="flex-1 rounded-sm border border-sky-200 bg-white"></div>
                                                 </template>
                                             </div>
@@ -136,7 +136,7 @@
                                     </div>
                                 </template>
 
-                                <template x-for="(workshopId, index) in previewSelected" :key="`preview-${workshopId}`">
+                                <template x-for="(workshopId, index) in previewSelected" :key="('preview-' + (workshopId) + '')">
                                     <x-ui.button variant="plain"
                                         type="button"
                                         class="block w-full bg-white text-left transition"
@@ -171,7 +171,7 @@
                                                 <span class="truncate font-bold text-slate-900" style="font-size: 3.56cqw;" x-text="workshops[workshopId].title"></span>
                                                 <span
                                                         class="shrink-0 font-bold uppercase"
-                                                        :style="`color: ${accentColour(index)}; font-size: 2.14cqw; letter-spacing: 0.18cqw; margin-bottom: 0.81cqw;`"
+                                                        :style="('color: ' + (accentColour(index)) + '; font-size: 2.14cqw; letter-spacing: 0.18cqw; margin-bottom: 0.81cqw;')"
                                                         x-text="workshops[workshopId].location"
                                                 ></span>
                                             </div>
@@ -192,7 +192,7 @@
                         <template x-if="activeWorkshop">
                             <div class="mt-5 space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                                 <x-ui.select label="Editing workshop" name="preview_workshop" x-model="activeId" class="mb-0">
-                                        <template x-for="workshopId in selected" :key="`option-${workshopId}`">
+                                        <template x-for="workshopId in selected" :key="('option-' + (workshopId) + '')">
                                             <option :value="workshopId" x-text="workshops[workshopId].title"></option>
                                         </template>
                                 </x-ui.select>
@@ -203,7 +203,7 @@
                                 </div>
 
                                 <div>
-                                    <div class="flex justify-between text-sm"><label for="image-zoom" class="font-semibold text-gray-800">Picture size</label><span x-text="`${customizations[activeId].image_zoom}%`"></span></div>
+                                    <div class="flex justify-between text-sm"><label for="image-zoom" class="font-semibold text-gray-800">Picture size</label><span x-text="('' + (customizations[activeId].image_zoom) + '%')"></span></div>
                                     <x-ui.input-control id="image-zoom" type="range" min="100" max="200" step="1" x-model.number="customizations[activeId].image_zoom" class="mt-1 w-full accent-primary-color" />
                                 </div>
 

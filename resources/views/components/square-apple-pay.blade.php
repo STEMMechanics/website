@@ -1,5 +1,5 @@
 @props(['amount', 'eligible' => 'true'])
-<div x-data="SM.squareApplePay({
+<div x-data="$SM.squareApplePay({
         enabled: squareEnabled,
         applicationId: squareApplicationId,
         locationId: squareLocationId,

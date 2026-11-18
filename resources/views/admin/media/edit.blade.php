@@ -510,7 +510,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                             <x-ui.row-actions>
                                                 <x-ui.row-action label="Copy protected URL" icon="fa-solid fa-copy" tone="neutral"
 
-                                                    x-on:click.prevent="SM.copyToClipboard({{ \Illuminate\Support\Js::from($protectedDownloadLink) }})"
+                                                    x-on:click.prevent="$SM.copyToClipboard({{ \Illuminate\Support\Js::from($protectedDownloadLink) }})"
                                                     x-bind:class="protectedLinkActionsDisabled() ? 'pointer-events-none opacity-50' : ''"
                                                  />
                                                 <x-ui.row-action label="Revoke protected URL" icon="fa-solid fa-trash" tone="danger"
@@ -628,12 +628,12 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                                             <option value="file">Workshop file</option>
                                             <option value="photo" x-bind:disabled="!supportsPhotoLinks">Workshop photo</option>
                                         </x-ui.select>
-                                        <input type="hidden" x-bind:name="`workshop_links[${index}][workshop_id]`" :value="link.workshop_id">
-                                        <input type="hidden" x-bind:name="`workshop_links[${index}][type]`" :value="link.type">
+                                        <input type="hidden" x-bind:name="('workshop_links[' + (index) + '][workshop_id]')" :value="link.workshop_id">
+                                        <input type="hidden" x-bind:name="('workshop_links[' + (index) + '][type]')" :value="link.type">
                                     </td>
                                     <td class="px-3 py-2">
                                         <a :href="linkUrl(link)" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:underline" x-text="workshopFor(link.workshop_id)?.title || link.workshop_id"></a>
-                                        <span class="text-gray-500" x-text="workshopFor(link.workshop_id) ? ` - ${workshopFor(link.workshop_id).date} · ${workshopFor(link.workshop_id).location}` : ''"></span>
+                                        <span class="text-gray-500" x-text="workshopFor(link.workshop_id) ? (' - ' + (workshopFor(link.workshop_id).date) + ' · ' + (workshopFor(link.workshop_id).location) + '') : ''"></span>
                                     </td>
                                     <td class="text-center! px-3 py-2">
                                         <x-ui.row-action label="Disassociate from workshop" icon="fa-solid fa-link-slash" tone="neutral" type="button" x-on:click.prevent="remove(link.workshop_id)" aria-label="Disassociate from workshop" />
@@ -668,7 +668,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
                             <i class="fa-solid fa-plus mt-1 text-primary-color" aria-hidden="true"></i>
                             <span class="min-w-0">
                                 <span class="block text-gray-900" x-text="workshop.title"></span>
-                                <span class="block text-xs text-gray-500" x-text="`${workshop.location} · ${workshop.date}`"></span>
+                                <span class="block text-xs text-gray-500" x-text="('' + (workshop.location) + ' · ' + (workshop.date) + '')"></span>
                             </span>
                         </x-ui.button>
                     </template>
@@ -815,7 +815,7 @@ $editorImageUrl = isset($medium) ? $medium->url : null;
 
             <x-ui.editor-actions>
                 @isset($medium)
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this file? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this file? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

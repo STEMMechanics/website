@@ -90,7 +90,7 @@
                                 <x-ui.row-action label="View media" icon="fa-solid fa-photo-film" tone="neutral" href="{{ route('admin.media.index', ['user_id' => $user->id]) }}" />
                             @endif
                             @if($user->id !== '1')
-                            <form method="POST" action="{{ route('admin.user.destroy', $user) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', $el)">
+                            <form method="POST" action="{{ route('admin.user.destroy', $user) }}" x-data x-on:submit.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', $el)">
                                 @method('DELETE')
                                 @csrf
                                 <x-ui.row-action label="Delete" icon="fa-solid fa-trash" tone="danger" type="submit" />

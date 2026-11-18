@@ -58,10 +58,10 @@
             x-on:sm-editor-updated.window="if ($event.detail?.name === 'workshop_run_sheet') scheduleAutosave()"
         >
             @csrf
-            <template x-for="id in checkedIds" :key="`checked-${id}`">
+            <template x-for="id in checkedIds" :key="('checked-' + (id) + '')">
                 <input type="hidden" name="checked_item_ids[]" :value="id">
             </template>
-            <template x-for="id in completedTaskIds" :key="`completed-task-${id}`">
+            <template x-for="id in completedTaskIds" :key="('completed-task-' + (id) + '')">
                 <input type="hidden" name="completed_task_ids[]" :value="id">
             </template>
             <input
@@ -174,7 +174,7 @@
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
                             <div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold" x-text="taskName"></h3><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="taskNote = null" /></div>
                             <div class="mt-4 text-sm text-gray-700 content" x-html="taskNote"></div>
-                            <template x-for="(subtask, index) in taskSubtasks" :key="`task-note-subtask-${index}`">
+                            <template x-for="(subtask, index) in taskSubtasks" :key="('task-note-subtask-' + (index) + '')">
                                 <section class="mt-5 border-t border-gray-200 pt-4">
                                     <h4 class="font-semibold" x-text="subtask.title"></h4>
                                     <div class="mt-2 text-sm text-gray-700 content" x-html="subtask.content"></div>
@@ -251,7 +251,7 @@
             <div class="mt-4" x-show="!itemsEditMode">
                 <template x-if="kitSummaries.length > 0 || shelfPickRows.length > 0">
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <template x-for="(column, columnIndex) in pickListEntryColumns()" :key="`pick-list-column-${columnIndex}`">
+                        <template x-for="(column, columnIndex) in pickListEntryColumns()" :key="('pick-list-column-' + (columnIndex) + '')">
                             <div class="flex min-w-0 flex-col gap-3">
                                 <template x-for="entry in column" :key="entry.key">
                                     <div x-bind:class="entry.kind === 'component'

@@ -352,7 +352,7 @@
                             <tr class="mb-3 block rounded-xl border border-gray-200 bg-white shadow-sm align-top md:mb-0 md:table-row md:rounded-none md:border-0 md:bg-transparent md:shadow-none">
                                 <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
                                     <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Stock item</div>
-                                    <input type="hidden" x-bind:name="!isBlankComponent(component) ? `components[${index}][stock_item_id]` : null" x-bind:value="component.stock_item_id">
+                                    <input type="hidden" x-bind:name="!isBlankComponent(component) ? ('components[' + (index) + '][stock_item_id]') : null" x-bind:value="component.stock_item_id">
                                     <div class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 md:flex md:items-start md:gap-3">
                                         <div class="min-w-0 md:flex-1" x-on:stock-item-link-changed="selectComponentStockItem(index); $dispatch('kit-form-dirty')" x-on:input="handleComponentChange(index)" x-on:change="handleComponentChange(index)">
                                             <x-admin.stock-item-link-field model="component" stock-items-expression="stockItems" placeholder="Search name or SKU" aria-label="Stock item in kit" no-matches-text="No matching active stock items." />
@@ -370,7 +370,7 @@
                                             class="hidden md:block md:min-w-0 md:flex-1"
                                             type="text"
                                             maxlength="255"
-                                            x-bind:name="!isBlankComponent(component) ? `components[${index}][note]` : null"
+                                            x-bind:name="!isBlankComponent(component) ? ('components[' + (index) + '][note]') : null"
                                             x-model="component.note"
                                             x-on:input="handleComponentChange(index)"
                                             placeholder="Preparation note"
@@ -380,7 +380,7 @@
                                 </td>
                                 <td class="block border-t border-gray-100 px-3 py-3 md:table-cell md:border-t md:px-3 md:py-3">
                                     <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Quantity per item</div>
-                                    <x-ui.input-control type="number" min="0.001" step="0.001" x-bind:name="!isBlankComponent(component) ? `components[${index}][quantity]` : null" x-bind:required="!isBlankComponent(component)" x-model="component.quantity" x-on:input="handleComponentChange(index)" x-on:change="handleComponentChange(index)" aria-label="Quantity per item" />
+                                    <x-ui.input-control type="number" min="0.001" step="0.001" x-bind:name="!isBlankComponent(component) ? ('components[' + (index) + '][quantity]') : null" x-bind:required="!isBlankComponent(component)" x-model="component.quantity" x-on:input="handleComponentChange(index)" x-on:change="handleComponentChange(index)" aria-label="Quantity per item" />
                                 </td>
                                 <td class="block border-t border-gray-100 px-3 py-3 md:table-cell md:border-t md:px-3 md:py-3">
                                     <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Actions</div>

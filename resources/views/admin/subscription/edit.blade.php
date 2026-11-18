@@ -16,7 +16,7 @@
             </div>
             <x-ui.editor-actions>
                 @isset($subscription)
-                <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete subscription?', 'Are you sure you want to delete this subscription? This action cannot be undone', '{{ route('admin.subscription.destroy', $subscription) }}')">Delete</x-ui.button>
+                <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete subscription?', 'Are you sure you want to delete this subscription? This action cannot be undone', '{{ route('admin.subscription.destroy', $subscription) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

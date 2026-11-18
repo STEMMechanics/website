@@ -808,7 +808,7 @@
                 </div>
             </x-ui.collapsible-section>
             <x-ui.collapsible-section title="Specifications" x-show="productType !== 'material'" x-cloak variant="product" :open="!isset($product) || $errors->any()">
-                <x-slot:summary><span x-text="productDetails.filter(detail => detail.key || detail.value).length + ' product details'"></span></x-slot:summary>
+                <x-slot:summary><span x-text="$SM.countWithAnyProperty(productDetails, ['key', 'value']) + ' product details'"></span></x-slot:summary>
                     <div class="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p class="mt-1 text-xs text-gray-500">Add specifications such as pack size, material, colour, and recommended age. Values may include <code>{sku}</code>, which follows the selected variant.</p>
@@ -834,16 +834,16 @@
                                 <template x-for="(detail, index) in productDetails" :key="index">
                                     <tr>
                                         <td class="border-r border-gray-200 p-0">
-                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][key]`" x-model="detail.key" x-on:blur="productDetails = normalizeBaseProductDetails(productDetails)" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Detail name" />
+                                            <x-ui.input-control type="text" x-bind:name="('product_details[' + (index) + '][key]')" x-model="detail.key" x-on:blur="productDetails = normalizeBaseProductDetails(productDetails)" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" data-product-detail-key class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Detail name" />
                                         </td>
                                         <td class="border-r border-gray-200 p-0">
-                                            <x-ui.input-control type="text" x-bind:name="`product_details[${index}][value]`" x-model="detail.value" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)" />
+                                            <x-ui.input-control type="text" x-bind:name="'product_details[' + index + '][value]'" x-model="detail.value" x-bind:readonly="String(detail.key || '').trim().toLowerCase() === 'sku'" class="block w-full border-0 bg-transparent px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-300 readonly:bg-gray-50 readonly:text-gray-500" placeholder="Value" x-on:keydown.tab="addProductDetailAfterTab($event, index)" />
                                         </td>
                                         <td class="p-0 text-center">
                                             <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, -1)" x-bind:disabled="index === 0 || String(detail.key || '').trim().toLowerCase() === 'sku'" title="Move detail up" aria-label="Move detail up">
                                                 <i class="fa-solid fa-arrow-up text-xs" aria-hidden="true"></i>
                                             </x-ui.button>
-                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="index >= productDetails.filter(row => String(row.key || '').trim().toLowerCase() !== 'sku').length - 1 || String(detail.key || '').trim().toLowerCase() === 'sku'" title="Move detail down" aria-label="Move detail down">
+                                            <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-7 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="moveProductDetail(index, 1)" x-bind:disabled="!$SM.canMoveProductDetail(productDetails, detail, index)" title="Move detail down" aria-label="Move detail down">
                                                 <i class="fa-solid fa-arrow-down text-xs" aria-hidden="true"></i>
                                             </x-ui.button>
                                             <x-ui.button variant="plain" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-25" x-on:click="removeProductDetail(index)" x-bind:disabled="String(detail.key || '').trim().toLowerCase() === 'sku'" x-bind:title="String(detail.key || '').trim().toLowerCase() === 'sku' ? 'SKU is always kept last' : 'Remove detail'" title="Remove detail" aria-label="Remove detail">
@@ -860,7 +860,7 @@
             @include('admin.shop.product.materials-and-recipe')
 
             <x-ui.collapsible-section title="Variants" x-show="productType !== 'material'" x-cloak titleExpression="productType === 'digital' ? 'Licence Tiers' : 'Variants'" variant="product" :open="!isset($product) || $errors->any()" data-product-price-inventory>
-                <x-slot:summary><span x-text="variants.filter(variant => variant.is_active).length + ' active option' + (variants.filter(variant => variant.is_active).length === 1 ? '' : 's')"></span></x-slot:summary>
+                <x-slot:summary><span x-text="$SM.countTruthy(variants, 'is_active') + ' active option' + ($SM.countTruthy(variants, 'is_active') === 1 ? '' : 's')"></span></x-slot:summary>
                 <x-slot:actions>
                     <x-ui.button type="button" color="primary-outline" size="small" x-on:click.stop.prevent="addVariant(); $el.closest('details').open = true" x-text="productType === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}' ? 'Add tier' : 'Add variant'">Add variant</x-ui.button>
                 </x-slot:actions>
@@ -907,7 +907,7 @@
                 </div>
 
                 @error('variants')<p class="text-sm text-red-700" role="alert">{{ $message }}</p>@enderror
-                <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !variants.some(variant => variant.is_active)" x-cloak>Activate a variant or change this product to draft or archived.</p>
+                <p class="text-sm text-red-700" role="alert" x-show="status === 'active' && !$SM.hasValue(variants, 'is_active', true)" x-cloak>Activate a variant or change this product to draft or archived.</p>
                 <p class="text-sm text-red-700" role="alert" x-show="variantCopyError" x-text="variantCopyError" x-cloak></p>
 
                 <div class="space-y-4">
@@ -961,7 +961,7 @@
                         @if(! $product->store_order_items_exists)
                             <x-ui.button type="button" color="danger" class="" aria-label="Delete Product" title="Delete Product"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')" size="icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete product?', 'Permanently delete this unused product? This action cannot be undone.', '{{ route('admin.shop.product.destroy', $product) }}')" size="icon"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button>
                         @endif
                         @if($product->status === \App\Models\Product::STATUS_ARCHIVED)
                             <x-ui.button type="submit" color="outline" form="restore-product-form" class="" aria-label="Restore as Draft" title="Restore as Draft" size="icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></x-ui.button>
@@ -980,7 +980,7 @@
                     @method('PATCH')
                 </form>
             @else
-                <form id="archive-product-form" method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="SM.confirm('Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                <form id="archive-product-form" method="POST" action="{{ route('admin.shop.product.archive', $product) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Archive product?', 'This removes the product from the store while preserving its order history.', 'Archive Product')">
                     @csrf
                     @method('PATCH')
                 </form>

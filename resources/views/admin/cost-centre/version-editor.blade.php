@@ -7,7 +7,7 @@
 @php($rules = array_values(array_filter($planner->decode($latest->rules), fn ($rule) => $categories->where('active', true)->contains('id', $rule['category_id']))))
 @php($prices = $planner->decode($latest->prices))
 
-    <form method="POST" action="{{ route('admin.finance.pricing') }}" x-data="SM.allocationPlanPreview(@js($rules))" x-init="$nextTick(() => refresh($el))" x-on:input="$nextTick(() => refresh($el))" x-on:focusout="$nextTick(() => refresh($el))" x-on:change="$nextTick(() => refresh($el))" data-record-form data-record-wide data-record-title="{{ $editorTitle }}">@csrf
+    <form method="POST" action="{{ route('admin.finance.pricing') }}" x-data="$SM.allocationPlanPreview(@js($rules))" x-init="$SM.nextTickMethod($el, 'refresh', $el)" x-on:input="$SM.nextTickMethod($el, 'refresh', $el)" x-on:focusout="$SM.nextTickMethod($el, 'refresh', $el)" x-on:change="$SM.nextTickMethod($el, 'refresh', $el)" data-record-form data-record-wide data-record-title="{{ $editorTitle }}">@csrf
         <div data-record-body>
     @if($editing)<input type="hidden" name="edit_id" value="{{ $latest->id }}">@endif
         <input type="hidden" name="return_to" value="versions">
@@ -66,7 +66,7 @@
                     <p class="text-xs text-slate-600">Actual cost / participant</p>
                     <p class="flex gap-3 text-sm">
                         <span class="whitespace-nowrap"><strong class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant)"></strong> <span class="text-xs">ex GST</span></span>
-                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * (1 + SM.currentGstRate()))"></span> <span class="text-xs">inc GST</span></span>
+                        <span class="whitespace-nowrap text-slate-600"><span class="tabular-nums" x-text="approximateMoney(preview?.costPerParticipant * (1 + $SM.currentGstRate()))"></span> <span class="text-xs">inc GST</span></span>
                     </p>
                 </div>
                 <div class="min-w-0">

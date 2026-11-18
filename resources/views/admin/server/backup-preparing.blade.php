@@ -11,7 +11,7 @@
                 </div>
             </div>
             <div x-show="!run.finished" class="mt-5 h-3 overflow-hidden rounded-full bg-white">
-                <div class="h-full animate-pulse rounded-full bg-sky-600 transition-all duration-700" :style="`width:${Math.max(5, Number(run.progress || 0))}%`"></div>
+                <div class="h-full animate-pulse rounded-full bg-sky-600 transition-all duration-700" :style="('width:' + (Math.max(5, Number(run.progress || 0))) + '%')"></div>
             </div>
             <p x-show="!run.finished" class="mt-3 text-xs text-sky-700">You can leave this page. It will open the backup automatically when preparation is complete.</p>
         </div>

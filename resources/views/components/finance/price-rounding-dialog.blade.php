@@ -12,8 +12,8 @@
             <x-ui.table variant="listing">
                 <thead><tr><th>Price</th><th class="text-right">Entered</th><th class="text-right">Selected</th></tr></thead>
                 <tbody>
-                    <tr><td>Unit price ex GST</td><td class="text-right tabular-nums" x-text="'$' + SM.formatUnitPrice(roundingOriginal?.unitEx)"></td><td class="text-right font-medium tabular-nums" x-text="'$' + normalizeMoney(roundingPreview?.unitEx)"></td></tr>
-                    <tr><td>Unit price inc GST</td><td class="text-right tabular-nums" x-text="'$' + SM.formatUnitPrice(roundingOriginal?.unitInc)"></td><td>
+                    <tr><td>Unit price ex GST</td><td class="text-right tabular-nums" x-text="'$' + $SM.formatUnitPrice(roundingOriginal?.unitEx)"></td><td class="text-right font-medium tabular-nums" x-text="'$' + normalizeMoney(roundingPreview?.unitEx)"></td></tr>
+                    <tr><td>Unit price inc GST</td><td class="text-right tabular-nums" x-text="'$' + $SM.formatUnitPrice(roundingOriginal?.unitInc)"></td><td>
                         <div class="flex items-center justify-end gap-2">
                             <x-ui.button type="button" variant="soft" size="icon-small" aria-label="Previous clean price" title="Previous clean price" x-bind:disabled="roundingProposed &lt;= 0" x-on:click="moveRoundingPrice(-1)"><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></x-ui.button>
                             <span class="font-semibold tabular-nums" x-text="'$' + normalizeMoney(roundingPreview?.unitInc)"></span>

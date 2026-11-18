@@ -1,4 +1,4 @@
-<div x-data="shopNavbarController(window.shopNavbarConfig || {})" x-on:open-site-search.window="openSearchOverlay($event.detail?.scope)">
+<div x-data="$SM.shopNavbarController($SM.shopNavbarConfig)" x-on:open-site-search.window="openSearchOverlay($event.detail ? $event.detail.scope : null)">
 @php
     $isTestSite = request()->getHost() === 'test.stemmechanics.com.au';
     $navClass = $isTestSite
@@ -332,7 +332,7 @@
 
                 <div x-show="workshopExpiryNotice" x-cloak role="status" class="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" x-text="workshopExpiryNotice"></div>
                 <template x-for="booking in workshopBookings" :key="booking.url + booking.expires_at + booking.count">
-                    <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
+                    <div class="mb-4 rounded-xl border border-sky-200 bg-sky-50 p-4" x-data="$SM.workshopHoldCountdown(booking.expires_at, booking.id)" x-show="remainingSeconds > 0" x-cloak>
                         <div class="mb-2 flex items-center gap-2 font-semibold"><i class="fa-solid fa-ticket text-primary-color" aria-hidden="true"></i> Workshop booking</div>
                         <p class="text-sm font-semibold" x-text="booking.title"></p>
                         <p class="mt-1 text-sm text-gray-600"><span x-text="workshopDisplayCount(booking) + (workshopDisplayCount(booking) === 1 ? ' ticket' : ' tickets')"></span> <span x-text="(workshopSelection?.bookingId === booking.id || booking.selection_pending) ? 'selected' : 'reserved'"></span> · <span x-text="timeRemaining"></span> remaining</p>
@@ -352,7 +352,7 @@
                         <div class="font-semibold text-amber-900">Stock availability changed</div>
                         <div class="mt-1">Your cart has been updated to match current stock.</div>
                         <div class="mt-3 space-y-2">
-                            <template x-for="notice in cartState.inventory_change_notices" :key="`${notice.type}-${notice.key}`">
+                            <template x-for="notice in cartState.inventory_change_notices" :key="('' + (notice.type) + '-' + (notice.key) + '')">
                                 <div class="rounded-xl border border-amber-200 bg-white/80 px-3 py-2 text-xs" x-text="notice.message"></div>
                             </template>
                         </div>
@@ -368,7 +368,7 @@
                                 <div class="min-w-0 flex-1">
                                     <a :href="line.product.url" class="block font-semibold text-gray-900 hover:text-primary-color" @click="cartOpen=false" x-text="line.product.title"></a>
                                     <div x-show="line.variant_name" class="text-sm text-gray-600" x-text="line.variant_name"></div>
-                                    <div class="mt-1 text-sm text-gray-500" x-text="`${formatMoney(line.unit_price)} each`"></div>
+                                    <div class="mt-1 text-sm text-gray-500" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                                     <div class="mt-3">
                                         <div class="shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
                                             <x-ui.button variant="plain"
@@ -412,7 +412,7 @@
 
                     <div class="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3 text-sm text-gray-700">
                         <div class="flex items-center justify-between gap-4">
-                            <span x-text="`Items (${Number(cartState.summary.item_count || 0)})`"></span>
+                            <span x-text="'Items (' + (cartState.summary.item_count || 0) + ')' "></span>
                             <span x-text="formatMoney(cartState.summary.subtotal)"></span>
                         </div>
                         <div class="flex items-center justify-between gap-4">
@@ -420,8 +420,8 @@
                             <span x-text="drawerHasShippingPrice() ? (Number(cartState.summary.shipping) === 0 ? 'Free' : formatMoney(cartState.summary.shipping)) : 'TBD'"></span>
                         </div>
                         <div x-show="drawerDiscountAmount() > 0" class="flex items-center justify-between gap-4 text-emerald-700">
-                            <span x-text="cartState.summary.coupon_code ? `Voucher (${cartState.summary.coupon_code})` : 'Discount'"></span>
-                            <span x-text="`- ${formatMoney(drawerDiscountAmount())}`"></span>
+                            <span x-text="cartState.summary.coupon_code ? 'Voucher (' + cartState.summary.coupon_code + ')' : 'Discount'"></span>
+                            <span x-text="'- ' + formatMoney(drawerDiscountAmount())"></span>
                         </div>
                         <div class="flex items-center justify-between gap-4 text-gray-500">
                             <span>GST included</span>
@@ -446,20 +446,7 @@
         </div>
     @endif
 
-    <div class="fixed inset-0 z-300 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => {
-        if(value) {
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    const el = $refs.siteSearchInput;
-                    if (!el) return;
-                    el.focus({ preventScroll: true });
-                    if (typeof el.select === 'function') el.select();
-                    // iOS fallback:
-                    if (el.setSelectionRange) el.setSelectionRange(0, el.value.length);
-                })
-            })
-        }
-        })">
+    <div class="fixed inset-0 z-300 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false">
         <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
             <x-ui.button type="button" variant="plain" size="icon" aria-label="Close site search" class="sm-dialog-close absolute right-1 top-1 rounded-lg text-slate-500" x-on:click="showSearch = false"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
@@ -950,7 +937,18 @@
                 window.addEventListener('workshop-cart-updated', this.workshopUpdateHandler);
                 this.refreshWorkshopBookings();
                 this.bookingTimer = setInterval(() => this.refreshWorkshopBookings(), 1000);
-                this.$watch('showSearch', () => this.syncScrollLock());
+                this.$watch('showSearch', (isOpen) => {
+                    this.syncScrollLock();
+                    if (!isOpen) return;
+
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        const input = this.$refs.siteSearchInput;
+                        if (!input) return;
+                        input.focus({ preventScroll: true });
+                        if (typeof input.select === 'function') input.select();
+                        if (input.setSelectionRange) input.setSelectionRange(0, input.value.length);
+                    }));
+                });
                 this.$watch('pageMenuOpen', isOpen => {
                     this.syncScrollLock();
                     if (isOpen) {
@@ -981,4 +979,7 @@
             },
         };
     }
+
+    window.SM.shopNavbarController = shopNavbarController;
+    window.SM.shopNavbarConfig = window.shopNavbarConfig;
 </script>

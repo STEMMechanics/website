@@ -29,7 +29,7 @@
                 class="menu"
                 role="toolbar"
                 aria-label="{{ $editorOptions['label'] }} formatting"
-                x-init="$nextTick(() => SM.initToolbar($el))"
+                x-init="$SM.nextTickToolbar($el)"
             >
                 <x-ui.button variant="plain"
                     x-on:click.prevent="setParagraph()"
@@ -133,7 +133,7 @@
                         title="Alignment"
                         aria-label="Alignment"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="if (open) { open = false; $SM.nextTickFocus($el) }" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active': isActive({ textAlign: 'left' }, updatedAt) || isActive({ textAlign: 'center' }, updatedAt) || isActive({ textAlign: 'right' }, updatedAt) || isActive({ textAlign: 'justify' }, updatedAt) }" x-bind:aria-pressed="isActive({ textAlign: 'left' }, updatedAt) || isActive({ textAlign: 'center' }, updatedAt) || isActive({ textAlign: 'right' }, updatedAt) || isActive({ textAlign: 'justify' }, updatedAt)">
                         <i class="fa-solid fa-align-left" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
@@ -246,7 +246,7 @@
                         title="Table tools"
                         aria-label="Table tools"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="if (open) { open = false; $SM.nextTickFocus($el) }" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active' : isActive('table', updatedAt) }" x-bind:aria-pressed="isActive('table', updatedAt)">
                         <i class="fa-solid fa-table" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>
@@ -459,7 +459,7 @@
                         title="Notice boxes"
                         aria-label="Notice boxes"
                         x-on:click.prevent="open = !open"
-                        x-on:keydown.escape.window="if (open) { open = false; $nextTick(() => $el.focus()) }" x-bind:aria-expanded="open"
+                        x-on:keydown.escape.window="if (open) { open = false; $SM.nextTickFocus($el) }" x-bind:aria-expanded="open"
                         x-bind:class="{ 'is-active': isActive('box', { type: 'success' }, updatedAt) || isActive('box', { type: 'info' }, updatedAt) || isActive('box', { type: 'warning' }, updatedAt) || isActive('box', { type: 'danger' }, updatedAt) || isActive('box', { type: 'bug' }, updatedAt) }" x-bind:aria-pressed="isActive('box', { type: 'success' }, updatedAt) || isActive('box', { type: 'info' }, updatedAt) || isActive('box', { type: 'warning' }, updatedAt) || isActive('box', { type: 'danger' }, updatedAt) || isActive('box', { type: 'bug' }, updatedAt)">
                         <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
                         <i class="fa-solid fa-chevron-down text-[10px]" aria-hidden="true"></i>

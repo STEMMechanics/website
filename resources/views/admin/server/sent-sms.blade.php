@@ -166,8 +166,8 @@
                         reply.acknowledged = true;
                     } catch (error) {
                         const message = error instanceof Error ? error.message : 'Unable to acknowledge reply.';
-                        if (window.SM && typeof window.SM.notice === 'function') {
-                            window.SM.notice('Acknowledge failed', message, 'danger');
+                        if ($SM && typeof $SM.notice === 'function') {
+                            $SM.notice('Acknowledge failed', message, 'danger');
                         } else {
                             console.error(message);
                         }

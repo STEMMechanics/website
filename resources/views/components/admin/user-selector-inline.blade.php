@@ -274,7 +274,7 @@ $errorClass = $mobileStacked
                         x-on:keydown.arrow-up.prevent="moveLinkedUser(-1)"
                         x-on:keydown.enter.prevent="confirmLinkedUser()"
                         x-on:keydown.escape.prevent="linkedUserOpen = false"
-                        x-on:blur="syncLinkedUserId(); setTimeout(() => { linkedUserOpen = false }, 120)"
+                        x-on:blur="syncLinkedUserId(); $SM.delaySet($el, 'linkedUserOpen', false, 120)"
                         autocomplete="off"
                         placeholder="Search by name/organisation/email"
                         @if($disabled) disabled @endif />

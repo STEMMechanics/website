@@ -486,8 +486,8 @@
                         } catch (error) {
                             const message = error?.message || 'Could not save ticket attendance.';
                             this.ticketAttendanceError = message;
-                            if (window.SM && typeof window.SM.notice === 'function') {
-                                window.SM.notice('Attendance save failed', message, 'danger', {
+                            if ($SM && typeof $SM.notice === 'function') {
+                                $SM.notice('Attendance save failed', message, 'danger', {
                                     toast: true,
                                     timer: 6000,
                                 });
@@ -971,7 +971,7 @@
                             </div>
 
                             <div class="mt-4 space-y-2">
-                                <template x-for="ticket in cancelModalTickets()" :key="`cancel-ticket-${ticket.id}`">
+                                <template x-for="ticket in cancelModalTickets()" :key="('cancel-ticket-' + (ticket.id) + '')">
                                     <label class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
                                         <span class="inline-flex items-center gap-3">
                                             <x-ui.checkbox bare small
@@ -1043,13 +1043,13 @@
                     <form method="POST" action="{{ route('admin.workshop.attendance.payments', $workshop) }}" class="mt-5">
                         @csrf
 
-                                <template x-for="ticketId in selectedPaymentTicketIds" :key="`payment-ticket-${ticketId}`">
+                                <template x-for="ticketId in selectedPaymentTicketIds" :key="('payment-ticket-' + (ticketId) + '')">
                                     <input type="hidden" name="ticket_ids[]" x-bind:value="ticketId">
                                 </template>
-                                <template x-for="paymentId in selectedExistingPaymentIds" :key="`existing-payment-${paymentId}`">
+                                <template x-for="paymentId in selectedExistingPaymentIds" :key="('existing-payment-' + (paymentId) + '')">
                                     <input type="hidden" name="existing_payment_ids[]" x-bind:value="paymentId">
                                 </template>
-                                <template x-for="ticketId in selectedAttendedTicketIds()" :key="`attended-ticket-${ticketId}`">
+                                <template x-for="ticketId in selectedAttendedTicketIds()" :key="('attended-ticket-' + (ticketId) + '')">
                                     <input type="hidden" name="attended_ticket_ids[]" x-bind:value="ticketId">
                                 </template>
                                 <input type="hidden" name="sync_attendance" value="1">
@@ -1077,7 +1077,7 @@
                                 <div class="mt-4">
                                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Invoices in Selection</div>
                                     <div class="mt-2 flex flex-wrap gap-2">
-                                        <template x-for="invoice in selectedInvoiceSummary()" :key="`invoice-summary-${invoice.id}`">
+                                        <template x-for="invoice in selectedInvoiceSummary()" :key="('invoice-summary-' + (invoice.id) + '')">
                                             <x-ui.badge color="gray" size="xs">
                                                 <span x-text="invoice.number"></span>
                                                 <span class="ml-1 text-gray-500" x-text="'($' + Number(invoice.outstanding || 0).toFixed(2) + ')'"></span>
@@ -1089,7 +1089,7 @@
                                 <div class="mt-4">
                                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Ticket Attendance and Price</div>
                                     <div class="mt-2 space-y-2">
-                                        <template x-for="ticket in selectedPaymentTickets()" :key="`selected-ticket-${ticket.id}`">
+                                        <template x-for="ticket in selectedPaymentTickets()" :key="('selected-ticket-' + (ticket.id) + '')">
                                             <label class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
                                                 <span class="inline-flex items-center gap-3">
                                                     <x-ui.checkbox bare small
@@ -1135,7 +1135,7 @@
                                             <div class="px-4 py-3 text-sm text-gray-500">No unallocated EFTPOS transactions are available for this ticket selection.</div>
                                         </template>
                                         <div class="max-h-72 space-y-2 overflow-y-auto p-3" x-show="!eftposPaymentsLoading && visibleExistingEftposPayments().length > 0">
-                                            <template x-for="payment in visibleExistingEftposPayments()" :key="`existing-eftpos-${payment.id}`">
+                                            <template x-for="payment in visibleExistingEftposPayments()" :key="('existing-eftpos-' + (payment.id) + '')">
                                                 <label class="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-3 py-3 transition hover:border-gray-300 hover:bg-gray-50">
                                                     <span class="inline-flex items-start gap-3">
                                                         <x-ui.checkbox bare small
@@ -1184,7 +1184,7 @@
                                                         noLabel="true"
                                                         class="mb-0"
                                                         x-model="line.method"
-                                                        x-bind:name="`payments[${index}][method]`"
+                                                        x-bind:name="('payments[' + (index) + '][method]')"
                                                         x-on:change="if (line.method === compPaymentMethod) { applyWaivedPaymentLineAmount(index); }">
                                                         <template x-for="option in paymentMethodOptions" :key="option.value">
                                                             <option x-bind:value="option.value" x-text="option.label"></option>
@@ -1193,19 +1193,19 @@
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
-                                                    <x-ui.input-control type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-bind:readonly="line.method === compPaymentMethod" x-on:blur="normalizePaymentLineAmount(index)" />
+                                                    <x-ui.input-control type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="('payments[' + (index) + '][amount]')" x-bind:readonly="line.method === compPaymentMethod" x-on:blur="normalizePaymentLineAmount(index)" />
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Received</label>
-                                                    <x-ui.input-control type="datetime-local" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.received_on" x-bind:name="`payments[${index}][received_on]`" />
+                                                    <x-ui.input-control type="datetime-local" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.received_on" x-bind:name="('payments[' + (index) + '][received_on]')" />
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Reference</label>
-                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.reference" x-bind:name="`payments[${index}][reference]`" />
+                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.reference" x-bind:name="('payments[' + (index) + '][reference]')" />
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</label>
-                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.notes" x-bind:name="`payments[${index}][notes]`" />
+                                                    <x-ui.input-control type="text" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.notes" x-bind:name="('payments[' + (index) + '][notes]')" />
                                                 </div>
                                             </div>
                                             <div class="mt-3 flex justify-end">
@@ -1334,16 +1334,16 @@
                 </div>
 
                 <div data-list-results class="space-y-4 lg:hidden">
-                    <template x-for="(entry, index) in entries" :key="`mobile-${index}`">
+                    <template x-for="(entry, index) in entries" :key="('mobile-' + (index) + '')">
                         <section class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                             <div class="flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || `Entry ${index + 1}`"></h3>
+                                <h3 class="text-sm font-semibold text-gray-900" x-text="entry.child_name || entry.guardian_name || ('Entry ' + (index + 1) + '')"></h3>
                                 <x-ui.button variant="plain" type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete">
                                     <i class="fa-solid fa-trash" aria-hidden="true"></i>
                                 </x-ui.button>
                             </div>
 
-                            <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
+                            <input type="hidden" x-bind:name="!isDesktop ? ('entries[' + (index) + '][id]') : null" x-model="entry.id">
 
                             <div class="mt-4 space-y-3">
                                 <x-ui.input
@@ -1351,7 +1351,7 @@
                                     name="mobile_child_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.child_name"
-                                    x-bind:name="!isDesktop ? `entries[${index}][child_name]` : null"
+                                    x-bind:name="!isDesktop ? ('entries[' + (index) + '][child_name]') : null"
                                     x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
                                     x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
@@ -1359,7 +1359,7 @@
                                     name="mobile_guardian_name_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.guardian_name"
-                                    x-bind:name="!isDesktop ? `entries[${index}][guardian_name]` : null"
+                                    x-bind:name="!isDesktop ? ('entries[' + (index) + '][guardian_name]') : null"
                                     x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
                                     x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
@@ -1368,7 +1368,7 @@
                                     name="mobile_email_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.email"
-                                    x-bind:name="!isDesktop ? `entries[${index}][email]` : null"
+                                    x-bind:name="!isDesktop ? ('entries[' + (index) + '][email]') : null"
                                     x-on:input="entry.email = $event.target.value; handleRowChange(index)"
                                     x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
                                 <x-ui.input
@@ -1376,18 +1376,18 @@
                                     name="mobile_phone_placeholder"
                                     fieldClasses="mt-1"
                                     x-model="entry.phone"
-                                    x-bind:name="!isDesktop ? `entries[${index}][phone]` : null"
+                                    x-bind:name="!isDesktop ? ('entries[' + (index) + '][phone]') : null"
                                     x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
                                     x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                 <div>
                                     <div class="mt-8 mb-4">
-                                        <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
+                                        <input type="hidden" x-bind:name="!isDesktop ? ('entries[' + (index) + '][media_consent]') : null" value="0">
                                         <x-ui.checkbox
                                             label="Media Consent"
                                             :small="true"
                                             :noWrapper="true"
                                             :inline="true"
-                                            x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
+                                            x-bind:name="!isDesktop ? ('entries[' + (index) + '][media_consent]') : null"
                                             value="1"
                                             x-model="entry.media_consent"
                                             x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"
@@ -1415,14 +1415,14 @@
                             <template x-for="(entry, index) in entries" :key="index">
                                 <tr class="border-b border-slate-100 last:border-b-0">
                                     <td class="p-2 align-top">
-                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][id]` : null" x-model="entry.id">
+                                        <input type="hidden" x-bind:name="isDesktop ? ('entries[' + (index) + '][id]') : null" x-model="entry.id">
                                         <x-ui.input
                                             name="child_name_placeholder"
                                             :noLabel="true"
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.child_name"
-                                            x-bind:name="isDesktop ? `entries[${index}][child_name]` : null"
+                                            x-bind:name="isDesktop ? ('entries[' + (index) + '][child_name]') : null"
                                             x-on:input="entry.child_name = $event.target.value; handleRowChange(index)"
                                             x-on:change="entry.child_name = $event.target.value; handleRowChange(index)" />
                                     </td>
@@ -1433,7 +1433,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.guardian_name"
-                                            x-bind:name="isDesktop ? `entries[${index}][guardian_name]` : null"
+                                            x-bind:name="isDesktop ? ('entries[' + (index) + '][guardian_name]') : null"
                                             x-on:input="entry.guardian_name = $event.target.value; handleRowChange(index)"
                                             x-on:change="entry.guardian_name = $event.target.value; handleRowChange(index)" />
                                     </td>
@@ -1445,7 +1445,7 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.email"
-                                            x-bind:name="isDesktop ? `entries[${index}][email]` : null"
+                                            x-bind:name="isDesktop ? ('entries[' + (index) + '][email]') : null"
                                             x-on:input="entry.email = $event.target.value; handleRowChange(index)"
                                             x-on:change="entry.email = $event.target.value; handleRowChange(index)" />
                                     </td>
@@ -1456,19 +1456,19 @@
                                             class="mb-0"
                                             fieldClasses="mt-0"
                                             x-model="entry.phone"
-                                            x-bind:name="isDesktop ? `entries[${index}][phone]` : null"
+                                            x-bind:name="isDesktop ? ('entries[' + (index) + '][phone]') : null"
                                             x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
                                             x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                     </td>
                                     <td class="p-2 align-middle text-center">
-                                        <input type="hidden" x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null" value="0">
+                                        <input type="hidden" x-bind:name="isDesktop ? ('entries[' + (index) + '][media_consent]') : null" value="0">
                                         <x-ui.checkbox
                                             label="Media consent"
                                             :labelHidden="true"
                                             :small="true"
                                             :noWrapper="true"
                                             :inline="true"
-                                            x-bind:name="isDesktop ? `entries[${index}][media_consent]` : null"
+                                            x-bind:name="isDesktop ? ('entries[' + (index) + '][media_consent]') : null"
                                             value="1"
                                             x-model="entry.media_consent"
                                             x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)"

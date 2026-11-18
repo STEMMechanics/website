@@ -508,7 +508,7 @@
                                     <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
                                         <div class="grid gap-4 md:grid-cols-2">
                                             <div>
-                                                <label x-bind:for="`tracking-link-template-carrier-${templateIndex}`" class="mb-1 block text-sm font-medium text-gray-700">Courier</label>
+                                                <label x-bind:for="('tracking-link-template-carrier-' + (templateIndex) + '')" class="mb-1 block text-sm font-medium text-gray-700">Courier</label>
                                                 <x-ui.input
                                                     type="text"
                                                     :noLabel="true"
@@ -518,14 +518,14 @@
                                                     class="mb-0!"
                                                     :fieldClasses="$inlineInputClasses"
                                                     aria-label="Courier"
-                                                    x-bind:id="`tracking-link-template-carrier-${templateIndex}`"
-                                                    x-bind:name="`tracking_link_templates[${templateIndex}][carrier]`"
+                                                    x-bind:id="('tracking-link-template-carrier-' + (templateIndex) + '')"
+                                                    x-bind:name="('tracking_link_templates[' + (templateIndex) + '][carrier]')"
                                                     x-model="trackingLinkTemplate.carrier"
                                                 />
                                             </div>
                                             <div>
                                                 <label class="mb-1 block text-sm font-medium text-gray-700">Tracking URL Template</label>
-                                                <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`tracking_link_templates[${templateIndex}][template]`" placeholder="https://example.com/track?id={tracking}" x-model="trackingLinkTemplate.template" />
+                                                <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('tracking_link_templates[' + (templateIndex) + '][template]')" placeholder="https://example.com/track?id={tracking}" x-model="trackingLinkTemplate.template" />
                                             </div>
                                         </div>
                                         <x-ui.button
@@ -569,15 +569,15 @@
                 </div>
 
                 <div class="space-y-4">
-                    <template x-for="(method, index) in shippingMethods" :key="method.id ?? `new-${index}`">
+                    <template x-for="(method, index) in shippingMethods" :key="method.id ?? ('new-' + (index) + '')">
                         <section class="rounded-3xl border border-gray-200 bg-gray-50/80 p-3 sm:p-5">
-                            <input type="hidden" :name="`shipping_methods[${index}][id]`" :value="method.id ?? ''">
-                            <input type="hidden" :name="`shipping_methods[${index}][is_active]`" :value="method.is_active ? 1 : 0">
+                            <input type="hidden" :name="('shipping_methods[' + (index) + '][id]')" :value="method.id ?? ''">
+                            <input type="hidden" :name="('shipping_methods[' + (index) + '][is_active]')" :value="method.is_active ? 1 : 0">
 
                             <div class="flex flex-wrap items-start justify-between gap-4">
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
-                                        <h3 class="text-lg font-semibold text-gray-900" x-text="method.name || method.code || `Delivery Channel ${index + 1}`"></h3>
+                                        <h3 class="text-lg font-semibold text-gray-900" x-text="method.name || method.code || ('Delivery Channel ' + (index + 1) + '')"></h3>
                                         <x-ui.badge color="gray" variant="outline" class="font-medium" x-text="channelUsesFreeCollection(method) ? 'Collection' : 'Shipping'"></x-ui.badge>
                                         <x-ui.badge color="gray" variant="outline" class="font-medium" x-show="!method.is_active" x-cloak>Inactive</x-ui.badge>
                                     </div>
@@ -589,46 +589,46 @@
                             <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Code</label>
-                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][code]`" x-model="method.code" />
+                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][code]')" x-model="method.code" />
                                 </div>
                                 <div class="xl:col-span-2">
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][name]`" x-model="method.name" />
+                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][name]')" x-model="method.name" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
-                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][sort_order]`" x-model="method.sort_order" />
+                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][sort_order]')" x-model="method.sort_order" />
                                 </div>
                             </div>
 
                             <div class="mt-4">
                                 <label class="mb-1 block text-sm font-medium text-gray-700">Customer Note</label>
-                                <x-ui.textarea-control rows="2" class="{{ $inlineTextareaClasses }}" x-bind:name="`shipping_methods[${index}][description]`" x-model="method.description"></x-ui.textarea-control>
+                                <x-ui.textarea-control rows="2" class="{{ $inlineTextareaClasses }}" x-bind:name="('shipping_methods[' + (index) + '][description]')" x-model="method.description"></x-ui.textarea-control>
                             </div>
 
                             <div class="mt-4 grid gap-4 md:grid-cols-3">
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Shipment Term</label>
-                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][shipment_label]`" x-model="method.shipment_label" />
+                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][shipment_label]')" x-model="method.shipment_label" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Now Term</label>
-                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][immediate_status_label]`" x-model="method.immediate_status_label" />
+                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][immediate_status_label]')" x-model="method.immediate_status_label" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">Later Term</label>
-                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][delayed_status_label]`" x-model="method.delayed_status_label" />
+                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][delayed_status_label]')" x-model="method.delayed_status_label" />
                                 </div>
                             </div>
 
                             <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">ETA Min Days</label>
-                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][delivery_estimate_min_days]`" x-model="method.delivery_estimate_min_days" />
+                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][delivery_estimate_min_days]')" x-model="method.delivery_estimate_min_days" />
                                 </div>
                                 <div>
                                     <label class="mb-1 block text-sm font-medium text-gray-700">ETA Max Days</label>
-                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][delivery_estimate_max_days]`" x-model="method.delivery_estimate_max_days" />
+                                    <x-ui.input-control type="number" min="0" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][delivery_estimate_max_days]')" x-model="method.delivery_estimate_max_days" />
                                 </div>
                             </div>
 
@@ -641,8 +641,8 @@
                                     </span>
                                 </label>
                                 <label class="{{ $toggleCardClasses }}">
-                                    <input type="hidden" :name="`shipping_methods[${index}][suppresses_request_quote]`" value="0">
-                                    <x-ui.checkbox bare small value="1" class="mt-0.5" x-bind:name="`shipping_methods[${index}][suppresses_request_quote]`" x-model="method.suppresses_request_quote" />
+                                    <input type="hidden" :name="('shipping_methods[' + (index) + '][suppresses_request_quote]')" value="0">
+                                    <x-ui.checkbox bare small value="1" class="mt-0.5" x-bind:name="('shipping_methods[' + (index) + '][suppresses_request_quote]')" x-model="method.suppresses_request_quote" />
                                     <span class="block">
                                         <span class="block font-medium text-gray-900">Can replace a manual quote</span>
                                         <span class="mt-1 block text-gray-500">When this channel can fulfil the cart, Request Quote is hidden. Leave this off for pickup or collection.</span>
@@ -654,8 +654,8 @@
                             </div>
 
                             <div class="mt-5">
-                                <input type="hidden" :name="`shipping_methods[${index}][is_pickup]`" :value="method.is_pickup ? 1 : 0">
-                                <x-ui.select label="Pricing type" class="mb-0" x-bind:id="`shipping-pricing-type-${index}`" x-bind:name="`shipping_methods[${index}][pricing_type]`" x-model="method.pricing_type" x-on:change="changePricingType(method)" info="Saved box sizes, calculated rates, and cart value tiers are retained when you switch pricing types.">
+                                <input type="hidden" :name="('shipping_methods[' + (index) + '][is_pickup]')" :value="method.is_pickup ? 1 : 0">
+                                <x-ui.select label="Pricing type" class="mb-0" x-bind:id="('shipping-pricing-type-' + (index) + '')" x-bind:name="('shipping_methods[' + (index) + '][pricing_type]')" x-model="method.pricing_type" x-on:change="changePricingType(method)" info="Saved box sizes, calculated rates, and cart value tiers are retained when you switch pricing types.">
                                     <option value="pickup">Free collection / pickup</option>
                                     <option value="calculated">Calculated weight / volume pricing</option>
                                     <option value="cart_value">Cart value pricing</option>
@@ -670,19 +670,19 @@
                                     </div>
                                     <x-ui.button type="button" color="outline" x-on:click="method.cart_value_tiers.push({ min_cart_value: method.cart_value_tiers.length ? '' : '0.00', price: '' })">Add Tier</x-ui.button>
                                 </div>
-                                <template x-for="message in fieldErrors(`shipping_methods.${index}.cart_value_tiers`)" :key="message"><div class="mt-2 text-sm text-red-600" x-text="message"></div></template>
+                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.cart_value_tiers'))" :key="message"><div class="mt-2 text-sm text-red-600" x-text="message"></div></template>
                                 <div class="mt-4 space-y-3">
                                     <template x-for="(tier, tierIndex) in method.cart_value_tiers" :key="tierIndex">
                                         <div class="grid items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                                             <div>
-                                                <label class="mb-1 block text-sm font-medium text-gray-700" :for="`cart-value-min-${index}-${tierIndex}`">Cart value at least (inc. GST)</label>
-                                                <x-ui.input-control type="number" min="0" max="9999999.99" step="0.01" required class="{{ $inlineInputClasses }}" x-bind:id="`cart-value-min-${index}-${tierIndex}`" x-bind:name="`shipping_methods[${index}][cart_value_tiers][${tierIndex}][min_cart_value]`" x-model="tier.min_cart_value" x-bind:class="hasFieldError(`shipping_methods.${index}.cart_value_tiers.${tierIndex}.min_cart_value`) && 'border-red-400'" />
-                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.cart_value_tiers.${tierIndex}.min_cart_value`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700" :for="('cart-value-min-' + (index) + '-' + (tierIndex) + '')">Cart value at least (inc. GST)</label>
+                                                <x-ui.input-control type="number" min="0" max="9999999.99" step="0.01" required class="{{ $inlineInputClasses }}" x-bind:id="('cart-value-min-' + (index) + '-' + (tierIndex) + '')" x-bind:name="('shipping_methods[' + (index) + '][cart_value_tiers][' + (tierIndex) + '][min_cart_value]')" x-model="tier.min_cart_value" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.cart_value_tiers.' + (tierIndex) + '.min_cart_value')) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.cart_value_tiers.' + (tierIndex) + '.min_cart_value'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                             </div>
                                             <div>
-                                                <label class="mb-1 block text-sm font-medium text-gray-700" :for="`cart-value-price-${index}-${tierIndex}`">Freight charge (inc. GST)</label>
-                                                <x-ui.input-control type="number" min="0" max="9999.99" step="0.01" required class="{{ $inlineInputClasses }}" x-bind:id="`cart-value-price-${index}-${tierIndex}`" x-bind:name="`shipping_methods[${index}][cart_value_tiers][${tierIndex}][price]`" x-model="tier.price" x-bind:class="hasFieldError(`shipping_methods.${index}.cart_value_tiers.${tierIndex}.price`) && 'border-red-400'" />
-                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.cart_value_tiers.${tierIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700" :for="('cart-value-price-' + (index) + '-' + (tierIndex) + '')">Freight charge (inc. GST)</label>
+                                                <x-ui.input-control type="number" min="0" max="9999.99" step="0.01" required class="{{ $inlineInputClasses }}" x-bind:id="('cart-value-price-' + (index) + '-' + (tierIndex) + '')" x-bind:name="('shipping_methods[' + (index) + '][cart_value_tiers][' + (tierIndex) + '][price]')" x-model="tier.price" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.cart_value_tiers.' + (tierIndex) + '.price')) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.cart_value_tiers.' + (tierIndex) + '.price'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                             </div>
                                             <x-ui.button variant="plain" type="button" class="justify-self-end rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 sm:mt-6" x-on:click="method.cart_value_tiers.splice(tierIndex, 1)" title="Remove tier" aria-label="Remove cart value tier" size="icon">
                                                 <i class="fa-solid fa-trash text-sm" aria-hidden="true"></i>
@@ -694,8 +694,8 @@
                             </fieldset>
 
                             <fieldset class="min-w-0" x-show="method.pricing_type === 'calculated'" x-bind:disabled="method.pricing_type !== 'calculated'" x-cloak>
-                            <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(`shipping_methods.${index}.weight_tiers`) || key === `shipping_methods.${index}.cubic_divisor` || key === `shipping_methods.${index}.calculated_packaging_cost`)">
-                                <x-slot:summary><span x-text="method.weight_tiers.length ? `${method.weight_tiers.length} weight tier${method.weight_tiers.length === 1 ? '' : 's'} · $${Number(method.calculated_packaging_cost || 0).toFixed(2)} packaging per box` : 'Not configured'"></span></x-slot:summary>
+                            <x-ui.collapsible-section title="Calculated Box Pricing" variant="product" class="mt-5 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(('shipping_methods.' + (index) + '.weight_tiers')) || key === ('shipping_methods.' + (index) + '.cubic_divisor') || key === ('shipping_methods.' + (index) + '.calculated_packaging_cost'))">
+                                <x-slot:summary><span x-text="method.weight_tiers.length ? ('' + (method.weight_tiers.length) + ' weight tier' + (method.weight_tiers.length === 1 ? '' : 's') + ' · $' + (Number(method.calculated_packaging_cost || 0).toFixed(2)) + ' packaging per box') : 'Not configured'"></span></x-slot:summary>
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0 flex-1">
                                         <p class="mt-1 text-sm text-gray-600">Optional. Chargeable weight is the higher of actual weight and cubic weight for each packed box. Whole items are split into more boxes when needed, and fixed-price boxes can be mixed in to reduce the total.</p>
@@ -705,30 +705,30 @@
                                 <div class="mt-4 grid gap-4 md:grid-cols-2">
                                     <div class="min-w-0">
                                         <label class="mb-1 block text-sm font-medium text-gray-700">Cubic weight divisor (mm³ per gram)</label>
-                                        <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][cubic_divisor]`" x-model="method.cubic_divisor" x-bind:class="hasFieldError(`shipping_methods.${index}.cubic_divisor`) && 'border-red-400'" />
+                                        <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][cubic_divisor]')" x-model="method.cubic_divisor" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.cubic_divisor')) && 'border-red-400'" />
                                         <p class="mt-1 text-sm text-gray-500">Length × width × height in mm ÷ divisor = cubic weight in grams. For example, 200 × 200 × 200 ÷ 4000 = 2000 g. Uses estimated packed box dimensions, including empty space. Clear the divisor and remove all tiers to disable calculated pricing.</p>
-                                        <template x-for="message in fieldErrors(`shipping_methods.${index}.cubic_divisor`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                        <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.cubic_divisor'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                     </div>
                                     <div class="min-w-0">
                                         <label class="mb-1 block text-sm font-medium text-gray-700">Packaging cost per box (inc. GST)</label>
-                                        <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][calculated_packaging_cost]`" x-model="method.calculated_packaging_cost" x-bind:class="hasFieldError(`shipping_methods.${index}.calculated_packaging_cost`) && 'border-red-400'" />
+                                        <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][calculated_packaging_cost]')" x-model="method.calculated_packaging_cost" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.calculated_packaging_cost')) && 'border-red-400'" />
                                         <p class="mt-1 text-sm text-gray-500">Added to the postage tier for every calculated box, including additional boxes in a shipment. Enter 0 if packaging is already included. Fixed-price boxes already include packaging.</p>
-                                        <template x-for="message in fieldErrors(`shipping_methods.${index}.calculated_packaging_cost`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                        <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.calculated_packaging_cost'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                     </div>
                                 </div>
-                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.weight_tiers'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                 <div class="mt-4 grid gap-3 xl:grid-cols-2">
                                     <template x-for="(tier, tierIndex) in method.weight_tiers" :key="tierIndex">
                                         <div class="grid items-start gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                                             <div>
                                                 <label class="mb-1 block text-sm font-medium text-gray-700">Chargeable weight up to (g)</label>
-                                                <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][weight_tiers][${tierIndex}][max_weight_grams]`" x-model="tier.max_weight_grams" x-bind:class="hasFieldError(`shipping_methods.${index}.weight_tiers.${tierIndex}.max_weight_grams`) && 'border-red-400'" />
-                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers.${tierIndex}.max_weight_grams`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                <x-ui.input-control type="number" min="1" step="1" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][weight_tiers][' + (tierIndex) + '][max_weight_grams]')" x-model="tier.max_weight_grams" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.weight_tiers.' + (tierIndex) + '.max_weight_grams')) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.weight_tiers.' + (tierIndex) + '.max_weight_grams'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                             </div>
                                             <div>
                                                 <label class="mb-1 block text-sm font-medium text-gray-700">Postage price (inc. GST)</label>
-                                                <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][weight_tiers][${tierIndex}][price]`" x-model="tier.price" x-bind:class="hasFieldError(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`) && 'border-red-400'" />
-                                                <template x-for="message in fieldErrors(`shipping_methods.${index}.weight_tiers.${tierIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                <x-ui.input-control type="number" min="0" step="0.01" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][weight_tiers][' + (tierIndex) + '][price]')" x-model="tier.price" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.weight_tiers.' + (tierIndex) + '.price')) && 'border-red-400'" />
+                                                <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.weight_tiers.' + (tierIndex) + '.price'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                             </div>
                                             <x-ui.button variant="plain" type="button" class="justify-self-end rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 sm:mt-6" x-on:click="method.weight_tiers.splice(tierIndex, 1)" title="Remove tier" aria-label="Remove tier" size="icon">
                                                 <i class="fa-solid fa-trash text-sm" aria-hidden="true"></i>
@@ -739,8 +739,8 @@
                                 <p class="mt-3 text-sm text-gray-500">Limits are inclusive and sorted by weight when saved. A single item above the highest limit needs another eligible shipping option or a manual quote.</p>
                             </x-ui.collapsible-section>
 
-                            <x-ui.collapsible-section title="Fixed-price Box Options" variant="product" class="mt-4 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(`shipping_methods.${index}.packages`))">
-                                <x-slot:summary><span x-text="method.packages.length ? `${method.packages.filter(item => item.is_active).length} active / ${method.packages.length} box option${method.packages.length === 1 ? '' : 's'}` : 'No fixed-price boxes'"></span></x-slot:summary>
+                            <x-ui.collapsible-section title="Fixed-price Box Options" variant="product" class="mt-4 min-w-0 [&_.ui-collapsible-section__summary-text--title]:whitespace-normal" x-on:invalid.capture="$el.open = true" x-bind:open="Object.keys(validationErrors).some(key => key.startsWith(('shipping_methods.' + (index) + '.packages')))">
+                                <x-slot:summary><span x-text="method.packages.length ? ('' + (method.packages.filter(item => item.is_active).length) + ' active / ' + (method.packages.length) + ' box option' + (method.packages.length === 1 ? '' : 's') + '') : 'No fixed-price boxes'"></span></x-slot:summary>
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div class="min-w-0 flex-1">
                                         <div class="mt-1 text-sm text-gray-600">Dimensions are the usable internal measurements of each box. Price is the GST-inclusive customer charge and includes the box and postage.</div>
@@ -756,18 +756,18 @@
                                 </div>
 
                                 <div class="mt-4 grid items-start gap-4 xl:grid-cols-2" x-show="!channelUsesFreeCollection(method) || method.packages.length > 0" x-cloak>
-                                    <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id ?? `package-${packageIndex}`">
+                                    <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id ?? ('package-' + (packageIndex) + '')">
                                         <section
                                             class="rounded-2xl border bg-white p-4 shadow-sm"
-                                            :class="Object.keys(validationErrors).some((key) => key.startsWith(`shipping_methods.${index}.packages.${packageIndex}.`)) ? 'border-red-300' : 'border-gray-200'"
+                                            :class="Object.keys(validationErrors).some((key) => key.startsWith(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.'))) ? 'border-red-300' : 'border-gray-200'"
                                         >
-                                            <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][id]`" :value="packageOption.id ?? ''">
-                                            <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][is_active]`" :value="packageOption.is_active ? 1 : 0">
+                                            <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][id]')" :value="packageOption.id ?? ''">
+                                            <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][is_active]')" :value="packageOption.is_active ? 1 : 0">
 
                                             <div class="flex flex-wrap items-start justify-between gap-4">
                                                 <div class="min-w-0">
                                                     <div class="flex flex-wrap items-center gap-2">
-                                                        <h4 class="font-semibold text-gray-900" x-text="packageOption.label || `Package ${packageIndex + 1}`"></h4>
+                                                        <h4 class="font-semibold text-gray-900" x-text="packageOption.label || ('Package ' + (packageIndex + 1) + '')"></h4>
                                                         <x-ui.badge color="gray" x-show="!packageOption.is_active" x-cloak>Inactive</x-ui.badge>
                                                     </div>
                                                     <p class="mt-1 text-sm text-gray-500">Use package rows to define the parcel sizes and prices available in this channel.</p>
@@ -778,17 +778,17 @@
                                             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Code</label>
-                                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.code`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][code]`" x-model="packageOption.code" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.code`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.code')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][code]')" x-model="packageOption.code" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.code'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div class="sm:col-span-2">
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Label</label>
-                                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.label`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][label]`" x-model="packageOption.label" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.label`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="text" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.label')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][label]')" x-model="packageOption.label" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.label'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
-                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][sort_order]`" x-model="packageOption.sort_order" />
+                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][sort_order]')" x-model="packageOption.sort_order" />
                                                 </div>
                                                 <label class="{{ $toggleCardClasses }} px-3! py-2.5!">
                                                     <x-ui.checkbox bare small class="mt-0.5" x-model="packageOption.is_active" />
@@ -799,32 +799,32 @@
                                                 </label>
                                             </div>
 
-                                            <input type="hidden" :name="`shipping_methods[${index}][packages][${packageIndex}][capacity]`" value="1.00">
+                                            <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][capacity]')" value="1.00">
                                             <div class="mt-4 grid gap-4 sm:grid-cols-2">
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal length (mm)</label>
-                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_length_mm`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][internal_length_mm]`" x-model="packageOption.internal_length_mm" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_length_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_length_mm')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][internal_length_mm]')" x-model="packageOption.internal_length_mm" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_length_mm'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal width (mm)</label>
-                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_width_mm`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][internal_width_mm]`" x-model="packageOption.internal_width_mm" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_width_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_width_mm')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][internal_width_mm]')" x-model="packageOption.internal_width_mm" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_width_mm'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Internal height (mm)</label>
-                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.internal_height_mm`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][internal_height_mm]`" x-model="packageOption.internal_height_mm" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.internal_height_mm`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_height_mm')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][internal_height_mm]')" x-model="packageOption.internal_height_mm" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.internal_height_mm'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Maximum weight (g)</label>
-                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.max_weight_grams`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][max_weight_grams]`" x-model="packageOption.max_weight_grams" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.max_weight_grams`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="number" min="1" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.max_weight_grams')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][max_weight_grams]')" x-model="packageOption.max_weight_grams" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.max_weight_grams'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                                 <div>
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Price (inc. GST)</label>
-                                                    <x-ui.input-control type="number" step="0.01" min="0" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(`shipping_methods.${index}.packages.${packageIndex}.price`) && 'border-red-400'" x-bind:name="`shipping_methods[${index}][packages][${packageIndex}][price]`" x-model="packageOption.price" />
-                                                    <template x-for="message in fieldErrors(`shipping_methods.${index}.packages.${packageIndex}.price`)" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
+                                                    <x-ui.input-control type="number" step="0.01" min="0" class="{{ $inlineInputClasses }}" x-bind:class="hasFieldError(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.price')) && 'border-red-400'" x-bind:name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][price]')" x-model="packageOption.price" />
+                                                    <template x-for="message in fieldErrors(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.price'))" :key="message"><div class="mt-1 text-sm text-red-600" x-text="message"></div></template>
                                                 </div>
                                             </div>
                                         </section>

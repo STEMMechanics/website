@@ -479,7 +479,7 @@
                         return;
                     }
 
-                    if (!window.SM?.shopCart) {
+                    if (!$SM?.shopCart) {
                         form.submit();
                         return;
                     }
@@ -487,7 +487,7 @@
                     this.busyCartLineKey = lineKey;
 
                     try {
-                        await window.SM.shopCart.submitAddForm(form, {
+                        await $SM.shopCart.submitAddForm(form, {
                             addedLineKey: lineKey,
                         });
                     } finally {
@@ -495,7 +495,7 @@
                     }
                 },
                 async removeOptionFromCart(option) {
-                    if (!option || this.busyCartLineKey || !window.SM?.shopCart) {
+                    if (!option || this.busyCartLineKey || !$SM?.shopCart) {
                         return;
                     }
 
@@ -504,19 +504,19 @@
                     this.busyCartLineKey = lineKey;
 
                     try {
-                        await window.SM.shopCart.removeLine(lineKey, {
+                        await $SM.shopCart.removeLine(lineKey, {
                             shippingCountry: this.cartState?.shipping_country || 'Australia',
                             showNotice: false,
                         });
-                        if (typeof window.SM.alert === 'function') {
-                            window.SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
+                        if (typeof $SM.alert === 'function') {
+                            $SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
                         }
                     } finally {
                         this.busyCartLineKey = null;
                     }
                 },
                 async changeOptionCartQuantity(option, nextQuantity) {
-                    if (!option || this.busyCartLineKey || !window.SM?.shopCart) {
+                    if (!option || this.busyCartLineKey || !$SM?.shopCart) {
                         return;
                     }
 
@@ -528,17 +528,17 @@
 
                     try {
                         if (resolvedQuantity <= 0) {
-                            await window.SM.shopCart.removeLine(lineKey, {
+                            await $SM.shopCart.removeLine(lineKey, {
                                 shippingCountry: this.cartState?.shipping_country || 'Australia',
                                 showNotice: false,
                             });
-                            if (typeof window.SM.alert === 'function') {
-                                window.SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
+                            if (typeof $SM.alert === 'function') {
+                                $SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
                             }
                             return;
                         }
 
-                        await window.SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
+                        await $SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
                             max: maxQuantity,
                             shippingCountry: this.cartState?.shipping_country || 'Australia',
                             showNotice: false,
@@ -548,7 +548,7 @@
                     }
                 },
                 async changeCartQuantity(nextQuantity) {
-                    if (this.busyCartLineKey || !window.SM?.shopCart) {
+                    if (this.busyCartLineKey || !$SM?.shopCart) {
                         return;
                     }
 
@@ -560,17 +560,17 @@
 
                     try {
                         if (resolvedQuantity <= 0) {
-                            await window.SM.shopCart.removeLine(lineKey, {
+                            await $SM.shopCart.removeLine(lineKey, {
                                 shippingCountry: this.cartState?.shipping_country || 'Australia',
                                 showNotice: false,
                             });
-                            if (typeof window.SM.alert === 'function') {
-                                window.SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
+                            if (typeof $SM.alert === 'function') {
+                                $SM.alert('Removed from cart', `${removedTitle} has been removed from your cart.`, 'danger');
                             }
                             return;
                         }
 
-                        await window.SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
+                        await $SM.shopCart.updateQuantity(lineKey, resolvedQuantity, {
                             max: maxQuantity,
                             shippingCountry: this.cartState?.shipping_country || 'Australia',
                             showNotice: false,
@@ -584,18 +584,18 @@
                     this.syncAddQuantity();
                     this.syncOptionDraftQuantities();
 
-                    if (!window.SM?.shopCart) {
+                    if (!$SM?.shopCart) {
                         return;
                     }
 
-                    window.SM.shopCart.configure({
+                    $SM.shopCart.configure({
                         showUrl: @js(route('shop.cart.show')),
                         updateUrl: @js(route('shop.cart.update')),
                         removeUrl: @js(route('shop.cart.remove')),
                         initialState: @js($cartPayload),
                     });
 
-                    window.SM.shopCart.subscribe((cart) => this.setCartState(cart));
+                    $SM.shopCart.subscribe((cart) => this.setCartState(cart));
                 },
             }"
         >

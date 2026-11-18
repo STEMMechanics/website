@@ -3,7 +3,7 @@
     $allocationCategories = $allocationEditor->categories();
     $allocationEditorConfig = ['categories' => $allocationCategories->pluck('id')->all(), 'centres' => app(\App\Services\Finance\ProductCostAllocation::class)->centres(), 'taxRate' => (float) ($product->tax_rate ?? \App\Services\Finance\GstRate::current()), 'data' => $allocationEditor->data($product ?? null), 'old' => old('product_allocations_json') ? json_decode(old('product_allocations_json'), true) : null];
 @endphp
-<div x-data="SM.productAllocationEditor(@js($allocationEditorConfig))" id="cost-centre-allocation">
+<div x-data="$SM.productAllocationEditor(@js($allocationEditorConfig))" id="cost-centre-allocation">
     <x-ui.collapsible-section title="Cost centre allocation" variant="product" :open="!isset($product) || $errors->has('product_allocations_json')">
         <x-slot:summary><span x-text="summary" x-bind:class="summary.includes('need allocation review') ? 'text-amber-800' : ''"></span></x-slot:summary>
         <input type="hidden" name="product_allocations_json" x-bind:value="payload" x-bind:disabled="automaticAllocation">
@@ -32,7 +32,7 @@
                 </thead>
                 <tbody>
                     @foreach($allocationCategories as $category)
-                        <tr class="border-b border-slate-100" data-category-name="{{ $category->name }}" x-show="!automaticAllocation || columns.some(column => Number(values(column)[{{ $category->id }}].amount) > 0)">
+                        <tr class="border-b border-slate-100" data-category-name="{{ $category->name }}" x-show="!automaticAllocation || $SM.hasPositiveColumnAllocation(columns, values, {{ $category->id }})">
                             <th scope="row" class="sticky left-0 z-10 bg-white py-3 pr-3 text-left font-medium">{{ $category->name }}</th>
                             <template x-for="column in columns" :key="column.key">
                                 <td class="px-3 py-3 align-top" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'">
@@ -55,7 +55,7 @@
                     @endforeach
                 </tbody>
                 <tfoot>
-                    <tr x-show="automaticAllocation && columns.some(column => !total(column).unknown && total(column).remaining > 0)" x-cloak class="border-b border-slate-100">
+                    <tr x-show="automaticAllocation && $SM.hasUnallocatedColumnRemainder(columns, total)" x-cloak class="border-b border-slate-100">
                         <th scope="row" class="sticky left-0 bg-white py-3 pr-3 text-left font-medium">Available business cash</th>
                         <template x-for="column in columns" :key="column.key">
                             <td class="px-3 py-3 tabular-nums" x-bind:class="mobileColumn === column.key ? '' : 'hidden md:table-cell'" x-text="total(column).unknown ? '—' : '$' + (total(column).remaining / 100).toFixed(2)"></td>

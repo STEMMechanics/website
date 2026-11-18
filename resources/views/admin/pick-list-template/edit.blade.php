@@ -83,7 +83,7 @@
             taskEditorTab: 'details',
             taskEditorExpanded: false,
             submitting: false,
-            ...window.SM.drawingCanvas({
+            ...$SM.drawingCanvas({
                 initialData: @js(old('run_sheet_canvas_data', $template->run_sheet_canvas_data ?? '')),
                 initialImage: @js(old('run_sheet_drawing_data', $template->run_sheet_drawing_data ?? '')),
                 exportName: @js(($template->name ?? 'workshop-template').'-drawing'),
@@ -345,7 +345,7 @@
                 item.product_variant_id = null;
                 item.length = null;
                 item.length_unit = this.productCatalog.find(option => Number(option.id) === Number(item.product_id))?.measure_unit || 'mm';
-                item.quantity_unit = item.product_id ? window.SM.defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
+                item.quantity_unit = item.product_id ? $SM.defaultProductQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id))) : null;
                 item.item_name = item.product_id ? this.productItemLabel(item) : (item.item_name || '');
                 this.handleRowChange(index);
             },
@@ -448,7 +448,7 @@
                         cut_size_id: Number(item.cut_size_id) || null,
                         length: item.length === '' || item.length === undefined ? null : item.length,
                         length_unit: item.length ? item.length_unit : null,
-                        quantity_unit: item.product_id ? window.SM.productQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : null,
+                        quantity_unit: item.product_id ? $SM.productQuantityUnit(this.productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : null,
                         quantity_type: item.quantity_type,
                         quantity_value: Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1),
                         sort_order: (index + 1) * 10,
@@ -463,14 +463,14 @@
                     await this.saveDrawing();
                 } catch (error) {
                     console.error('Could not prepare the blueprint drawing for save.', error);
-                    window.SM?.alert('Drawing could not be saved', 'The other blueprint changes will still be saved.', 'warning');
+                    $SM?.alert('Drawing could not be saved', 'The other blueprint changes will still be saved.', 'warning');
                 }
 
                 try {
                     this.$refs.itemsPayload.value = this.serializedItems();
                 } catch (error) {
                     console.error('Could not serialize the blueprint pick list.', error);
-                    window.SM?.alert('Pick list could not be prepared', 'The other blueprint changes will still be saved.', 'danger');
+                    $SM?.alert('Pick list could not be prepared', 'The other blueprint changes will still be saved.', 'danger');
                 }
 
                 HTMLFormElement.prototype.submit.call(form);
@@ -557,7 +557,7 @@
                     </div>
                 </div>
                 <div class="space-y-3">
-                    <template x-for="(task, index) in tasks" :key="task.id || `new-task-${index}`">
+                    <template x-for="(task, index) in tasks" :key="task.id || ('new-task-' + (index) + '')">
                         <x-ui.grid class="gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 md:grid-cols-[minmax(0,1fr)_auto]">
                             <div>
                                 <label class="block text-sm pl-1 mb-1">Task</label>
@@ -572,7 +572,7 @@
                                 </div>
                                 <div class="mt-1 pl-1 flex flex-wrap gap-2 text-xs text-gray-500">
                                     <span x-show="String(task.notes || '').trim() !== ''"><i class="fa-regular fa-note-sticky mr-1"></i>Has notes</span>
-                                    <span x-show="task.reminder_enabled"><i class="fa-regular fa-bell mr-1"></i><span x-text="`${task.reminder_days} day${Number(task.reminder_days) === 1 ? '' : 's'} ${task.reminder_direction} at ${task.reminder_time}`"></span></span>
+                                    <span x-show="task.reminder_enabled"><i class="fa-regular fa-bell mr-1"></i><span x-text="('' + (task.reminder_days) + ' day' + (Number(task.reminder_days) === 1 ? '' : 's') + ' ' + (task.reminder_direction) + ' at ' + (task.reminder_time) + '')"></span></span>
                                 </div>
                             </div>
                         </x-ui.grid>
@@ -594,8 +594,8 @@
 
                             <div class="mb-5 flex items-end gap-1 overflow-x-auto border-b border-gray-200" role="tablist">
                                 <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === 'details' ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = 'details'">Details and Alerts</x-ui.button>
-                                <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-tab-${subtaskIndex}`">
-                                    <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === `subtask-${subtaskIndex}` ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = `subtask-${subtaskIndex}`" x-text="subtask.title || `Subtask ${subtaskIndex + 1}`"></x-ui.button>
+                                <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-tab-' + (subtaskIndex) + '')">
+                                    <x-ui.button variant="plain" type="button" class="max-w-48 shrink-0 truncate rounded-t-lg border border-b-0 px-4 py-2 text-sm font-semibold" x-bind:class="taskEditorTab === ('subtask-' + (subtaskIndex) + '') ? 'border-gray-300 bg-white text-primary-color' : 'border-transparent bg-gray-100 text-gray-600'" x-on:click="taskEditorTab = ('subtask-' + (subtaskIndex) + '')" x-text="subtask.title || ('Subtask ' + (subtaskIndex + 1) + '')"></x-ui.button>
                                 </template>
                                 <x-ui.button variant="plain" type="button" class="shrink-0 rounded-t-lg border border-transparent bg-sky-50 px-4 py-2 text-sm font-semibold text-primary-color hover:bg-sky-100" x-on:click="addSubtask()" title="Add subtask"><i class="fa-solid fa-plus" aria-hidden="true"></i></x-ui.button>
                             </div>
@@ -626,8 +626,8 @@
                                 </div>
                             </div>
 
-                            <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="`subtask-panel-${subtaskIndex}`">
-                                <div x-show="taskEditorTab === `subtask-${subtaskIndex}`">
+                            <template x-for="(subtask, subtaskIndex) in tasks[taskEditorIndex].subtasks" :key="('subtask-panel-' + (subtaskIndex) + '')">
+                                <div x-show="taskEditorTab === ('subtask-' + (subtaskIndex) + '')">
                                     <div class="mb-4 flex items-end gap-3">
                                         <label class="block min-w-0 flex-1"><span class="mb-1 block pl-1 text-sm">Tab title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900" x-model="subtask.title" /></label>
                                         <x-ui.button variant="plain" type="button" class="mb-1 rounded-lg px-3 py-2 text-sm text-red-600 hover:bg-red-50" x-on:click="removeSubtask(subtaskIndex)"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Remove</x-ui.button>
@@ -681,17 +681,17 @@
                                             <x-admin.product-item-field class="min-w-56 flex-1" catalog-expression="productCatalog" :item-name-suggestions="$blueprintItemNames ?? []" />
                                             <x-admin.product-preparation-fields :inline="true" />
                                         </div>
-                                        <input type="hidden" x-bind:name="`items[${index}][item_name]`" x-bind:value="item.item_name ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][id]`" x-bind:value="item.id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][product_id]`" x-bind:value="item.product_id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][product_variant_id]`" x-bind:value="item.product_variant_id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][cut_size_id]`" x-bind:value="item.cut_size_id ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][length]`" x-bind:value="item.length ?? ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][length_unit]`" x-bind:value="item.length ? item.length_unit : ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][quantity_unit]`" x-bind:value="item.product_id ? window.SM.productQuantityUnit(productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : ''">
-                                        <input type="hidden" x-bind:name="`items[${index}][quantity_type]`" x-bind:value="item.quantity_type">
-                                        <input type="hidden" x-bind:name="`items[${index}][quantity_value]`" x-bind:value="item.quantity_value">
-                                        <input type="hidden" x-bind:name="`items[${index}][sort_order]`" x-bind:value="item.sort_order">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][item_name]')" x-bind:value="item.item_name ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][id]')" x-bind:value="item.id ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_id]')" x-bind:value="item.product_id ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][product_variant_id]')" x-bind:value="item.product_variant_id ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][cut_size_id]')" x-bind:value="item.cut_size_id ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length]')" x-bind:value="item.length ?? ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][length_unit]')" x-bind:value="item.length ? item.length_unit : ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_unit]')" x-bind:value="item.product_id ? $SM.productQuantityUnit(productCatalog.find(option => Number(option.id) === Number(item.product_id)), item) : ''">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_type]')" x-bind:value="item.quantity_type">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][quantity_value]')" x-bind:value="item.quantity_value">
+                                        <input type="hidden" x-bind:name="('items[' + (index) + '][sort_order]')" x-bind:value="item.sort_order">
                                         <x-ui.grid class="md:hidden mt-2 gap-2">
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div>
@@ -814,7 +814,7 @@
                         <div class="flex items-center justify-between gap-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
                             <div class="min-w-0">
                                 <div class="truncate" x-text="name"></div>
-                                <div class="text-xs text-gray-500" x-text="attachmentDetails[name] ? `${attachmentDetails[name].type} · ${attachmentSize(attachmentDetails[name].size)}` : 'File details available after saving'"></div>
+                                <div class="text-xs text-gray-500" x-text="attachmentDetails[name] ? ('' + (attachmentDetails[name].type) + ' · ' + (attachmentSize(attachmentDetails[name].size)) + '') : 'File details available after saving'"></div>
                             </div>
                             <div class="flex shrink-0 items-center gap-3">
                                 <a x-show="attachmentDetails[name]?.view_url" x-bind:href="attachmentDetails[name]?.view_url" target="_blank" class="text-gray-500 hover:text-primary-color" title="View attachment" rel="noopener"><i class="fa-solid fa-eye"></i></a>
@@ -827,7 +827,7 @@
                 <div class="mt-3 space-y-2" x-show="pendingAttachments.length > 0">
                     <template x-for="(item, index) in pendingAttachments" :key="item.key">
                         <div class="flex items-center justify-between gap-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm">
-                            <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="`${item.file.type || 'File'} · ${attachmentSize(item.size)}`"></div></div>
+                            <div class="min-w-0"><div class="truncate" x-text="item.name"></div><div class="text-xs text-gray-500" x-text="('' + (item.file.type || 'File') + ' · ' + (attachmentSize(item.size)) + '')"></div></div>
                             <x-ui.button variant="plain" type="button" class="shrink-0 text-red-600 hover:text-red-700" x-on:click.stop="removePendingAttachment(index)" title="Remove pending upload"><i class="fa-solid fa-xmark" aria-hidden="true"></i></x-ui.button>
                         </div>
                     </template>

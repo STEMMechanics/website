@@ -33,11 +33,6 @@
     $hasSuggestions = $type === 'text' && !filter_var($readonly, FILTER_VALIDATE_BOOLEAN) && ! $disabled && count($suggestions) > 0;
     $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
     $suggestionInputHandler = trim((string) ($attributes->get('x-on:input') ?? ''));
-    $suggestionInputExpression = "if (\$event.target?._smAiUpdate === true) { rawValue = \$event.target.value; hasTyped = false; suppressRefresh = false; filtered = []; selectedIndex = -1; open = false; } else { hasTyped = true; refresh(); ";
-    if ($suggestionInputHandler !== '') {
-        $suggestionInputExpression .= $suggestionInputHandler.'; ';
-    }
-    $suggestionInputExpression .= '}';
     $isFileInput = $type === 'file';
     $field = new \App\Support\UiField($attributes, $info !== null && $info !== '', $hasError);
     $controlAttributes = $field->controlAttributes();
@@ -77,129 +72,9 @@
         @elseif($hasSuggestions)
             <div
                 class="relative"
-                x-data="{
-                    rawValue: @js($autocompleteValue),
-                    options: @js($suggestions),
-                    moneyFormat: @js($moneyFormat),
-                    hasTyped: false,
-                    suppressRefresh: false,
-                    filtered: [],
-                    open: false,
-                    selectedIndex: -1,
-                    refresh() {
-                        if (this.suppressRefresh) {
-                            this.suppressRefresh = false;
-                            this.filtered = [];
-                            this.selectedIndex = -1;
-                            this.open = false;
-                            return;
-                        }
-                        if (!this.hasTyped) {
-                            this.filtered = [];
-                            this.selectedIndex = -1;
-                            this.open = false;
-                            return;
-                        }
-                        const needle = (this.rawValue || '').toLowerCase().trim();
-                        if (needle === '') {
-                            if (@js($showSuggestionsOnFocus)) {
-                                this.filtered = this.options.slice(0, 8);
-                                this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                                this.open = this.filtered.length > 0;
-                                return;
-                            }
-                            this.filtered = [];
-                            this.selectedIndex = -1;
-                            this.open = false;
-                            return;
-                        }
-                        const items = this.options.filter((option) => option.toLowerCase().includes(needle));
-                        this.filtered = items.slice(0, 8);
-                        this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                        this.open = this.filtered.length > 0;
-                    },
-                    move(step) {
-                        if (!this.open) {
-                            this.refresh();
-                            return;
-                        }
-                        const len = this.filtered.length;
-                        if (!len) {
-                            return;
-                        }
-                        this.selectedIndex = (this.selectedIndex + step + len) % len;
-                    },
-                    choose(value) {
-                        this.suppressRefresh = true;
-                        this.rawValue = value;
-                        this.open = false;
-                        this.selectedIndex = -1;
-                        this.$nextTick(() => {
-                            if (!this.$refs.inputEl) {
-                                return;
-                            }
-                            this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                            this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                        });
-                    },
-                    applySelection() {
-                        if (!this.open) {
-                            return;
-                        }
-                        if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
-                            this.open = false;
-                            this.selectedIndex = -1;
-                            return;
-                        }
-                        this.choose(this.filtered[this.selectedIndex]);
-                    },
-                    formatMoney() {
-                        if (!this.moneyFormat) {
-                            return;
-                        }
-                        const raw = String(this.rawValue || '').trim();
-                        if (raw === '') {
-                            return;
-                        }
-                        const amount = parseFloat(raw);
-                        if (!Number.isFinite(amount) || amount < 0) {
-                            this.rawValue = '';
-                            return;
-                        }
-                        this.rawValue = amount.toFixed(2);
-                    }
-                }"
-                x-init="
-                    refresh();
-                    @if($xModelBinding !== '')
-                        let __modelValue = '';
-                        try {
-                            __modelValue = {{ $xModelBinding }};
-                        } catch (e) {
-                            __modelValue = '';
-                        }
-                        if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
-                            rawValue = __modelValue;
-                        }
-                        $watch('rawValue', value => {
-                            try {
-                                {{ $xModelBinding }} = value;
-                            } catch (e) {}
-                        });
-                    @endif
-                "
+                x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
                 @if($xModelBinding !== '')
-                x-effect="
-                    let __incoming = '';
-                    try {
-                        __incoming = {{ $xModelBinding }};
-                    } catch (e) {
-                        __incoming = '';
-                    }
-                    if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                        rawValue = (__incoming ?? '');
-                    }
-                "
+                x-effect="$SM.syncAutocompleteValue($el)"
                 @endif
                 x-on:click.away="open = false"
             >
@@ -211,13 +86,13 @@
                     type="{{ $type }}"
                     name="{{ $name }}"
                     x-model="rawValue"
-                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputExpression }}"
+                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
                     x-on:keydown.escape.prevent="open = false"
-                    x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
+                    x-on:blur="$SM.autocompleteBlur($el)"
                     @disabled($disabled)
                     {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
@@ -249,176 +124,13 @@
             @elseif($hasSuggestions)
                 <div
                     class="relative"
-                    x-data="{
-                        rawValue: @js($autocompleteValue),
-                        options: @js($suggestions),
-                        moneyFormat: @js($moneyFormat),
-                        hasTyped: false,
-                        suppressRefresh: false,
-                        filtered: [],
-                        open: false,
-                        selectedIndex: -1,
-                        dropdownStyle: '',
-                        dropdownListMaxHeight: 240,
-                        dropdownOpenUp: false,
-                        refresh() {
-                            if (this.suppressRefresh) {
-                                this.suppressRefresh = false;
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                this.dropdownStyle = '';
-                                return;
-                            }
-                            if (!this.hasTyped) {
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                this.dropdownStyle = '';
-                                return;
-                            }
-                            const needle = (this.rawValue || '').toLowerCase().trim();
-                            if (needle === '') {
-                                if (@js($showSuggestionsOnFocus)) {
-                                    this.filtered = this.options.slice(0, 8);
-                                    this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                                    this.open = this.filtered.length > 0;
-                                    if (this.open) {
-                                        this.$nextTick(() => this.updateDropdownPosition());
-                                    } else {
-                                        this.dropdownStyle = '';
-                                    }
-                                    return;
-                                }
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                this.dropdownStyle = '';
-                                return;
-                            }
-                            const items = this.options.filter((option) => option.toLowerCase().includes(needle));
-                            this.filtered = items.slice(0, 8);
-                            this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                            this.open = this.filtered.length > 0;
-                            if (this.open) {
-                                this.$nextTick(() => this.updateDropdownPosition());
-                            } else {
-                                this.dropdownStyle = '';
-                            }
-                        },
-                        move(step) {
-                            if (!this.open) {
-                                this.refresh();
-                                return;
-                            }
-                            const len = this.filtered.length;
-                            if (!len) {
-                                return;
-                            }
-                            this.selectedIndex = (this.selectedIndex + step + len) % len;
-                        },
-                        choose(value) {
-                            this.suppressRefresh = true;
-                            this.rawValue = value;
-                            this.open = false;
-                            this.selectedIndex = -1;
-                            this.dropdownStyle = '';
-                            this.$nextTick(() => {
-                                if (!this.$refs.inputEl) {
-                                    return;
-                                }
-                                this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                            });
-                        },
-                        updateDropdownPosition() {
-                            if (!this.open || !this.$refs.inputEl || typeof window === 'undefined') {
-                                this.dropdownStyle = '';
-                                return;
-                            }
-
-                            const rect = this.$refs.inputEl.getBoundingClientRect();
-                            const viewportPadding = 8;
-                            const gap = 4;
-                            const preferredMaxHeight = 240;
-                            const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
-                            const spaceAbove = rect.top - viewportPadding - gap;
-                            const availableHeight = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow
-                                ? spaceAbove
-                                : spaceBelow;
-
-                            this.dropdownOpenUp = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
-                            this.dropdownListMaxHeight = Math.max(40, Math.min(preferredMaxHeight, Math.floor(availableHeight)));
-
-                            const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding));
-
-                            this.dropdownStyle = this.dropdownOpenUp
-                                ? `position: fixed; left: ${left}px; width: ${rect.width}px; bottom: ${Math.max(viewportPadding, window.innerHeight - rect.top + gap)}px;`
-                                : `position: fixed; left: ${left}px; width: ${rect.width}px; top: ${rect.bottom + gap}px;`;
-                        },
-                        applySelection() {
-                            if (!this.open) {
-                                return;
-                            }
-                            if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
-                                this.open = false;
-                                this.selectedIndex = -1;
-                                return;
-                            }
-                            this.choose(this.filtered[this.selectedIndex]);
-                        },
-                        formatMoney() {
-                            if (!this.moneyFormat) {
-                                return;
-                            }
-                            const raw = String(this.rawValue || '').trim();
-                            if (raw === '') {
-                                return;
-                            }
-                            const amount = parseFloat(raw);
-                            if (!Number.isFinite(amount) || amount < 0) {
-                                this.rawValue = '';
-                                return;
-                            }
-                            this.rawValue = amount.toFixed(2);
-                        }
-                    }"
-                    x-init="
-                        refresh();
-                        $watch('open', value => { if (value) { $nextTick(() => updateDropdownPosition()); } else { dropdownStyle = ''; } });
-                        @if($xModelBinding !== '')
-                            let __modelValue = '';
-                            try {
-                                __modelValue = {{ $xModelBinding }};
-                            } catch (e) {
-                                __modelValue = '';
-                            }
-                            if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
-                                rawValue = __modelValue;
-                            }
-                            $watch('rawValue', value => {
-                                try {
-                                    {{ $xModelBinding }} = value;
-                                } catch (e) {}
-                            });
-                        @endif
-                    "
+                    x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
                     @if($xModelBinding !== '')
-                    x-effect="
-                        let __incoming = '';
-                        try {
-                            __incoming = {{ $xModelBinding }};
-                        } catch (e) {
-                            __incoming = '';
-                        }
-                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                            rawValue = (__incoming ?? '');
-                        }
-                    "
+                    x-effect="$SM.syncAutocompleteValue($el)"
                     @endif
                     x-on:click.away="open = false"
-                    x-on:scroll.window="if (open) { updateDropdownPosition(); }"
-                    x-on:resize.window="if (open) { updateDropdownPosition(); }"
+                    x-on:scroll.window="$SM.autocompletePosition($el)"
+                    x-on:resize.window="$SM.autocompletePosition($el)"
                 >
                     <input
                         x-ref="inputEl"
@@ -428,13 +140,13 @@
                     type="{{ $type }}"
                     @if($name !== null && $name !== '') name="{{ $name }}" @endif
                     x-model="rawValue"
-                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputExpression }}"
+                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
                     x-on:keydown.escape.prevent="open = false"
-                    x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
+                    x-on:blur="$SM.autocompleteBlur($el)"
                     @disabled($disabled)
                     {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
@@ -446,7 +158,7 @@
                             class="z-50 rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden"
                             :style="dropdownStyle"
                         >
-                            <ul class="overflow-auto py-1" :style="`max-height: ${dropdownListMaxHeight}px`">
+                            <ul class="overflow-auto py-1" :style="'max-height: ' + dropdownListMaxHeight + 'px'">
                                 <template x-for="(item, index) in filtered" :key="item + '-' + index">
                                     <li
                                         class="cursor-pointer px-3 py-2 text-sm"
@@ -474,129 +186,9 @@
             @elseif($hasSuggestions)
                 <div
                     class="relative mt-1"
-                    x-data="{
-                        rawValue: @js($autocompleteValue),
-                        options: @js($suggestions),
-                        moneyFormat: @js($moneyFormat),
-                        hasTyped: false,
-                        suppressRefresh: false,
-                        filtered: [],
-                        open: false,
-                        selectedIndex: -1,
-                        refresh() {
-                            if (this.suppressRefresh) {
-                                this.suppressRefresh = false;
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                return;
-                            }
-                            if (!this.hasTyped) {
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                return;
-                            }
-                            const needle = (this.rawValue || '').toLowerCase().trim();
-                            if (needle === '') {
-                                if (@js($showSuggestionsOnFocus)) {
-                                    this.filtered = this.options.slice(0, 8);
-                                    this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                                    this.open = this.filtered.length > 0;
-                                    return;
-                                }
-                                this.filtered = [];
-                                this.selectedIndex = -1;
-                                this.open = false;
-                                return;
-                            }
-                            const items = this.options.filter((option) => option.toLowerCase().includes(needle));
-                            this.filtered = items.slice(0, 8);
-                            this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
-                            this.open = this.filtered.length > 0;
-                        },
-                        move(step) {
-                            if (!this.open) {
-                                this.refresh();
-                                return;
-                            }
-                            const len = this.filtered.length;
-                            if (!len) {
-                                return;
-                            }
-                            this.selectedIndex = (this.selectedIndex + step + len) % len;
-                        },
-                        choose(value) {
-                            this.suppressRefresh = true;
-                            this.rawValue = value;
-                            this.open = false;
-                            this.selectedIndex = -1;
-                            this.$nextTick(() => {
-                                if (!this.$refs.inputEl) {
-                                    return;
-                                }
-                                this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                                this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-                            });
-                        },
-                        applySelection() {
-                            if (!this.open) {
-                                return;
-                            }
-                            if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
-                                this.open = false;
-                                this.selectedIndex = -1;
-                                return;
-                            }
-                            this.choose(this.filtered[this.selectedIndex]);
-                        },
-                        formatMoney() {
-                            if (!this.moneyFormat) {
-                                return;
-                            }
-                            const raw = String(this.rawValue || '').trim();
-                            if (raw === '') {
-                                return;
-                            }
-                            const amount = parseFloat(raw);
-                            if (!Number.isFinite(amount) || amount < 0) {
-                                this.rawValue = '';
-                                return;
-                            }
-                            this.rawValue = amount.toFixed(2);
-                        }
-                    }"
-                    x-init="
-                        refresh();
-                        @if($xModelBinding !== '')
-                            let __modelValue = '';
-                            try {
-                                __modelValue = {{ $xModelBinding }};
-                            } catch (e) {
-                                __modelValue = '';
-                            }
-                            if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
-                                rawValue = __modelValue;
-                            }
-                            $watch('rawValue', value => {
-                                try {
-                                    {{ $xModelBinding }} = value;
-                                } catch (e) {}
-                            });
-                        @endif
-                    "
+                    x-data="$SM.autocompleteEditor({ value: @js($autocompleteValue), options: @js($suggestions), moneyFormat: @js($moneyFormat), showOnFocus: @js($showSuggestionsOnFocus), modelBinding: @js($xModelBinding), inputHandler: @js($suggestionInputHandler) })"
                     @if($xModelBinding !== '')
-                    x-effect="
-                        let __incoming = '';
-                        try {
-                            __incoming = {{ $xModelBinding }};
-                        } catch (e) {
-                            __incoming = '';
-                        }
-                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                            rawValue = (__incoming ?? '');
-                        }
-                    "
+                    x-effect="$SM.syncAutocompleteValue($el)"
                     @endif
                     x-on:click.away="open = false"
                 >
@@ -608,13 +200,13 @@
                     type="{{ $type }}"
                     name="{{ $name }}"
                     x-model="rawValue"
-                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="{{ $suggestionInputExpression }}"
+                    x-on:focus="$SM.autocompleteFocus($el, @js($showSuggestionsOnFocus))"
+                    x-on:input="$SM.autocompleteInput($el, $event)"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
                     x-on:keydown.escape.prevent="open = false"
-                    x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
+                    x-on:blur="$SM.autocompleteBlur($el)"
                     @disabled($disabled)
                     {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />

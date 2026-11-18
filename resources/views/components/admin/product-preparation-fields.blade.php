@@ -1,6 +1,6 @@
 @props(['model' => 'item', 'catalogExpression' => 'productCatalog', 'inline' => false])
 <div
-    x-data="window.SM.productPreparationFields({{ $model }}, {{ $catalogExpression }})"
+    x-data="$SM.productPreparationFields({{ $model }}, {{ $catalogExpression }})"
     x-effect="preparationItem = {{ $model }}; preparationCatalog = {{ $catalogExpression }}"
     x-show="hasPreparationFields"
     x-cloak
@@ -8,7 +8,7 @@
 >
     <label class="block w-44 text-xs text-slate-600" x-show="hasQuantityChoice">
         <span class="{{ $inline ? 'sr-only' : 'block mb-1' }}">Quantity counts or variant</span>
-        <x-ui.select-control class="h-11 text-sm" title="Quantity counts or variant" x-bind:value="quantityChoice" x-effect="const choice = quantityChoice; $nextTick(() => { $el.value = choice; })" x-on:change="window.SM.changeProductQuantityChoice(preparationItem, $event.target.value, linkedMaterial)" x-bind:disabled="!hasQuantityChoice">
+        <x-ui.select-control class="h-11 text-sm" title="Quantity counts or variant" x-bind:value="quantityChoice" x-effect="const choice = quantityChoice; $nextTick(() => { $el.value = choice; })" x-on:change="$SM.changeProductQuantityChoice(preparationItem, $event.target.value, linkedMaterial)" x-bind:disabled="!hasQuantityChoice">
             <template x-if="linkedMaterial?.has_material_measurements"><option value="item">Individual units</option></template>
             <option value="pack" x-text="linkedMaterial?.base_option_name || linkedMaterial?.name || ''"></option>
             <template x-for="variant in selectableVariants" :key="variant.id"><option x-bind:value="'variant:' + variant.id" x-text="variant.name"></option></template>

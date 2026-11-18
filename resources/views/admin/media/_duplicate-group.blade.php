@@ -86,7 +86,7 @@
             this.metadata = {...this.advancedMetadata};
         },
         submitMerge() {
-            SM.confirm('Merge these media records?', @js('All detected links will be moved to the selected image. '.$removedCount.' other '.($removedCount === 1 ? 'record' : 'records').' will be removed.'), 'Merge Records', (isConfirmed) => {
+            $SM.confirm('Merge these media records?', @js('All detected links will be moved to the selected image. '.$removedCount.' other '.($removedCount === 1 ? 'record' : 'records').' will be removed.'), 'Merge Records', (isConfirmed) => {
                 if (isConfirmed) { this.$root.submit(); }
             });
         }

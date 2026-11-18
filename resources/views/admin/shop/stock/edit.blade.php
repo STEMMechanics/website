@@ -177,7 +177,7 @@
             @endphp
             <form
                 method="POST"
-                x-data="SM.stockReceiptMovementForm(@js($initialMovementDate), @js($initialMovementCost), @js($initialMovementExpenseId), @js($stockMovementScope))"
+                x-data="$SM.stockReceiptMovementForm(@js($initialMovementDate), @js($initialMovementCost), @js($initialMovementExpenseId), @js($stockMovementScope))"
                 x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)"
                 x-bind:action="isReceipt ? @js(route('admin.shop.stock.receive', $stockItem)) : @js(route('admin.shop.stock.adjust', $stockItem))"
                 x-on:submit="formatTotalCost($el.querySelector('[name=total_cost_ex_tax]'))"
@@ -362,7 +362,7 @@
                 @endphp
 
                 <x-ui.list-dialog :id="$editDialogId" :title="'Edit stock receipt · '.$stockItem->name" kind="edit" centered>
-                    <form method="POST" action="{{ route('admin.shop.stock.receipt.update', [$stockItem, $receiptLine]) }}" x-data="SM.stockReceiptMovementForm(@js($initialReceiptDate), @js($initialReceiptCost), @js($receipt->expense_id ?? ''), @js('receipt-'.$receiptLine->id))" x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)">
+                    <form method="POST" action="{{ route('admin.shop.stock.receipt.update', [$stockItem, $receiptLine]) }}" x-data="$SM.stockReceiptMovementForm(@js($initialReceiptDate), @js($initialReceiptCost), @js($receipt->expense_id ?? ''), @js('receipt-'.$receiptLine->id))" x-on:stock-expense-selected.window="selectExpense($event.detail.expense, $event.detail.scope)">
                         @csrf
                         @method('PUT')
                         <input type="hidden" name="stock_receipt_line_id" value="{{ $receiptLine->id }}">

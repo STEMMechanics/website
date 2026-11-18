@@ -1,5 +1,5 @@
 <form method="POST" action="{{ route('admin.allocation-overrides.apply', ['kind' => $kind]) }}" data-bulk-save
-    x-data="Object.assign(SM.allocationTally(@js(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 10000, 'enabled' => false, 'exact' => true, 'message' => 'Cost centre percentages must total exactly 100%.'])), { fields: @js((object) $common), initial: @js((object) $common) })">
+    x-data="Object.assign($SM.allocationTally(@js(['values' => $categories->mapWithKeys(fn ($category) => [$category->id => '0.00'])->all(), 'total' => 10000, 'enabled' => false, 'exact' => true, 'message' => 'Cost centre percentages must total exactly 100%.'])), { fields: @js((object) $common), initial: @js((object) $common) })">
     @csrf
     @foreach($ids as $id)<input type="hidden" name="ids[]" value="{{ $id }}">@endforeach
     <div class="space-y-5 p-5">

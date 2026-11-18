@@ -205,11 +205,11 @@
                                             if (!data || !data.url) {
                                                 throw new Error('Unable to generate payment link.');
                                             }
-                                            SM.copyToClipboard(data.url);
-                                            SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                                            $SM.copyToClipboard(data.url);
+                                            $SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
                                         })
                                         .catch((error) => {
-                                            SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                                            $SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
                                         });
                                     "
                                     class="w-full sm:w-auto"
@@ -393,10 +393,10 @@
                             return [];
                         }
 
-                        return parsed.map((item) => SM.hydrateTravelLine({
-                            unit_price_inc_tax: SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (1 + SM.lineTaxRate(item))),
+                        return parsed.map((item) => $SM.hydrateTravelLine({
+                            unit_price_inc_tax: $SM.formatUnitPrice(item.unit_price_inc_tax ?? item.details_json?.inclusive_unit_price ?? Number(item.unit_price_ex_tax ?? item.unit_price ?? 0) * (1 + $SM.lineTaxRate(item))),
                             saved_pricing: item.saved_pricing ?? null,
-                            tax_rate: item.tax_rate ?? SM.currentGstRate(),
+                            tax_rate: item.tax_rate ?? $SM.currentGstRate(),
                             id: item.id ?? null, source_type: item.source_type ?? (item.kind === 'product' ? 'App\\Models\\Product' : null), source_id: item.source_id ?? item.details_json?.store_context?.product_id ?? null,
                             source_variant_id: String(item.source_variant_id ?? item.details_json?.variant_id ?? item.details_json?.store_context?.variant_id ?? 0),
                             workshop_date: item.workshop_date ?? item.details_json?.workshop?.date ?? '',
@@ -417,7 +417,7 @@
                                 const parsedUnit = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
                                 return Number.isFinite(parsedUnit) ? parsedUnit.toFixed(2) : '0.00';
                             })(),
-                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? SM.currentGstRate()) || 0) > 0),
+                            gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : ((parseFloat(item.tax_rate ?? $SM.currentGstRate()) || 0) > 0),
                         }));
                     } catch (e) {
                         return [];
@@ -441,11 +441,11 @@
                             description: (item.description || '').trim(),
                             notes: (item.notes || '').trim(),
                             quantity: parseFloat(item.quantity || 0),
-                            unit_price: Number(item.unit_price_inc_tax || 0) / (1 + SM.lineTaxRate(item)),
+                            unit_price: Number(item.unit_price_inc_tax || 0) / (1 + $SM.lineTaxRate(item)),
                             unit_price_inc_tax: Number(item.unit_price_inc_tax || 0),
                             saved_pricing: item.saved_pricing ?? null,
                             gst_applicable: item.gst_applicable !== false,
-                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? SM.currentGstRate()),
+                            tax_rate: item.gst_applicable === false ? 0 : Number(item.tax_rate ?? $SM.currentGstRate()),
                         }))
                         .filter((item) => ['product', 'workshop', 'multi_workshop', 'multi_travel'].includes(item.kind) || item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
 
@@ -456,7 +456,7 @@
                     if (this.isLocked) {
                         return;
                     }
-                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: SM.currentGstRate() });
+                    this.lineItems.push({ auto_pricing: true, kind: 'custom', workshop_date: '', legacy_workshop: false, travel_hours: '', travel_units: '', travel_rows: [], workshop_hours: '', workshop_seats: '', venue_supplied: true, supplied_categories: {}, details_json: {}, description: '', notes: '', quantity: 1, unit_price: 0, unit_price_inc_tax: '0.00', gst_applicable: true, tax_rate: $SM.currentGstRate() });
                 },
                 setDueDateDefault(force = false) {
                     if (this.isLocked) {
@@ -487,13 +487,13 @@
                     return Number.isFinite(value) ? value.toFixed(2) : '0.00';
                 },
                 calculateSubtotal() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).net;
+                    return $SM.documentAmounts(this.lineItems, this.savedTotals).net;
                 },
                 calculateGst() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).tax;
+                    return $SM.documentAmounts(this.lineItems, this.savedTotals).tax;
                 },
                 lineTotalExFormatted(item) {
-                    return this.normalizeMoney(SM.lineAmounts(item).net);
+                    return this.normalizeMoney($SM.lineAmounts(item).net);
                 },
                 subtotalAmountFormatted() {
                     return this.normalizeMoney(this.calculateSubtotal());
@@ -502,11 +502,11 @@
                     return this.normalizeMoney(this.calculateGst());
                 },
                 totalAmountFormatted() {
-                    return this.normalizeMoney(SM.documentAmounts(this.lineItems, this.savedTotals).gross);
+                    return this.normalizeMoney($SM.documentAmounts(this.lineItems, this.savedTotals).gross);
                 },
                 normalizeLineItem(index, field) {
-                    if (field === 'unit_price_inc_tax' && SM.lineAmounts(this.lineItems[index]).saved) {
-                        this.lineItems[index][field] = SM.formatUnitPrice(this.lineItems[index][field]);
+                    if (field === 'unit_price_inc_tax' && $SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = $SM.formatUnitPrice(this.lineItems[index][field]);
                         this.serializeLineItems();
                         return;
                     }
@@ -681,7 +681,7 @@
         <form id="invoice-edit-form" method="POST"
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-on:submit="
-                SM.attachInvoiceAllocation($el);
+                $SM.attachInvoiceAllocation($el);
                 serializeLineItems();
                 if (!$el.dataset.scheduledSendConfirmed) {
                     $refs.sendScheduledNow.value = '0';
@@ -935,7 +935,7 @@
 
             <x-finance.line-items-editor :is-locked="$isLocked" :invoice-layout="true" :pricing-plans="$pricingPlans ?? []" :selected-pricing-version-id="$selectedPricingVersionId ?? null" />
             @unless($isLocked)
-                <p class="mb-4 text-xs text-slate-500" x-show="lineItems.some(item => item.kind === 'product')" x-cloak>Saving reserves stock for selected store products, including draft invoices. Changing quantities adjusts the reservation; deleting a draft or cancelling the invoice releases it.</p>
+                <p class="mb-4 text-xs text-slate-500" x-show="$SM.hasValue(lineItems, 'kind', 'product')" x-cloak>Saving reserves stock for selected store products, including draft invoices. Changing quantities adjusts the reservation; deleting a draft or cancelling the invoice releases it.</p>
             @endunless
 
             <div class="grid gap-x-6 sm:grid-cols-2">
@@ -1021,13 +1021,13 @@
                             <x-ui.button color="danger-outline"
                                 type="button"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
                              ><i class="fa-solid fa-trash mr-2" aria-hidden="true"></i>Delete Draft</x-ui.button>
                         @elseif($canCancelInvoice)
                             <x-ui.button color="yellow-outline"
                                 type="button"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
+                                x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', {{ \Illuminate\Support\Js::from($invoiceConfirmTitle) }}, {{ \Illuminate\Support\Js::from($invoiceConfirmMessage) }}, '{{ route('admin.invoice.destroy', $invoice) }}', {{ \Illuminate\Support\Js::from($invoiceConfirmButtonText) }}, {{ \Illuminate\Support\Js::from($invoiceCancelButtonText) }})"
                              ><i class="fa-solid fa-ban mr-2" aria-hidden="true"></i>Cancel Invoice</x-ui.button>
                         @else
                             <x-ui.button color="yellow-outline"
@@ -1039,7 +1039,7 @@
                             @if($canWriteOffInvoice)
                                 <x-ui.button color="secondary"
                                     type="button"
-                                    x-on:click.prevent="SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
+                                    x-on:click.prevent="$SM.submitInvoiceWriteOff('{{ route('admin.invoice.write-off', $invoice) }}', '{{ csrf_token() }}')"
                                  ><i class="fa-solid fa-file-circle-minus mr-2" aria-hidden="true"></i>Write Off Invoice</x-ui.button>
                             @else
                                 <x-ui.button color="secondary"

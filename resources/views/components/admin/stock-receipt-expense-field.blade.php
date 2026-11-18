@@ -16,7 +16,7 @@
 
 <div
     x-id="['stock-receipt-supplier', 'stock-receipt-expenses', 'stock-receipt-supplier-help']"
-    x-data="SM.stockReceiptExpenseEditor(@js($initialSupplier), @js($initialExpenseId), @js($expenses), @js($scope))"
+    x-data="$SM.stockReceiptExpenseEditor(@js($initialSupplier), @js($initialExpenseId), @js($expenses), @js($scope))"
     x-on:keydown.escape.window="open = false"
     x-on:resize.window="if (open) position($refs.expenseTrigger)"
     x-on:scroll.window="if (open) position($refs.expenseTrigger)"

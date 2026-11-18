@@ -155,7 +155,7 @@
                             @else
                             <x-ui.row-action label="Edit attendee details" icon="fa-solid fa-user-pen" tone="neutral"
                                 type="button"
-                                x-on:click="SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')" />
+                                x-on:click="$SM.notice('Not permitted', 'Only the ticket purchaser can update holder details.', 'warning')" />
                             @endif
                             @else
                             <span class="text-gray-300" title="Ticket is not editable"><i class="fa-solid fa-user-pen"></i></span>

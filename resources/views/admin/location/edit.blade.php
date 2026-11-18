@@ -31,7 +31,7 @@
             <x-ui.editor-actions>
                 @isset($location)
                     <x-ui.button type="button" color="outline" href="{{ route('admin.workshop.history', ['location_id' => $location->id]) }}">Workshop history</x-ui.button>
-                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete Location?', 'Are you sure you want to delete this location? This action cannot be undone', '{{ route('admin.location.destroy', $location) }}')">Delete</x-ui.button>
+                    <x-ui.button data-editor-delete type="button" color="danger" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete Location?', 'Are you sure you want to delete this location? This action cannot be undone', '{{ route('admin.location.destroy', $location) }}')">Delete</x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </x-ui.editor-actions>

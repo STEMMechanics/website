@@ -1,4 +1,4 @@
-<div x-data="SM.storeOrderInvoiceAttachment(@js([
+<div x-data="$SM.storeOrderInvoiceAttachment(@js([
     'optionsUrl' => route('admin.shop.order.invoice.options', $order),
     'reviewUrl' => route('admin.shop.order.invoice.attach', $order),
     'initialInvoiceId' => (int) request()->query('attach_invoice', old('invoice_id', '0')),

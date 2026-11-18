@@ -1815,6 +1815,638 @@ let SM = {
 
 window.SM = SM;
 
+document.addEventListener('alpine:init', () => {
+    Alpine.magic('SM', () => window.SM);
+    Alpine.magic('SMMediaPicker', () => window.SMMediaPicker);
+});
+
+window.SM.confirmAndSubmit = (form, title, content, button) => window.SM.confirm(
+    title,
+    content,
+    button,
+    (confirmed) => {
+        if (confirmed && form instanceof HTMLFormElement) {
+            HTMLFormElement.prototype.submit.call(form);
+        }
+    },
+);
+
+window.SM.nextTickMethod = (element, method, ...args) => Alpine.nextTick(() => {
+    const data = Alpine.$data(element);
+    if (typeof data?.[method] === 'function') {
+        data[method].apply(data, args);
+    }
+});
+
+window.SM.nextTickFocus = (element) => Alpine.nextTick(() => element?.focus());
+
+window.SM.nextFrameMethod = (element, method, ...args) => requestAnimationFrame(() => {
+    const data = Alpine.$data(element);
+    if (typeof data?.[method] === 'function') {
+        data[method].apply(data, args);
+    }
+});
+
+window.SM.delaySet = (element, key, value, delay) => setTimeout(() => {
+    Alpine.$data(element)[key] = value;
+}, delay);
+
+window.SM.registerImagePaste = (element, enabled, method) => window.SMImagePaste.register(element, (files) => {
+    if (enabled) {
+        window.SM.callAlpineMethod(element, method, [files]);
+    }
+});
+
+window.SM.callAlpineMethod = (element, method, args = []) => {
+    const data = Alpine.$data(element);
+    if (typeof data?.[method] === 'function') {
+        return data[method].apply(data, args);
+    }
+};
+
+window.SM.handlePageUploadDrop = (element, event, action, enabled, method) => {
+    const types = Array.from(event.dataTransfer?.types || []);
+    if (!types.includes('Files')) return;
+
+    const data = Alpine.$data(element);
+    if (action === 'dragenter') {
+        event.preventDefault();
+        if (enabled) data.pageUploadDragDepth++;
+    } else if (action === 'dragover') {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = enabled ? 'copy' : 'none';
+    } else if (action === 'drop') {
+        const alreadyHandled = event.defaultPrevented;
+        event.preventDefault();
+        data.pageUploadDragDepth = 0;
+        if (!alreadyHandled && enabled) window.SM.callAlpineMethod(element, method, [event.dataTransfer.files]);
+    } else {
+        data.pageUploadDragDepth = 0;
+    }
+};
+
+window.SM.resetPageUpload = (element) => {
+    Alpine.$data(element).pageUploadDragDepth = 0;
+};
+
+window.SM.handleImageDrop = (element, event, action, enabled, method) => {
+    const types = Array.from(event.dataTransfer?.types || []);
+    if (!types.includes('Files')) return;
+
+    event.preventDefault();
+    if (action === 'dragover') {
+        if (enabled) element.classList.add('ring-2', 'ring-primary-color', 'border-primary-color');
+    } else if (action === 'drop') {
+        element.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color');
+        if (enabled) window.SM.callAlpineMethod(element, method, [event.dataTransfer.files]);
+    } else if (action === 'dragleave') {
+        element.classList.remove('ring-2', 'ring-primary-color', 'border-primary-color');
+    }
+};
+
+window.SM.normalizeGroupList = (value) => value
+    .split(/[\s,]+/)
+    .map((group) => group.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, ''))
+    .filter(Boolean)
+    .join(', ');
+
+window.SM.nextTickToolbar = (element) => Alpine.nextTick(() => window.SM.initToolbar(element));
+window.SM.setElementValueAfterTick = (element, value) => Alpine.nextTick(() => { element.value = value; });
+window.SM.requestSubmitAfterTick = (form) => Alpine.nextTick(() => form.requestSubmit());
+window.SM.openDialogAfterTick = (dialog, shouldOpen, focusSelector = null) => {
+    if (!shouldOpen) return;
+    Alpine.nextTick(() => {
+        dialog.showModal();
+        if (focusSelector) dialog.querySelector(focusSelector)?.focus();
+    });
+};
+window.SM.closeOpenDialogs = (element) => element.closest('form')?.querySelectorAll('dialog[open]').forEach((dialog) => dialog.close());
+window.SM.openInNewTab = (url) => window.open(url, '_blank', 'noopener,noreferrer');
+window.SM.navigateTo = (url) => { window.location.href = url; };
+window.SM.selectedOptionLabels = (options, selected) => options
+    .filter((option) => selected.includes(option.value))
+    .map((option) => option.label)
+    .join(', ');
+window.SM.hasValue = (items, property, value) => items.some((item) => item[property] === value);
+window.SM.countMatchingValue = (items, property, value) => items.filter((item) => item[property] === value).length;
+window.SM.countTruthy = (items, property) => items.filter((item) => item[property]).length;
+window.SM.hasPositiveValue = (items) => items.some((value) => Number(value) > 0);
+window.SM.countWithAnyProperty = (items, properties) => items.filter((item) => properties.some((property) => item[property])).length;
+window.SM.hasKeyPrefix = (values, prefix) => Object.keys(values || {}).some((key) => key.startsWith(prefix));
+window.SM.shippingPackageSummary = (method) => {
+    const active = window.SM.countTruthy(method.packages || [], 'is_active');
+    const total = (method.packages || []).length;
+    return `${active} active / ${total} box option${total === 1 ? '' : 's'}`;
+};
+window.SM.canMoveProductDetail = (details, detail, index) => {
+    const movable = (details || []).filter((row) => String(row.key || '').trim().toLowerCase() !== 'sku');
+    return String(detail.key || '').trim().toLowerCase() !== 'sku' && index < movable.length - 1;
+};
+window.SM.productQuantityUnitFor = (catalog, productId) => {
+    const product = (catalog || []).find((option) => String(option.id) === String(productId));
+    return product ? window.SM.productQuantityUnit(product) : '';
+};
+window.SM.recipeVariantName = (item, variantId) => {
+    const variant = (item?.variants || []).find((option) => String(option.id) === String(variantId));
+    return variant?.name || item?.base_option_name || item?.name || '';
+};
+window.SM.hasPositiveColumnAllocation = (columns, values, categoryId) =>
+    columns.some((column) => Number(values(column)?.[categoryId]?.amount || 0) > 0);
+window.SM.hasUnallocatedColumnRemainder = (columns, total) =>
+    columns.some((column) => {
+        const result = total(column);
+        return !result.unknown && result.remaining > 0;
+    });
+
+window.SM.openFaqOnInvalid = (element, key, event) => {
+    const data = Alpine.$data(element);
+    data.openKey = key;
+    window.SM.nextTickFocus(event.target);
+};
+
+window.SM.faqEditor = (faqs) => ({
+    faqs: Array.isArray(faqs) ? faqs : [],
+    nextKey: 0,
+    openKey: null,
+    init() {
+        this.faqs = this.faqs.map((faq) => ({
+            ...faq,
+            _key: this.nextKey++,
+            show_on_index: [true, 1, '1'].includes(faq.show_on_index),
+        }));
+    },
+    addFaq() {
+        const faq = { _key: this.nextKey++, question: '', answer: '', show_on_index: false };
+        this.faqs.push(faq);
+        this.openKey = faq._key;
+        Alpine.nextTick(() => this.$refs.rows.lastElementChild?.querySelector('input[type=text]')?.focus());
+    },
+    moveFaq(index, direction) {
+        const target = index + direction;
+        if (target < 0 || target >= this.faqs.length) return;
+        const item = this.faqs.splice(index, 1)[0];
+        this.faqs.splice(target, 0, item);
+    },
+    removeFaq(key) {
+        if (this.faqs.length <= 1) return;
+        window.SM.confirm('Remove FAQ?', 'This question will be removed when you save the content.', 'Remove', (confirmed) => {
+            if (!confirmed) return;
+            this.faqs = this.faqs.filter((faq) => faq._key !== key);
+            if (this.openKey === key) this.openKey = null;
+        });
+    },
+});
+
+window.SM.galleryViewer = (items, thumbnailLimit, viewerId) => ({
+    gallery: Array.isArray(items) ? items : [],
+    thumbnailLimit,
+    modelIndex: -1,
+    openGallery(index = 0) {
+        if (this.gallery.length) this.modelIndex = Math.max(0, Math.min(index, this.gallery.length - 1));
+    },
+    openFromEvent(event) {
+        if (event.detail?.id === viewerId) this.openGallery(event.detail?.index ?? 0);
+    },
+    closeGallery() { this.modelIndex = -1; },
+    handleEscape() { if (this.modelIndex !== -1) this.closeGallery(); },
+    handlePreviousKey() { if (this.modelIndex !== -1) this.previousImage(); },
+    handleNextKey() { if (this.modelIndex !== -1) this.nextImage(); },
+    thumbnailItems() {
+        const limit = Number(this.thumbnailLimit);
+        return Number.isInteger(limit) && limit > 0 ? this.gallery.slice(0, limit) : this.gallery;
+    },
+    remainingThumbnails() {
+        const limit = Number(this.thumbnailLimit);
+        return Number.isInteger(limit) && limit > 0 ? Math.max(0, this.gallery.length - limit) : 0;
+    },
+    previousImage() {
+        if (this.gallery.length > 1) this.modelIndex = this.modelIndex <= 0 ? this.gallery.length - 1 : this.modelIndex - 1;
+    },
+    nextImage() {
+        if (this.gallery.length > 1) this.modelIndex = this.modelIndex >= this.gallery.length - 1 ? 0 : this.modelIndex + 1;
+    },
+});
+
+window.SM.presetViews = () => ({
+    overflow: false,
+    atStart: true,
+    atEnd: false,
+    refresh() {
+        const nav = this.$refs.views;
+        this.overflow = nav.scrollWidth > nav.clientWidth + 2;
+        this.atStart = nav.scrollLeft < 2;
+        this.atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2;
+    },
+    move(direction) {
+        this.$refs.views.scrollBy({ left: direction * this.$refs.views.clientWidth * 0.8, behavior: 'smooth' });
+    },
+});
+
+window.SM.galleryEditor = () => ({
+    dragGalleryIndex: -1,
+    dragGalleryDropIndex: -1,
+    galleryDropActive: false,
+    openGalleryItem(index) {
+        if (this.dragGalleryIndex === -1) Alpine.store('modelIndex', index);
+    },
+    startGalleryItemDrag(index, event, fileName) {
+        this.dragGalleryIndex = index;
+        this.dragGalleryDropIndex = index;
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', fileName);
+    },
+    setGalleryDropIndex(index) { this.dragGalleryDropIndex = index; },
+    dropGalleryItem(index) {
+        window.SM.reorderGalleryItem(this.dragGalleryIndex, index);
+        this.resetGalleryDrag();
+    },
+    resetGalleryDrag() {
+        this.dragGalleryIndex = -1;
+        this.dragGalleryDropIndex = -1;
+    },
+});
+
+window.SM.autocompleteEditor = (config = {}) => ({
+    rawValue: config.value || '',
+    options: Array.isArray(config.options) ? config.options : [],
+    moneyFormat: Boolean(config.moneyFormat),
+    showOnFocus: Boolean(config.showOnFocus),
+    modelBinding: config.modelBinding || '',
+    inputHandler: config.inputHandler || '',
+    hasTyped: false,
+    suppressRefresh: false,
+    filtered: [],
+    open: false,
+    selectedIndex: -1,
+    dropdownStyle: '',
+    dropdownListMaxHeight: 240,
+    dropdownOpenUp: false,
+    init() {
+        const initial = this.readBoundValue();
+        if (initial !== undefined && initial !== null && initial !== '') this.rawValue = initial;
+        this.$watch('rawValue', (value) => this.writeBoundValue(value));
+        this.$watch('open', (value) => {
+            if (value) this.$nextTick(() => this.updateDropdownPosition());
+            else this.dropdownStyle = '';
+        });
+        this.refresh();
+    },
+    readBoundValue() {
+        if (!this.modelBinding) return undefined;
+        try { return Alpine.evaluate(this.$el, this.modelBinding); } catch (_) { return undefined; }
+    },
+    writeBoundValue(value) {
+        if (!this.modelBinding) return;
+        try {
+            Alpine.evaluate(this.$el, this.modelBinding + ' = $smValue', { scope: { $smValue: value } });
+        } catch (_) {}
+    },
+    syncBoundValue() {
+        const incoming = this.readBoundValue();
+        if (!this.hasTyped && incoming !== undefined && String(this.rawValue ?? '') !== String(incoming ?? '')) {
+            this.rawValue = incoming ?? '';
+        }
+    },
+    handleInput(event) {
+        if (event.target?._smAiUpdate === true) {
+            this.rawValue = event.target.value;
+            this.hasTyped = false;
+            this.suppressRefresh = false;
+            this.filtered = [];
+            this.selectedIndex = -1;
+            this.open = false;
+            return;
+        }
+        this.hasTyped = true;
+        this.refresh();
+        if (this.inputHandler) {
+            try { Alpine.evaluate(this.$el, this.inputHandler, { scope: { $event: event } }); } catch (_) {}
+        }
+    },
+    focus(showSuggestions) {
+        if (showSuggestions) {
+            this.hasTyped = true;
+            this.refresh();
+        } else {
+            this.open = false;
+        }
+    },
+    blur() {
+        this.formatMoney();
+        window.SM.delaySet(this.$el, 'open', false, 120);
+    },
+    positionIfOpen() { if (this.open) this.updateDropdownPosition(); },
+    refresh() {
+        if (this.suppressRefresh) {
+            this.suppressRefresh = false;
+            this.filtered = [];
+            this.selectedIndex = -1;
+            this.open = false;
+            this.dropdownStyle = '';
+            return;
+        }
+        if (!this.hasTyped) {
+            this.filtered = [];
+            this.selectedIndex = -1;
+            this.open = false;
+            this.dropdownStyle = '';
+            return;
+        }
+        const needle = String(this.rawValue || '').toLowerCase().trim();
+        if (needle === '') {
+            this.filtered = this.showOnFocus ? this.options.slice(0, 8) : [];
+        } else {
+            this.filtered = this.options.filter((option) => option.toLowerCase().includes(needle)).slice(0, 8);
+        }
+        this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
+        this.open = this.filtered.length > 0;
+    },
+    move(step) {
+        if (!this.open) this.refresh();
+        if (!this.filtered.length) return;
+        this.selectedIndex = (this.selectedIndex + step + this.filtered.length) % this.filtered.length;
+    },
+    choose(value) {
+        this.suppressRefresh = true;
+        this.rawValue = value;
+        this.open = false;
+        this.selectedIndex = -1;
+        this.dropdownStyle = '';
+        this.$nextTick(() => {
+            const input = this.$refs.inputEl;
+            if (!input) return;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    },
+    updateDropdownPosition() {
+        const input = this.$refs.inputEl;
+        if (!this.open || !input) {
+            this.dropdownStyle = '';
+            return;
+        }
+        const rect = input.getBoundingClientRect();
+        const viewportPadding = 8;
+        const gap = 4;
+        const preferredMaxHeight = 240;
+        const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+        const spaceAbove = rect.top - viewportPadding - gap;
+        const availableHeight = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow ? spaceAbove : spaceBelow;
+        this.dropdownOpenUp = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
+        this.dropdownListMaxHeight = Math.max(40, Math.min(preferredMaxHeight, Math.floor(availableHeight)));
+        const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding));
+        this.dropdownStyle = this.dropdownOpenUp
+            ? 'position: fixed; left: ' + left + 'px; width: ' + rect.width + 'px; bottom: ' + Math.max(viewportPadding, window.innerHeight - rect.top + gap) + 'px;'
+            : 'position: fixed; left: ' + left + 'px; width: ' + rect.width + 'px; top: ' + (rect.bottom + gap) + 'px;';
+    },
+    applySelection() {
+        if (!this.open) return;
+        if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
+            this.open = false;
+            this.selectedIndex = -1;
+            return;
+        }
+        this.choose(this.filtered[this.selectedIndex]);
+    },
+    formatMoney() {
+        if (!this.moneyFormat) return;
+        const raw = String(this.rawValue || '').trim();
+        if (raw === '') return;
+        const amount = parseFloat(raw);
+        this.rawValue = Number.isFinite(amount) && amount >= 0 ? amount.toFixed(2) : '';
+    },
+});
+
+window.SM.autocompleteInput = (element, event) => Alpine.$data(element).handleInput(event);
+window.SM.autocompleteFocus = (element, showSuggestions) => Alpine.$data(element).focus(showSuggestions);
+window.SM.autocompleteBlur = (element) => Alpine.$data(element).blur();
+window.SM.autocompletePosition = (element) => Alpine.$data(element).positionIfOpen();
+window.SM.syncAutocompleteValue = (element) => Alpine.$data(element).syncBoundValue();
+
+window.SM.workshopLineFields = (priceInclusive) => ({
+    priceInclusive: Boolean(priceInclusive),
+    get planPricing() { return this.selectedPricingPlan?.pricing ?? null; },
+    init() {
+        if (this.item.kind === 'travel') window.SM.hydrateTravelLine(this.item);
+        if (this.item.kind === 'multi_travel') window.SM.hydrateMultiTravelLine(this.item);
+        this.syncPlanPricing();
+        if (['multi_workshop', 'multi_travel'].includes(this.item.kind)) window.SM.updateWorkshopLine(this.item);
+    },
+    hasPlanCategory(categoryId, kind) {
+        return (this.planPricing?.rules || []).some((rule) =>
+            Number(rule.category_id) === Number(categoryId)
+            && (rule.suppliable || rule.basis === 'venue_hour')
+            && (kind === 'travel' ? rule.basis === 'travel' : rule.basis !== 'travel'));
+    },
+    hasSuppliedCategories(kind) {
+        return (this.planPricing?.rules || []).some((rule) =>
+            kind === 'travel'
+                ? rule.basis === 'travel' && rule.suppliable
+                : rule.basis !== 'travel' && (rule.suppliable || rule.basis === 'venue_hour'));
+    },
+    syncPlanPricing() {
+        if (!this.planPricing) return;
+        window.SM.initializePricingSupplies(this.item, this.planPricing);
+        window.SM.registerLinePlan(this.item, this.planPricing, this.priceInclusive);
+    },
+    updateAndSerialize() {
+        window.SM.updateWorkshopLine(this.item, this.planPricing, this.priceInclusive);
+        this.serializeLineItems();
+    },
+    markTravelHoursChanged() {
+        this.item.travel_hours_user_changed = true;
+        this.item.travel_hours_defaulted = false;
+        this.item.details_json.travel = this.item.details_json.travel || {};
+        this.item.details_json.travel.hours_user_changed = true;
+        this.item.details_json.travel.hours_defaulted = false;
+        this.updateAndSerialize();
+    },
+});
+
+window.SM.trackWorkshopRecommendationImpression = (url, csrfToken, sourceWorkshopId, workshopIds, placement) => {
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            Accept: 'application/json',
+        },
+        body: JSON.stringify({
+            source_workshop_id: sourceWorkshopId,
+            workshop_ids: workshopIds,
+            placement,
+        }),
+    }).catch(() => {});
+};
+
+window.SM.tagEditor = (config = {}) => ({
+    tags: Array.isArray(config.tags) ? config.tags : [],
+    draft: '',
+    cursorIndex: 0,
+    mixedTags: [],
+    tagsBinding: config.tagsBinding || '',
+    draftBinding: config.draftBinding || '',
+    mixedBinding: config.mixedBinding || '',
+    init() {
+        const tags = this.readBinding(this.tagsBinding);
+        const draft = this.readBinding(this.draftBinding);
+        const mixed = this.readBinding(this.mixedBinding);
+        if (Array.isArray(tags)) this.tags = tags;
+        if (typeof draft === 'string') this.draft = draft;
+        this.mixedTags = Array.isArray(mixed) ? mixed : [];
+        this.cursorIndex = this.tags.length;
+        this.sync();
+        this.$watch('tags', (value) => this.writeBinding(this.tagsBinding, value));
+        this.$watch('draft', (value) => this.writeBinding(this.draftBinding, value));
+    },
+    readBinding(binding) {
+        if (!binding) return undefined;
+        try { return Alpine.evaluate(this.$el, binding); } catch (_) { return undefined; }
+    },
+    writeBinding(binding, value) {
+        if (!binding) return;
+        try { Alpine.evaluate(this.$el, binding + ' = $smValue', { scope: { $smValue: value } }); } catch (_) {}
+    },
+    syncExternal() {
+        const tags = this.readBinding(this.tagsBinding);
+        const draft = this.readBinding(this.draftBinding);
+        const mixed = this.readBinding(this.mixedBinding);
+        if (Array.isArray(tags) && JSON.stringify(this.tags) !== JSON.stringify(tags)) {
+            this.tags = tags;
+            this.cursorIndex = Math.min(this.cursorIndex, tags.length);
+        }
+        if (typeof draft === 'string' && this.draft !== draft) this.draft = draft;
+        if (Array.isArray(mixed) && JSON.stringify(this.mixedTags) !== JSON.stringify(mixed)) this.mixedTags = mixed;
+    },
+    isMixed(tag) {
+        return this.mixedTags.some((mixed) => String(mixed).toLowerCase() === String(tag).toLowerCase());
+    },
+    sync() { this.$refs.value.value = this.tags.join(', '); },
+    add(value = null) {
+        const tag = String(value ?? this.draft).trim().replace(/,$/, '');
+        if (tag === '') return;
+        if (!this.tags.some((existing) => existing.toLowerCase() === tag.toLowerCase())) {
+            this.tags.splice(this.cursorIndex, 0, tag);
+            this.cursorIndex++;
+        }
+        this.draft = '';
+        this.sync();
+    },
+    remove(index) {
+        this.tags.splice(index, 1);
+        if (this.cursorIndex > index) this.cursorIndex--;
+        this.sync();
+    },
+    clear() {
+        this.tags = [];
+        this.draft = '';
+        this.cursorIndex = 0;
+        this.sync();
+    },
+    focusEntry(event) {
+        if (!event.target.closest('button') && !event.target.closest('[data-tag-pill]')) {
+            this.cursorIndex = this.tags.length;
+            this.$refs.entry.focus();
+        }
+    },
+    activatePill(index) {
+        this.cursorIndex = index + 1;
+        this.$refs.entry.focus();
+    },
+    handleEntryKey(event) {
+        if (event.key === ',') {
+            event.preventDefault();
+            this.add();
+        } else {
+            this.handleKey(event);
+        }
+    },
+    handleKey(event) {
+        if (event.key === 'ArrowLeft' && this.draft === '') {
+            event.preventDefault();
+            this.cursorIndex = Math.max(0, this.cursorIndex - 1);
+        } else if (event.key === 'ArrowRight' && this.draft === '') {
+            event.preventDefault();
+            this.cursorIndex = Math.min(this.tags.length, this.cursorIndex + 1);
+        } else if (event.key === 'Backspace' && this.draft === '' && this.cursorIndex > 0) {
+            event.preventDefault();
+            this.remove(this.cursorIndex - 1);
+        } else if (event.key === 'Delete' && this.draft === '' && this.cursorIndex < this.tags.length) {
+            event.preventDefault();
+            this.remove(this.cursorIndex);
+        }
+    },
+});
+
+window.SM.fileList = (name, deferredUploads, uploadFields = []) => ({
+    dragActive: false,
+    deferredUploads: Boolean(deferredUploads),
+    uploadFiles(fileList) {
+        const files = Array.from(fileList || []).filter((file) => file instanceof File);
+        if (files.length === 0) return;
+        if (this.deferredUploads) {
+            window.SM.queuePendingFiles(name, files);
+            this.dragActive = false;
+            return;
+        }
+        window.SM.upload(files, (result) => {
+            if (!result || result.success !== true || !Array.isArray(result.files)) return;
+            const uploaded = result.files.map((item) => {
+                const data = item?.data || {};
+                const fileName = typeof data.name === 'string' ? data.name.trim() : '';
+                if (fileName === '') return null;
+                return {
+                    name: fileName,
+                    title: typeof item?.title === 'string' && item.title.trim() !== '' ? item.title.trim() : fileName,
+                    mime_type: typeof data.mime_type === 'string' ? data.mime_type : '',
+                    size: Number.isFinite(Number(data.size)) ? Number(data.size) : 0,
+                    status: '',
+                    url: '/media/download/' + encodeURIComponent(fileName),
+                    thumbnail: '/thumbnails/unknown.webp',
+                    file_type: 'File',
+                    is_private: false,
+                    password: null,
+                    download_url: '/media/download/' + encodeURIComponent(fileName) + '?download=1',
+                    can_delete: false,
+                    delete_url: null,
+                };
+            }).filter((item) => item !== null);
+            window.SM.appendFiles(name, uploaded);
+            this.dragActive = false;
+        }, [], {
+            showModal: false,
+            fields: uploadFields,
+            onStart: () => { this.dragActive = true; },
+            onSuccess: ({ files: uploadedFiles }) => {
+                const count = Array.isArray(uploadedFiles) ? uploadedFiles.length : files.length;
+                window.SM.notice('Upload complete', count + ' file' + (count === 1 ? '' : 's') + ' uploaded successfully.', 'success', {
+                    toast: true,
+                    timer: 2500,
+                });
+            },
+        });
+    },
+    handleDrop(event) {
+        this.dragActive = false;
+        this.uploadFiles(event.dataTransfer?.files || []);
+    },
+    uploadFilesFromInput(input) {
+        this.uploadFiles(input.files);
+        input.value = '';
+    },
+});
+
+window.SM.openFileListPicker = (name, options) => window.SMMediaPicker.open(
+    window.SM.currentFileList(name).map((file) => file.name),
+    options,
+    (result) => window.SM.updateFiles(name, result),
+);
+window.SM.openSingleMediaPicker = (name, options) => {
+    const input = document.getElementById(name);
+    if (!input) return;
+    window.SMMediaPicker.open(input.value, options, (value) => window.SM.updateMedia(name, value));
+};
+
 const showFlashNotifications = () => {
     document.querySelectorAll('[data-sm-flash-notification]').forEach((notification) => {
         const { title = '', message = '', type = 'info' } = notification.dataset;

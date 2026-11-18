@@ -2,7 +2,7 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Create User</x-mast>
 
     <x-container>
-        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{ groupsRaw: @js(old('groups', '')), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', false)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', false)), shippingSameBilling: @js((bool) old('shipping_same_billing', true)) }" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{ groupsRaw: @js(old('groups', '')), useOrganisationBillingAddress: @js((bool) old('use_organisation_billing_address', false)), useOrganisationShippingAddress: @js((bool) old('use_organisation_shipping_address', false)), shippingSameBilling: @js((bool) old('shipping_same_billing', true)) }" x-on:submit.prevent="$SM.updateShippingAddress(); $el.submit()">
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">
@@ -38,7 +38,7 @@
                 :suggestions="$groupSuggestions ?? []"
                 info="Slug format only. Uppercase/spaces/symbols are normalized."
                 x-model="groupsRaw"
-                x-on:input="groupsRaw = groupsRaw.split(/[\\s,]+/).map(v => v.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')).filter(Boolean).join(', ')"
+                x-on:input="groupsRaw = $SM.normalizeGroupList(groupsRaw)"
             />
 
             <section x-data="{ open: true }">
@@ -78,7 +78,7 @@
                 </a>
                 <div x-show="open">
                     <x-ui.checkbox label="Use organisation shipping address" name="use_organisation_shipping_address" :checked="old('use_organisation_shipping_address', false)" x-model="useOrganisationShippingAddress" x-on:change="if (useOrganisationShippingAddress) shippingSameBilling = false" info="Applies when the user is linked to an organisation." />
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="old('shipping_same_billing', true)" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; SM.updateShippingAddress()" />
+                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" :checked="old('shipping_same_billing', true)" x-model="shippingSameBilling" x-bind:disabled="useOrganisationShippingAddress" x-on:change="if (shippingSameBilling) useOrganisationShippingAddress = false; $SM.updateShippingAddress()" />
                     <fieldset x-bind:disabled="useOrganisationShippingAddress">
                         <x-ui.input label="Address" name="shipping_address" />
                         <x-ui.input label="Address 2" name="shipping_address2" />

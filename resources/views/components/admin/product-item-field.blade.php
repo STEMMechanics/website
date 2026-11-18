@@ -22,12 +22,12 @@
     x-id="['product-item-options', 'product-item-input', 'product-item-help']"
     @if($usesCatalogExpression)
         @if($usesItemNameSuggestionsExpression)
-            x-data="SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
+            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, {{ $itemNameSuggestionsExpression }}, {{ $selectionExpression }})"
         @else
-            x-data="SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, @js($itemNameSuggestions), {{ $selectionExpression }})"
+            x-data="$SM.productItemLinkEditor({{ $model }}, {{ $catalogExpression }}, @js($itemNameSuggestions), {{ $selectionExpression }})"
         @endif
     @else
-        x-data="SM.productItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions), {{ $selectionExpression }})"
+        x-data="$SM.productItemLinkEditor({{ $model }}, @js($catalog), @js($itemNameSuggestions), {{ $selectionExpression }})"
     @endif
     x-init="if (linkedProduct && !model.item_name) model.item_name = linkedProduct.name"
     x-effect="model = {{ $model }}"

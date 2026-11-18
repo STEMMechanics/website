@@ -19,7 +19,7 @@
                 return;
             }
 
-            if (!window.SM?.shopCart) {
+            if (!$SM?.shopCart) {
                 form.submit();
                 return;
             }
@@ -27,7 +27,7 @@
             this.busy = true;
 
             try {
-                await window.SM.shopCart.submitAddForm(form, {
+                await $SM.shopCart.submitAddForm(form, {
                     addedLineKey: this.lineKey,
                 });
             } finally {
@@ -45,11 +45,11 @@
             }
         },
         async change(nextQuantity) {
-            if (this.busy || !window.SM?.shopCart) {
+            if (this.busy || !$SM?.shopCart) {
                 return;
             }
 
-            const resolvedQuantity = window.SM.toBoundedInt(nextQuantity, {
+            const resolvedQuantity = $SM.toBoundedInt(nextQuantity, {
                 min: 0,
                 max: this.maxQuantity,
                 allowNull: false,
@@ -58,19 +58,19 @@
 
             try {
                 if (resolvedQuantity <= 0) {
-                    await window.SM.shopCart.removeLine(this.lineKey, {
-                        shippingCountry: window.SM.shopCart.getState()?.shipping_country || 'Australia',
+                    await $SM.shopCart.removeLine(this.lineKey, {
+                        shippingCountry: $SM.shopCart.getState()?.shipping_country || 'Australia',
                         showNotice: false,
                     });
-                    if (typeof window.SM.notice === 'function') {
-                        window.SM.alert('Removed from cart', @js($removeMessage), 'danger');
+                    if (typeof $SM.notice === 'function') {
+                        $SM.alert('Removed from cart', @js($removeMessage), 'danger');
                     }
                     return;
                 }
 
-                await window.SM.shopCart.updateQuantity(this.lineKey, resolvedQuantity, {
+                await $SM.shopCart.updateQuantity(this.lineKey, resolvedQuantity, {
                     max: this.maxQuantity,
-                    shippingCountry: window.SM.shopCart.getState()?.shipping_country || 'Australia',
+                    shippingCountry: $SM.shopCart.getState()?.shipping_country || 'Australia',
                     showNotice: false,
                 });
             } finally {
@@ -78,12 +78,12 @@
             }
         },
         init() {
-            if (!window.SM?.shopCart) {
+            if (!$SM?.shopCart) {
                 return;
             }
 
-            this.syncFromCart(window.SM.shopCart.getState());
-            window.SM.shopCart.subscribe((cart) => this.syncFromCart(cart));
+            this.syncFromCart($SM.shopCart.getState());
+            $SM.shopCart.subscribe((cart) => this.syncFromCart(cart));
         },
     }"
 >

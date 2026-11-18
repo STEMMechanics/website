@@ -9,7 +9,7 @@
     $values = is_array($oldValues) ? collect($values)->map(fn ($value, $id) => is_scalar($oldValues[$id] ?? null) ? (string) $oldValues[$id] : $value)->all() : $values;
     $enabled = (bool) old('allocation_override', $manual->isNotEmpty());
 @endphp
-<section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
+<section data-validation-field="splits" class="my-6 rounded-xl border border-slate-200 bg-white p-5" x-data="$SM.allocationTally(@js(['values' => $values, 'enabled' => $enabled, 'exact' => true, 'totalInput' => 'expense-total-amount', 'gstInput' => 'expense-gst-amount', 'supplierInput' => 'expense-supplier', 'defaults' => $defaults]))" x-on:input.window="refreshTotal($event)" x-effect="if (!enabled) refreshDefaults()">
     <div x-data="{ allocationOpen: @js($errors->has('splits')), allocationTouched: false }" x-effect="if (needsAttention) { allocationOpen = true; if (!allocationTouched) enabled = true; }">
         <x-ui.button variant="plain"
             type="button"

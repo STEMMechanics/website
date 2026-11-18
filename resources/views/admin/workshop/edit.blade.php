@@ -272,7 +272,7 @@ if (isset($workshop)) {
                 const startsAt = new Date(value);
                 if (!this.manualEndsAt && Number.isFinite(startsAt.getTime())) {
                     startsAt.setHours(startsAt.getHours() + 1);
-                    this.manualEndsAt = SM.toLocalISOString(startsAt);
+                    this.manualEndsAt = $SM.toLocalISOString(startsAt);
                 }
                 this.$nextTick(() => syncWorkshopClosesAt(true));
             },
@@ -858,7 +858,7 @@ if (isset($workshop)) {
                     </ol>
                 </nav>
                 <div class="mb-5">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-color" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-color" x-text="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')"></p>
                     <h2 class="mt-1 text-xl font-semibold text-gray-950" tabindex="-1" x-ref="editorStepHeading" x-text="editorStepLabel()"></h2>
                     <p class="mt-1 text-sm text-gray-600" x-text="editorStepDescription()"></p>
                 </div>
@@ -1039,7 +1039,7 @@ if (isset($workshop)) {
                             <template x-for="(contact, contactIndex) in contactResults" :key="contact.id">
                                 <x-ui.button variant="plain" type="button" role="option" tabindex="-1" x-bind:id="'requested_by_user_option_' + contact.id" x-bind:aria-selected="contactSelectedIndex === contactIndex" x-bind:class="contactSelectedIndex === contactIndex ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="contactSelectedIndex = contactIndex" x-on:mousedown.prevent x-on:click="chooseContact(contact)">
                                     <span class="block text-gray-900" x-text="contact.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="`${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`"></span>
+                                    <span class="block text-xs text-gray-500" x-text="('' + (contact.email) + '' + (contact.organisation_name ? (' · ' + (contact.organisation_name) + '') : '') + '')"></span>
                                 </x-ui.button>
                             </template>
                         </div>
@@ -1297,10 +1297,10 @@ if (isset($workshop)) {
                                 const inputs = JSON.stringify([this.planId, this.registration, this.manualStartsAt, this.manualEndsAt, this.maxTickets, this.courseTeachingHours()]);
                                 const changed = this.previousPricingInputs !== null && this.previousPricingInputs !== inputs;
                                 this.previousPricingInputs = inputs;
-                                this.breakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
-                                this.maxBreakdown = SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
+                                this.breakdown = $SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, true, this.courseTeachingHours());
+                                this.maxBreakdown = $SM.ticketCostBreakdown(this.plan, this.manualStartsAt, this.manualEndsAt, this.maxTickets, false, this.courseTeachingHours());
                                 if (!force && (!this.automatic || (!changed && String(this.price ?? '').trim() !== ''))) return;
-                                const next = SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
+                                const next = $SM.workshopPrice(this.plan, this.registration, this.price, this.manualStartsAt, this.manualEndsAt, this.maxTickets, force || this.automatic, this.courseTeachingHours());
                                 if (this.registration === 'tickets' && (next !== this.price || force)) this.automatic = true;
                                 this.price = next;
                             }
@@ -1424,7 +1424,7 @@ if (isset($workshop)) {
                         <div>
                             <div class="font-semibold text-gray-900">Participant information</div>
                             <div class="text-sm text-gray-600">Add instructions, permission forms, or other documents to checkout and the confirmation email.</div>
-                            <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? `${participantFiles.length} attachment${participantFiles.length === 1 ? '' : 's'} selected` : 'No attachments selected'"></div>
+                            <div class="mt-1 text-xs text-gray-500" x-text="participantFiles.length ? ('' + (participantFiles.length) + ' attachment' + (participantFiles.length === 1 ? '' : 's') + ' selected') : 'No attachments selected'"></div>
                         </div>
                         <x-ui.button type="button" color="outline" x-on:click.prevent="participantInformationOpen = true">
                             <i class="fa-solid fa-paperclip mr-2" aria-hidden="true"></i>Configure
@@ -1728,7 +1728,7 @@ if (isset($workshop)) {
                                     class="mb-2"
                                 />
                                 <div id="workshop-blueprint-option-list" role="listbox" class="max-h-72 overflow-y-auto">
-                                    <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="`${option.kind}-${option.id}`">
+                                    <template x-for="(option, optionIndex) in filteredBlueprintOptions()" :key="('' + (option.kind) + '-' + (option.id) + '')">
                                         <x-ui.button variant="plain"
                                             type="button"
                                             role="option"
@@ -1740,7 +1740,7 @@ if (isset($workshop)) {
                                             x-on:click="chooseBlueprintOption(option)"
                                         >
                                             <span class="min-w-0 truncate" x-text="option.label"></span>
-                                            <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="`${option.tasks_count || 0} tasks · ${option.items_count || 0} items`"></span>
+                                            <span x-show="option.kind === 'blueprint' && option.id" class="shrink-0 text-xs text-slate-500" x-text="('' + (option.tasks_count || 0) + ' tasks · ' + (option.items_count || 0) + ' items')"></span>
                                         </x-ui.button>
                                     </template>
                                     <p x-show="filteredBlueprintOptions().length === 0" class="px-3 py-2 text-sm text-slate-500">No matching blueprints.</p>
@@ -1761,10 +1761,10 @@ if (isset($workshop)) {
                     </div>
                     <template x-if="tasks.length === 0"><p class="rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-600">No tasks yet. Choose a blueprint or add a task for this workshop.</p></template>
                     <div class="space-y-4">
-                        <template x-for="(task, taskIndex) in tasks" :key="task.id || `new-workshop-task-${taskIndex}`">
+                        <template x-for="(task, taskIndex) in tasks" :key="task.id || ('new-workshop-task-' + (taskIndex) + '')">
                             <article class="rounded-lg border border-gray-200 bg-gray-50 p-3">
                                 <div class="flex items-start gap-2">
-                                    <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="`${task.expanded ? 'Collapse' : 'Expand'} ${task.name || 'task'}`">
+                                    <x-ui.button variant="plain" type="button" class="flex min-w-0 flex-1 items-start gap-2 text-left" x-on:click="toggleTask(taskIndex)" x-bind:aria-expanded="task.expanded" x-bind:aria-label="('' + (task.expanded ? 'Collapse' : 'Expand') + ' ' + (task.name || 'task') + '')">
                                         <i class="fa-solid mt-1 shrink-0 text-xs text-gray-500" x-bind:class="task.expanded ? 'fa-chevron-down' : 'fa-chevron-right'" aria-hidden="true"></i>
                                         <span class="min-w-0 flex-1">
                                             <span class="block break-words font-medium leading-snug text-gray-900" x-text="task.name || 'Untitled task'"></span>
@@ -1817,7 +1817,7 @@ if (isset($workshop)) {
                                     <details x-show="(task.subtasks || []).length > 0" class="mt-3 rounded-lg border border-gray-200 bg-white p-3">
                                         <summary class="cursor-pointer text-sm font-medium text-gray-700">Social post sections and other details (<span x-text="task.subtasks?.length || 0"></span>)</summary>
                                         <div class="mt-3 space-y-4">
-                                            <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="`workshop-subtask-${task.id || taskIndex}-${subtaskIndex}`">
+                                            <template x-for="(subtask, subtaskIndex) in task.subtasks" :key="('workshop-subtask-' + (task.id || taskIndex) + '-' + (subtaskIndex) + '')">
                                                 <div class="border-t border-gray-200 pt-3">
                                                     <div class="flex items-end gap-2"><label class="min-w-0 flex-1"><span class="mb-1 block text-xs font-medium text-gray-600">Section title</span><x-ui.input-control type="text" maxlength="100" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm" x-model="subtask.title" /></label><x-ui.button type="button" variant="plain" class="rounded text-red-600 hover:bg-red-50" x-on:click="removeSubtask(task, subtaskIndex)" aria-label="Remove section" size="icon-small"><i class="fa-solid fa-trash" aria-hidden="true"></i></x-ui.button></div>
                                                     <div class="mb-1 mt-3 flex items-center justify-between gap-2"><span class="text-sm font-medium text-gray-700">Section content</span><x-ui.button type="button" variant="plain" class="rounded text-slate-600 hover:bg-sky-100 hover:text-sky-800" data-admin-ai data-ai-widget-target="#workshop-ai-toast" data-ai-processing-message="Writing task content…" data-ai-url="{{ route('admin.ai.workshops.copy') }}" data-ai-token="{{ csrf_token() }}" data-ai-scope="#workshop-form" data-ai-kind="task_content" data-ai-result-event="workshop-task-ai-copy" data-ai-result-key="content" data-ai-context="{}" x-bind:data-ai-context="JSON.stringify(workshopAiContext(taskIndex, subtaskIndex))" x-bind:data-ai-mode="String(subtask.content || '').trim() ? 'improve' : 'write'" aria-label="Write or improve section content" title="Write or improve section content" :disabled="blank(config('services.openai.api_key'))" size="icon-small"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i></x-ui.button></div>
@@ -1959,7 +1959,7 @@ if (isset($workshop)) {
                         </div>
                         <div class="rounded-lg bg-gray-50 p-3">
                             <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Capacity</dt>
-                            <dd class="mt-1 font-medium text-gray-900" x-text="registration === 'tickets' ? (maxTickets ? `${maxTickets} tickets` : 'No ticket limit set') : (maxAttendance ? `${maxAttendance} attendees` : 'No attendance limit set')"></dd>
+                            <dd class="mt-1 font-medium text-gray-900" x-text="registration === 'tickets' ? (maxTickets ? ('' + (maxTickets) + ' tickets') : 'No ticket limit set') : (maxAttendance ? ('' + (maxAttendance) + ' attendees') : 'No attendance limit set')"></dd>
                         </div>
                         <div class="rounded-lg bg-gray-50 p-3">
                             <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Price</dt>
@@ -1986,12 +1986,12 @@ if (isset($workshop)) {
                             @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
                                 <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__interests" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                             @endif
-                            <x-ui.button data-editor-delete type="button" color="danger" class="sm-workshop-step-control sm-workshop-step-footer__delete-button" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
+                            <x-ui.button data-editor-delete type="button" color="danger" class="sm-workshop-step-control sm-workshop-step-footer__delete-button" x-data x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
                         </div>
                     @endisset
-                    <div class="sm-workshop-step-footer__progress" x-bind:aria-label="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`">
-                        <span class="sm:hidden" x-text="`${editorStepIndex() + 1} / ${editorStepOrder.length}`"></span>
-                        <span class="hidden sm:inline" x-text="`Step ${editorStepIndex() + 1} of ${editorStepOrder.length}`"></span>
+                    <div class="sm-workshop-step-footer__progress" x-bind:aria-label="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')">
+                        <span class="sm:hidden" x-text="('' + (editorStepIndex() + 1) + ' / ' + (editorStepOrder.length) + '')"></span>
+                        <span class="hidden sm:inline" x-text="('Step ' + (editorStepIndex() + 1) + ' of ' + (editorStepOrder.length) + '')"></span>
                     </div>
                     <div class="sm-workshop-step-footer__navigation">
                         <x-ui.button class="sm-workshop-step-control sm-workshop-step-footer__previous" type="button" color="outline" x-show="editorStepIndex() > 0" x-cloak x-on:click="previousEditorStep()">

@@ -183,8 +183,8 @@
                     }
 
                     this.endsAtPastToastKey = warningKey;
-                    if (window.SM && typeof window.SM.notice === 'function') {
-                        window.SM.notice(
+                    if ($SM && typeof $SM.notice === 'function') {
+                        $SM.notice(
                             'Voucher will be inactive',
                             'This end time is in the past, so the voucher will be inactive immediately.',
                             'warning',
@@ -492,7 +492,7 @@
                             type="button"
                             class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
                             x-data
-                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete voucher?', 'Are you sure you want to delete this voucher? This action cannot be undone.', '{{ route('admin.shop.coupon.destroy', $coupon) }}')"
+                            x-on:click.prevent="$SM.confirmDelete('{{ csrf_token() }}', 'Delete voucher?', 'Are you sure you want to delete this voucher? This action cannot be undone.', '{{ route('admin.shop.coupon.destroy', $coupon) }}')"
                         >Delete Voucher</x-ui.button>
                     @endisset
                 </x-ui.editor-actions>

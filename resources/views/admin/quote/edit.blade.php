@@ -120,7 +120,7 @@
                             const sourceId = item.source_id ?? storeContext.product_id ?? '';
                             const sourceVariantId = item.source_variant_id ?? storeContext.variant_id ?? 0;
                             const gstApplicable = typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true;
-                            const taxMultiplier = 1 + SM.lineTaxRate(item);
+                            const taxMultiplier = 1 + $SM.lineTaxRate(item);
                             const quantity = parseFloat(item.quantity || 0);
                             const legacyUnitEx = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
                             const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? ''))
@@ -157,7 +157,7 @@
                                 quantity,
                                 unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
                                 unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
-                                unit_price_inc_tax: SM.formatUnitPrice(unitPriceInc),
+                                unit_price_inc_tax: $SM.formatUnitPrice(unitPriceInc),
                                 line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
                                 line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
                                 line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
@@ -183,7 +183,7 @@
                         line_total: 0,
                         line_total_ex_tax: 0,
                         line_total_inc_tax: 0,
-                        gst_applicable: true, tax_rate: SM.currentGstRate(),
+                        gst_applicable: true, tax_rate: $SM.currentGstRate(),
                     };
                 },
                 addLineItem(kind = 'custom') {
@@ -196,9 +196,9 @@
                         ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
                         : 0;
                     const unitPriceEx = item.gst_applicable !== false
-                        ? unitPriceInc / (1 + SM.lineTaxRate(item))
+                        ? unitPriceInc / (1 + $SM.lineTaxRate(item))
                         : unitPriceInc;
-                    const amounts = SM.lineAmounts(item);
+                    const amounts = $SM.lineAmounts(item);
                     const lineTotalEx = amounts.net;
                     const lineTotalInc = amounts.gross;
                     const cleaned = {
@@ -238,7 +238,7 @@
                             unit_shipping_units: parseFloat(product.shipping_units || 0),
                             unit_min_satchel_rank: product.min_satchel_rank ?? null,
                             unit_weight_grams: product.weight_grams ?? null,
-                            tax_rate: SM.lineTaxRate(item),
+                            tax_rate: $SM.lineTaxRate(item),
                             unit_price_inc_tax: Number.isFinite(parseFloat(cleaned.unit_price_inc_tax || 0)) ? parseFloat(cleaned.unit_price_inc_tax || 0) : 0,
                             line_price_inc_tax: Number.isFinite(parseFloat(cleaned.line_total_inc_tax || 0)) ? parseFloat(cleaned.line_total_inc_tax || 0) : 0,
                         } : (item.store_context || null);
@@ -266,7 +266,7 @@
                     return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
                 },
                 lineItemAmount(item, basis = 'ex') {
-                    const amounts = SM.lineAmounts(item);
+                    const amounts = $SM.lineAmounts(item);
                     return basis === 'inc' ? amounts.gross : amounts.net;
                 },
                 lineItemExPrice(item) {
@@ -280,7 +280,7 @@
                     return multiplier > 0 ? unitPriceInc / multiplier : unitPriceInc;
                 },
                 lineItemGstMultiplier(item) {
-                    return 1 + SM.lineTaxRate(item);
+                    return 1 + $SM.lineTaxRate(item);
                 },
                 unitPriceIncGst(item) {
                     return this.normalizeMoney(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0));
@@ -292,14 +292,14 @@
                     return this.normalizeMoney(this.lineItemAmount(item, 'inc'));
                 },
                 calculateSubtotal() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).net;
+                    return $SM.documentAmounts(this.lineItems, this.savedTotals).net;
                 },
                 calculateGst() {
-                    return SM.documentAmounts(this.lineItems, this.savedTotals).tax;
+                    return $SM.documentAmounts(this.lineItems, this.savedTotals).tax;
                 },
                 subtotalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal()); },
                 gstAmountFormatted() { return this.normalizeMoney(this.calculateGst()); },
-                totalAmountFormatted() { return this.normalizeMoney(SM.documentAmounts(this.lineItems, this.savedTotals).gross); },
+                totalAmountFormatted() { return this.normalizeMoney($SM.documentAmounts(this.lineItems, this.savedTotals).gross); },
                 hasStoreProductLines() {
                     return this.lineItems.some((item) => item.kind === 'product' && this.findProduct(item.source_id));
                 },
@@ -309,8 +309,8 @@
                         : 'Store order creation is only available when the quote includes at least one store product line item.';
                 },
                 normalizeLineItem(index, field) {
-                    if (field === 'unit_price_inc_tax' && SM.lineAmounts(this.lineItems[index]).saved) {
-                        this.lineItems[index][field] = SM.formatUnitPrice(this.lineItems[index][field]);
+                    if (field === 'unit_price_inc_tax' && $SM.lineAmounts(this.lineItems[index]).saved) {
+                        this.lineItems[index][field] = $SM.formatUnitPrice(this.lineItems[index][field]);
                         this.serializeLineItems();
                         return;
                     }
@@ -467,7 +467,7 @@
                             <span class="inline-flex h-6 items-center justify-center"><i class="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i></span>
                         </summary>
                         <div class="sm-editor-secondary-menu sm-action-items">
-                            <x-ui.button type="button" variant="plain" class="sm-row-action rounded-xl" data-action-tone="danger" data-editor-delete x-data x-on:click.prevent="$el.closest('details').open = false; SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">
+                            <x-ui.button type="button" variant="plain" class="sm-row-action rounded-xl" data-action-tone="danger" data-editor-delete x-data x-on:click.prevent="$el.closest('details').open = false; $SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">
                                 <i class="fa-solid fa-trash" aria-hidden="true"></i><span>Delete quote</span>
                             </x-ui.button>
                         </div>

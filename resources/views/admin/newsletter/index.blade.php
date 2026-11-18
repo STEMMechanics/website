@@ -8,7 +8,7 @@
 
     <x-mast :tabs="$newsletterTabs" description="Prepare the next newsletter, choose products and send a preview.">Newsletter
         <x-slot:actions>
-                    <form class="w-full" method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="SM.confirm('Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                    <form class="w-full" method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter')">
                         @csrf
                         <x-ui.button color="mast" type="submit">Send All Now</x-ui.button>
                     </form>

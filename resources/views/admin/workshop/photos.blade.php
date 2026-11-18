@@ -708,7 +708,7 @@
                             };
                             this.existingMedia.push(item);
                             selectedNames.push(mediaName);
-                            SM.mediaDetails(mediaName, (details) => {
+                            $SM.mediaDetails(mediaName, (details) => {
                                 if (!details || typeof details !== 'object') return;
                                 const index = this.existingMedia.findIndex((existing) => existing.name === mediaName);
                                 if (index === -1) return;
@@ -760,10 +760,10 @@
                                 const preview = this.previews[index];
                                 const file = files[index];
                                 if (!file) continue;
-                                const maxUploadSize = window.SM && typeof window.SM.maxUploadSize === 'function' ? window.SM.maxUploadSize() : 0;
+                                const maxUploadSize = $SM && typeof $SM.maxUploadSize === 'function' ? $SM.maxUploadSize() : 0;
                                 if (maxUploadSize > 0 && file.size > maxUploadSize) {
-                                    const sizeLabel = window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(file.size) : `${file.size} bytes`;
-                                    const maxLabel = window.SM && typeof window.SM.bytesToString === 'function' ? window.SM.bytesToString(maxUploadSize) : `${maxUploadSize} bytes`;
+                                    const sizeLabel = $SM && typeof $SM.bytesToString === 'function' ? $SM.bytesToString(file.size) : `${file.size} bytes`;
+                                    const maxLabel = $SM && typeof $SM.bytesToString === 'function' ? $SM.bytesToString(maxUploadSize) : `${maxUploadSize} bytes`;
                                     throw new Error(`${file.name} is ${sizeLabel}, which exceeds the upload limit of ${maxLabel}.`);
                                 }
                                 this.uploadIndex = index + 1;
@@ -777,7 +777,7 @@
                                         reject(new Error(`${file.name}: ${message || 'Upload failed.'}`));
                                     };
 
-                                    SM.upload([file], (result) => {
+                                    $SM.upload([file], (result) => {
                                         if (settled) return;
                                         if (!result?.success || !result.files?.[0]?.data?.upload_token) {
                                             rejectOnce(result?.message || 'Upload failed.');
@@ -866,7 +866,7 @@
                             this.uploadError = error?.response?.status === 413
                                 ? 'The server or proxy rejected an upload chunk as too large. Please contact an administrator with the time of this upload.'
                                 : (error.message || 'Upload failed.');
-                            window.SM?.notice?.('Upload failed', this.uploadError, 'danger');
+                            $SM?.notice?.('Upload failed', this.uploadError, 'danger');
                             this.previews.forEach((preview) => URL.revokeObjectURL(preview.url));
                             this.previews = [];
                             this.existingMedia = [];
@@ -927,10 +927,10 @@
                             </div>
                             <div class="mb-2 flex justify-between text-sm text-gray-700">
                                 <span>Please keep this page open</span>
-                                <span x-text="`${preparationIndex} of ${preparationTotal}`"></span>
+                                <span x-text="('' + (preparationIndex) + ' of ' + (preparationTotal) + '')"></span>
                             </div>
                             <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0}%`"></div>
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0) + '%')"></div>
                             </div>
                         </div>
                     </div>
@@ -956,12 +956,12 @@
                             </div>
                             <div class="mb-2 min-h-10 wrap-break-word text-sm text-gray-700">
                                 <span x-text="currentFileName || ''"></span>
-                                <span x-show="uploading && previews.length" x-text="` (${uploadIndex} of ${previews.length})`"></span>
+                                <span x-show="uploading && previews.length" x-text="(' (' + (uploadIndex) + ' of ' + (previews.length) + ')')"></span>
                             </div>
                             <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="`width: ${uploadProgress}%`"></div>
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (uploadProgress) + '%')"></div>
                             </div>
-                            <div class="mt-2 text-right text-sm font-semibold text-gray-700" x-text="`${uploadProgress}%`"></div>
+                            <div class="mt-2 text-right text-sm font-semibold text-gray-700" x-text="('' + (uploadProgress) + '%')"></div>
                         </div>
                     </div>
                 </template>
@@ -1013,7 +1013,7 @@
                 x-on:input="dirty = true"
                 x-on:change="dirty = true"
                 x-on:photo-existing-selection-changed.window="refreshSelection()"
-                x-on:submit.prevent="saving = true; axios.post($el.action, new FormData($el), { headers: { Accept: 'application/json' } }).then(() => window.SM?.notice?.('Photos updated', 'Selected media changes were saved.', 'success', { toast: true })).catch(error => window.SM?.notice?.('Save failed', error.response?.data?.message || 'Could not save selected media.', 'danger', { toast: true })).finally(() => saving = false)"
+                x-on:submit.prevent="saving = true; axios.post($el.action, new FormData($el), { headers: { Accept: 'application/json' } }).then(() => $SM?.notice?.('Photos updated', 'Selected media changes were saved.', 'success', { toast: true })).catch(error => $SM?.notice?.('Save failed', error.response?.data?.message || 'Could not save selected media.', 'danger', { toast: true })).finally(() => saving = false)"
             >
                 @csrf
                 @method('PUT')
@@ -1021,7 +1021,7 @@
                         <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden text-center lg:table-cell" label="Tags" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
                         <tbody class="bg-white">
                     @foreach($photos as $photo)
-                        <tr data-photo-row x-data="{ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; window.SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }">
+                        <tr data-photo-row x-data="{ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; $SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }">
                             <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="window.dispatchEvent(new CustomEvent('photo-existing-selection-changed'))" /></td>
                             <td data-mobile-primary class="px-3 py-3">
                                 <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
@@ -1045,7 +1045,7 @@
                                         <x-ui.row-action label="Remove from workshop" icon="fa-solid fa-ban" tone="warning"
                                             type="button"
                                             x-data
-                                            x-on:click.prevent="SM.confirmDelete(
+                                            x-on:click.prevent="$SM.confirmDelete(
                                                 '{{ csrf_token() }}',
                                                 'Remove media from workshop?',
                                                 'This will remove the media item from this workshop only. The media item will remain in the media library.',
@@ -1056,7 +1056,7 @@
                                         <x-ui.row-action label="Delete permanently" icon="fa-solid fa-trash" tone="danger"
                                             type="button"
                                             x-data
-                                            x-on:click.prevent="SM.confirmDelete(
+                                            x-on:click.prevent="$SM.confirmDelete(
                                                 '{{ csrf_token() }}',
                                                 'Delete media permanently?',
                                                 'This will remove the media item from the media library and from all workshop associations. This action cannot be undone.',
