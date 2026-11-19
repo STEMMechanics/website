@@ -365,4 +365,5 @@
             }
         };
     }
+    window.SM.whenAlpineReady(() => Alpine.data('invoicePaymentPage', invoicePaymentPage));
 </script>

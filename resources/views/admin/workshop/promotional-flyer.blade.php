@@ -373,5 +373,6 @@
                 },
             };
         }
+        window.SM.whenAlpineReady(() => Alpine.data('workshopFlyerBuilder', workshopFlyerBuilder));
     </script>
 </x-layout>

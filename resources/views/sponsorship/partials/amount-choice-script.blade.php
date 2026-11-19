@@ -217,4 +217,8 @@
             },
         };
     }
+    window.SM.whenAlpineReady(() => {
+        Alpine.data('sponsorshipCommunitySupportCheckout', sponsorshipCommunitySupportCheckout);
+        Alpine.data('sponsorshipBusinessAmountChoice', sponsorshipBusinessAmountChoice);
+    });
 </script>

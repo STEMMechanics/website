@@ -595,4 +595,5 @@
             }
         };
     }
+    window.SM.whenAlpineReady(() => Alpine.data('ticketPaymentPage', ticketPaymentPage));
 </script>
