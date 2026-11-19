@@ -434,7 +434,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopIndex1', () => ({ baseRoute: @js($monthMaterialsPdfRoute), open: false, showCancelled: @js(request()->boolean('show_cancelled')), hoveredWorkshop: null, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }));
 });
 </script>

@@ -193,7 +193,7 @@
     </script>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspSponsorshipIndex1', () => ({ copied: false, qrOpen: false, async copy(address) { try { await navigator.clipboard.writeText(address); this.copied = true; setTimeout(() => this.copied = false, 2200); } catch (_) { this.copied = false; } } }));
 });
 </script>

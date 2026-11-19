@@ -49,7 +49,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspSponsorshipDetails1', () => ({ country: @js(old('country', $details['country'] ?? 'Australia')), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }));
 });
 </script>

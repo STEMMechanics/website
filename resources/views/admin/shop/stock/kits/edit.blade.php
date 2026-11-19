@@ -343,7 +343,7 @@
     </div>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminShopStockKitsEdit1', () => ({
             kitFormDirty: @js($kitFormDirty),
             assemblyDialogLoading: false,

@@ -360,7 +360,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminUserEdit1', () => ({
             mergeOpen: @js($errors->has('target_user_id') || $errors->has('confirm_merge')),
             mergeSearch: '',

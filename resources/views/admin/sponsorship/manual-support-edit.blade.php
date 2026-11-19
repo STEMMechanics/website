@@ -134,7 +134,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminSponsorshipManualSupportEdit1', () => ({
             supportMethod: @js(old('support_method', $support->support_method ?: 'cheque')),
             sendInvoiceEmail: @js((bool) old('send_invoice_email', false)),

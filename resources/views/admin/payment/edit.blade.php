@@ -650,7 +650,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminPaymentEdit1', () => ({
             selectedPaymentMethod: @js(old('payment_method', $customerPayment->payment_method ?? '')),
             bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),

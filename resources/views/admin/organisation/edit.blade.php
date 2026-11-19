@@ -228,7 +228,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminOrganisationEdit1', () => ({
                 contacts: @js($initialContacts),
                 results: [],

@@ -1280,7 +1280,7 @@ const editorConfigureImage = async (editor) => {
     editor.chain().focus().updateAttributes('image', result.value).run();
 }
 
-document.addEventListener('alpine:init', () => {
+window.SM.whenAlpineReady(() => {
     Alpine.data('editor', (content, linkOptionsUrl = '/link-options', options = {}) => {
         let editor // Alpine's reactive engine automatically wraps component properties in proxy objects. Attempting to use a proxied editor instance to apply a transaction will cause a "Range Error: Applying a mismatched transaction", so be sure to unwrap it using Alpine.raw(), or simply avoid storing your editor as a component property, as shown in this example.
         let tableSelectionDragCleanup = null;

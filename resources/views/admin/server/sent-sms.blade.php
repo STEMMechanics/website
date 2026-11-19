@@ -411,7 +411,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminServerSentSms1', () => ({
                 sendSmsOpen: @js(old('recipient') !== null || old('message') !== null || old('reference') !== null || $errors->any()),
                 smsRecipients: @js(old('recipient', '')),

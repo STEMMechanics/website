@@ -197,7 +197,7 @@
 @include('admin.workshop.partials.stock-assembly-dialog')
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopPartialsStockReconciliation1', () => ({
                     listedStockIds: @js($listedStockIds),
                     activeStockItems: @js($activeStockItems),

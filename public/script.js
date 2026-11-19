@@ -2346,7 +2346,16 @@ createAlpineMagicBridge.cloneGlobalObject = (value, globalObjects, clones) => {
     return clone;
 };
 
-document.addEventListener('alpine:init', () => {
+window.SM.whenAlpineReady = (callback) => {
+    if (typeof window.Alpine?.data === 'function') {
+        callback();
+        return;
+    }
+
+    document.addEventListener('alpine:init', callback, { once: true });
+};
+
+window.SM.whenAlpineReady(() => {
     Alpine.magic('SM', () => createAlpineMagicBridge(window.SM));
     Alpine.magic('SMMediaPicker', () => createAlpineMagicBridge(window.SMMediaPicker));
 });
@@ -2995,7 +3004,7 @@ if (document.readyState === 'loading') {
     showFlashNotifications();
 }
 
-document.addEventListener('alpine:init', () => {
+window.SM.whenAlpineReady(() => {
     Alpine.store('ticketCancelModal', {
         open: false,
         formAction: '',

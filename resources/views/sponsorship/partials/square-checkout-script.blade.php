@@ -128,4 +128,5 @@ function sponsorshipSquareCheckout(config) {
             }
         };
     }
+window.SM.whenAlpineReady(() => Alpine.data('sponsorshipSquareCheckout', sponsorshipSquareCheckout));
 </script>

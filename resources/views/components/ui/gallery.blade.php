@@ -348,7 +348,7 @@
         updateGallery,
     );
 
-    document.addEventListener('alpine:init', () => {
+    window.SM.whenAlpineReady(() => {
         if (!Array.isArray(Alpine.store('gallery'))) {
             Alpine.store('gallery', []);
         }

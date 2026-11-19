@@ -328,6 +328,7 @@
             }, 1500);
         },
     });
+    window.SM.whenAlpineReady(() => Alpine.data('serverBackupRunner', window.serverBackupRunner));
 
     const initServerBackupControls = () => {
         const databaseImportInput = document.getElementById('database_backup');

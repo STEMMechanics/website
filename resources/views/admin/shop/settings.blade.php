@@ -681,7 +681,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminShopSettings1', () => ({
                 shippingMethods: @js($shippingMethodRows),
                 processingPauseUntil: @js(old('processing_pause_until', $processingPauseUntil ?? '')),

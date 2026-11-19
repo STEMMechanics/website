@@ -186,4 +186,4 @@ const registerStockAssemblyDialog = () => {
 };
 
 registerStockAssemblyDialog();
-document.addEventListener('alpine:init', registerStockAssemblyDialog);
+window.SM.whenAlpineReady(registerStockAssemblyDialog);

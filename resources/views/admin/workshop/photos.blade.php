@@ -253,7 +253,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopPhotos1', () => ({
                     pageUploadDragDepth: 0,
                     workshopDate: @js(optional($workshop->starts_at)->format('Y-m-d') ?? now()->format('Y-m-d')),

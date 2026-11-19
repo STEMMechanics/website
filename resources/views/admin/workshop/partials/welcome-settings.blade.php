@@ -45,7 +45,7 @@
 </div>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopPartialsWelcomeSettings1', () => ({
     welcomeEnabled: @js((bool) old('welcome_enabled', $workshopModel?->welcome_enabled ?? false)),
     welcomeFiles: @js(old('welcome_files', $workshopModel?->files('welcome_attachments')->pluck('name')->all() ?? [])),

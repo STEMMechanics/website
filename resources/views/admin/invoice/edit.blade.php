@@ -699,7 +699,7 @@
     </script>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminInvoiceEdit1', () => ({
         invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
         invoiceEmailAction: @js((string) ($invoiceEmailDefaultPayload['action'] ?? '')),

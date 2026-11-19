@@ -359,6 +359,7 @@
             }, 1500);
         },
     });
+    window.SM.whenAlpineReady(() => Alpine.data('fileBackupArchive', window.fileBackupArchive));
 
     (() => {
         const form = document.getElementById('file-backup-selection-form');
