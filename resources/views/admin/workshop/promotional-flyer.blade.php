@@ -147,7 +147,7 @@
                                         <div class="overflow-hidden" style="border-radius: 2.14cqw;">
                                             <div
                                                     class="relative w-full cursor-move touch-none select-none overflow-hidden bg-slate-100"
-                                                    :class="dragState?.workshopId === workshopId ? 'cursor-grabbing' : 'cursor-grab'"
+                                                    :class="dragState && dragState.workshopId === workshopId ? 'cursor-grabbing' : 'cursor-grab'"
                                                     style="height: 28.28cqw;"
                                                     @pointerdown.stop.prevent="startImageDrag($event, workshopId)"
                                                     @pointermove.stop.prevent="moveImageDrag($event)"

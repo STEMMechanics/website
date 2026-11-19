@@ -1056,12 +1056,12 @@ window.SM.whenAlpineReady(function () {
                         if (this.shippingSameBilling) {
                             this.syncShippingAddress();
                         }
-                        const response = await fetch('@js(route('admin.user.store-inline'))', {
+                        const response = await fetch(@js(route('admin.user.store-inline')), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Accept': 'application/json',
-                                'X-CSRF-TOKEN': '@js(csrf_token())',
+                                'X-CSRF-TOKEN': @js(csrf_token()),
                             },
                             body: JSON.stringify(this.newUser),
                         });

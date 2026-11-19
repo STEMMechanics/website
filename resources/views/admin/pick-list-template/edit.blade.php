@@ -430,31 +430,31 @@
                 <p x-show="attachments.length === 0 && pendingAttachments.length === 0" class="mt-3 text-sm text-gray-600">No attachments selected.</p>
             </div>
 
-            <div class="flex justify-end gap-2">
+            <div class="flex items-center {{ $editing ? 'justify-between' : 'justify-end' }} gap-2">
                 @if($editing)
-                    <x-ui.button color="outline" href="{{ route('admin.workshop-blueprint.pdf', $template) }}" target="_blank">View PDF</x-ui.button>
+                    <x-ui.button type="submit" form="workshop-blueprint-delete-form" color="danger-outline">Delete blueprint</x-ui.button>
                 @endif
-                <x-ui.button type="submit" x-bind:disabled="submitting">
-                    <span x-show="!submitting">{{ $editing ? 'Save Blueprint' : 'Create Blueprint' }}</span>
-                    <span x-show="submitting" class="inline-flex items-center gap-2">
-                        <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
-                        <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
-                    </span>
-                </x-ui.button>
+                <div class="flex justify-end gap-2">
+                    @if($editing)
+                        <x-ui.button color="outline" href="{{ route('admin.workshop-blueprint.pdf', $template) }}" target="_blank">View PDF</x-ui.button>
+                    @endif
+                    <x-ui.button type="submit" x-bind:disabled="submitting">
+                        <span x-show="!submitting">{{ $editing ? 'Save Blueprint' : 'Create Blueprint' }}</span>
+                        <span x-show="submitting" class="inline-flex items-center gap-2">
+                            <i class="fa-solid fa-circle-notch animate-spin" aria-hidden="true"></i>
+                            <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
+                        </span>
+                    </x-ui.button>
+                </div>
             </div>
         </form>
+        @if($editing)
+            <form id="workshop-blueprint-delete-form" hidden method="POST" action="{{ route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Delete blueprint?', 'Are you sure you want to delete this workshop blueprint?', 'Delete')">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endif
     </x-container>
-    @if($editing)
-        <x-container class="pb-6">
-            <div class="flex justify-end">
-                <form method="POST" action="{{ route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Delete blueprint?', 'Are you sure you want to delete this workshop blueprint?', 'Delete')">
-                    @csrf
-                    @method('DELETE')
-                    <x-ui.button type="submit" color="danger-outline">Delete blueprint</x-ui.button>
-                </form>
-            </div>
-        </x-container>
-    @endif
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
 window.SM.whenAlpineReady(function () {

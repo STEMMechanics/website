@@ -80,7 +80,7 @@
 
         <div x-show="variantOptions(item).length > 0">
             <x-ui.select label="Variant" aria-label="Product variant" x-model="item.source_variant_id" x-on:change="$SM.searchProductVariantChanged($el, item, $event.target.value, index)">
-                <template x-for="variant in variantOptions(item)" :key="variant.id"><option :value="String(variant.id)" x-text="variant.name"></option></template>
+                <template x-for="variant in variantOptions(item)" :key="variant.id"><option :value="$SM.string(variant.id)" x-text="variant.name"></option></template>
             </x-ui.select>
         </div>
     </div>

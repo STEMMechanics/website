@@ -318,6 +318,10 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertSee("x-show=\"type === 'physical' || workshopFormat === 'course'\"", false);
         $response->assertSee('name="location_id"', false);
         $response->assertSee('normalizedCurrentLocationId()', false);
+        $response->assertSee('x-model="selectedLocationId"', false)
+            ->assertSee('<option :value="location.id" x-text="location.name"></option>', false)
+            ->assertDontSee(':value="String(location.id)"', false)
+            ->assertDontSee(':selected="String(selectedLocationId ??', false);
     }
 
     public function test_admin_can_change_a_workshop_from_stemcraft_location_to_another_location(): void

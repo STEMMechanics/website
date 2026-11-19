@@ -24,7 +24,7 @@
     <dl class="{{ $columns === 2 ? 'lg:col-start-2' : '' }} space-y-2 border-t border-slate-200 pt-4 text-sm" aria-live="polite">
         <div class="flex justify-between gap-4"><dt>{{ $totalLabel ?? ($exact ? 'Expense excluding GST' : 'Invoice total excluding GST') }}</dt><dd class="font-semibold tabular-nums" x-text="money(total)"></dd></div>
         <div class="flex justify-between gap-4"><dt>{{ $exact ? 'Allocated' : 'Allocation targets' }}</dt><dd class="font-semibold tabular-nums" x-text="money(allocated)"></dd></div>
-        <div class="flex justify-between gap-4" :class="remaining < 0 ? 'text-red-700' : (remaining === 0 ? 'text-emerald-700' : 'text-amber-700')"><dt @if($shortfall) x-text="remaining < 0 ? 'Shortfall' : 'Unallocated'" @endif>Remaining</dt><dd class="font-semibold tabular-nums" x-text="money({{ $shortfall ? 'Math.abs(remaining)' : 'remaining' }})"></dd></div>
+        <div class="flex justify-between gap-4" :class="remaining < 0 ? 'text-red-700' : (remaining === 0 ? 'text-emerald-700' : 'text-amber-700')"><dt @if($shortfall) x-text="remaining < 0 ? 'Shortfall' : 'Unallocated'" @endif>Remaining</dt><dd class="font-semibold tabular-nums" x-text="money({{ $shortfall ? '-remaining' : 'remaining' }})"></dd></div>
     </dl>
     @endif
 </div>

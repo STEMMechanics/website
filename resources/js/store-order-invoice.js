@@ -165,7 +165,17 @@ export function storeOrderInvoiceAttachment(config) {
                 });
                 const data = await readJson(response);
                 if (this.reviewController !== controller || !this.dialog().open) return;
-                this.reviewHtml = data.html;
+                window.SM.setSafeHtmlContent(this.$refs.reviewContainer, data.html, { allowForms: true });
+                const reviewForm = this.$refs.reviewContainer.querySelector('form');
+                if (reviewForm) {
+                    const storeUrl = new URL(config.storeUrl, window.location.href);
+                    reviewForm.action = `${storeUrl.pathname}${storeUrl.search}${storeUrl.hash}`;
+                    reviewForm.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        this.save(event.currentTarget);
+                    });
+                }
+                this.reviewHtml = true;
                 this.dialog().scrollTop = 0;
                 this.$nextTick(() => this.dialog().querySelector('h3')?.focus());
             } catch (error) {

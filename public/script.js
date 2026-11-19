@@ -1814,6 +1814,111 @@ let SM = {
 };
 
 window.SM = SM;
+window.SM.setSafeHtmlContent = (element, value, options = {}) => {
+    if (!(element instanceof HTMLElement)) return;
+
+    const allowForms = options.allowForms === true;
+    const contentTags = new Set([
+        'p', 'br', 'hr', 'strong', 'b', 'em', 'i', 'u', 's', 'del', 'sub', 'sup', 'ul', 'ol', 'li',
+        'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'a', 'code', 'pre',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td', 'img',
+    ]);
+    if (allowForms) ['form', 'input', 'button', 'select', 'option', 'label'].forEach((tag) => contentTags.add(tag));
+    const commonAttributes = new Set([
+        'class', 'title', 'id', 'dir', 'lang', 'href', 'target', 'rel', 'src', 'alt', 'width', 'height', 'style',
+        'start', 'scope', 'colspan', 'rowspan',
+    ]);
+    const formAttributes = new Set([
+        'role', 'tabindex', 'type', 'name', 'value', 'method', 'action', 'for', 'selected', 'checked',
+        'disabled', 'required', 'multiple', 'placeholder', 'autocomplete',
+    ]);
+    const voidTags = new Set(['br', 'hr', 'img', 'input']);
+    const blockedTags = new Set(['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math', 'template']);
+    const validWebUrl = (value) => {
+        try {
+            const url = new URL(value, document.baseURI);
+            return ['http:', 'https:'].includes(url.protocol) ? value.trim() : null;
+        } catch {
+            return null;
+        }
+    };
+    const validLinkUrl = (value) => {
+        try {
+            const url = new URL(value, document.baseURI);
+            return ['http:', 'https:', 'mailto:', 'tel:', 'sms:'].includes(url.protocol) ? value.trim() : null;
+        } catch {
+            return null;
+        }
+    };
+    const validFormAction = (value) => {
+        try {
+            const url = new URL(value, document.baseURI);
+            return url.origin === window.location.origin && ['http:', 'https:'].includes(url.protocol)
+                ? `${url.pathname}${url.search}${url.hash}`
+                : null;
+        } catch {
+            return null;
+        }
+    };
+    const appendNode = (source, target) => {
+        if (source.nodeType === Node.TEXT_NODE) {
+            target.append(document.createTextNode(source.nodeValue || ''));
+            return;
+        }
+        if (source.nodeType !== Node.ELEMENT_NODE) return;
+
+        const tag = source.tagName.toLowerCase();
+        if (blockedTags.has(tag)) return;
+        if (!contentTags.has(tag)) {
+            source.childNodes.forEach((child) => appendNode(child, target));
+            return;
+        }
+
+        const safeElement = document.createElement(tag);
+        Array.from(source.attributes).forEach(({ name, value: attributeValue }) => {
+            const attribute = name.toLowerCase();
+            if (attribute.startsWith('on') || attribute.startsWith('x-') || attribute.startsWith('@')) return;
+            if (!commonAttributes.has(attribute) && !(allowForms && formAttributes.has(attribute))
+                && !attribute.startsWith('aria-') && !attribute.startsWith('data-')) return;
+
+            let safeValue = attributeValue;
+            if (attribute === 'href') {
+                safeValue = validLinkUrl(attributeValue);
+                if (!safeValue) return;
+            } else if (attribute === 'src') {
+                if (/^data:image\/(?:png|gif|jpe?g|webp);base64,/i.test(attributeValue)) {
+                    safeValue = attributeValue;
+                } else {
+                    safeValue = validWebUrl(attributeValue);
+                    if (!safeValue) return;
+                }
+            } else if (attribute === 'action') {
+                if (!allowForms) return;
+                safeValue = validFormAction(attributeValue);
+                if (!safeValue) return;
+            } else if (attribute === 'target' && !['_self', '_blank'].includes(attributeValue)) {
+                return;
+            } else if (attribute === 'style') {
+                const alignment = attributeValue.match(/(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)\s*(?:;|$)/i);
+                if (!alignment) return;
+                safeValue = `text-align: ${alignment[1].toLowerCase()}`;
+            }
+
+            safeElement.setAttribute(attribute, safeValue);
+        });
+
+        if (safeElement.tagName === 'A' && safeElement.getAttribute('target') === '_blank') {
+            safeElement.setAttribute('rel', 'noopener noreferrer');
+        }
+        if (!voidTags.has(tag)) source.childNodes.forEach((child) => appendNode(child, safeElement));
+        target.append(safeElement);
+    };
+
+    const parsed = new DOMParser().parseFromString(String(value ?? ''), 'text/html');
+    const content = document.createDocumentFragment();
+    parsed.body.childNodes.forEach((node) => appendNode(node, content));
+    element.replaceChildren(content);
+};
 Object.assign(window.SM, {
     number: value => Number(value),
     string: value => String(value),
