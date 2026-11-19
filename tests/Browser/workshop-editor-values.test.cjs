@@ -36,15 +36,21 @@ test('reviewing a workshop shows the latest price after registration edits', asy
 function scheduleEditor(type = 'physical', initial = {}) {
     const values = Object.fromEntries(Object.entries({ type, starts_at: '', ends_at: '', closes_at: '', publish_at: '2026-10-01T09:00', ...initial })
         .map(([name, value]) => [name, { value }]));
+    const sm = { toLocalISOString: date => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) };
     const context = {
         document: { getElementsByName: name => values[name] ? [values[name]] : [], addEventListener() {} },
-        SM: { toLocalISOString: date => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16) },
+        SM: sm,
+        window: { SM: sm },
     };
     vm.runInNewContext(blade.slice(blade.indexOf('>', blade.lastIndexOf('<script')) + 1, blade.lastIndexOf('</script>')), context);
     const start = blade.indexOf('            updatedStartsAt(value) {');
     const end = blade.indexOf('            originalCourseSessions:', start);
     const editor = {
         ...vm.runInNewContext(`({${blade.slice(start, end)}})`, context),
+        updateStartsAtFromInput(value) {
+            this.updatedStartsAt(value);
+            this.$dispatch('workshop-pricing-changed');
+        },
         manualStartsAt: values.starts_at.value, manualEndsAt: values.ends_at.value,
         $dispatch() {},
         $nextTick(callback) {
@@ -124,7 +130,7 @@ function pricingEditor(automatic = true) {
     const context = { window: {} };
     vm.runInNewContext(fs.readFileSync('resources/js/workshop-line.js', 'utf8').replace('export function', 'function'), context);
     const body = blade.match(/reprice\(force = false\) \{([\s\S]*?)\n {28}\}/)[1];
-    const reprice = vm.runInNewContext(`(function(force = false) {${body}})`, { SM: context.window.SM });
+    const reprice = vm.runInNewContext(`(function(force = false) {${body}})`, { SM: context.window.SM, window: context.window });
     return {
         reprice, price: '37.50', automatic, previousPricingInputs: null,
         planId: '1', plan: { pricing_participants: 10, rules: [{ category_id: 1, basis: 'hour', rate_cents: 6000 }] },
@@ -162,9 +168,11 @@ test('initialisation retains saved closing dates for all older workshop types', 
             type: { value: type }, starts_at: { value: '2024-06-01T09:30' }, ends_at: { value: '2024-06-01T11:30' },
             closes_at: { value: '2024-05-31T17:00' }, publish_at: { value: '2024-05-01T09:00' },
         };
+        const sm = { toLocalISOString: date => date.toISOString().slice(0, 16) };
         const context = {
             document: { getElementsByName: name => values[name] ? [values[name]] : [], addEventListener() {} },
-            SM: { toLocalISOString: date => date.toISOString().slice(0, 16) },
+            SM: sm,
+            window: { SM: sm },
         };
         vm.runInNewContext(blade.slice(blade.indexOf('>', blade.lastIndexOf('<script')) + 1, blade.lastIndexOf('</script>')), context);
         assert.equal(values.closes_at.value, '2024-05-31T17:00', type);

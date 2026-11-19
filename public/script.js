@@ -2347,12 +2347,59 @@ createAlpineMagicBridge.cloneGlobalObject = (value, globalObjects, clones) => {
 };
 
 window.SM.whenAlpineReady = (callback) => {
+    const register = () => {
+        const alpine = window.Alpine;
+
+        if (typeof alpine?.data !== 'function') {
+            callback();
+            return;
+        }
+
+        const providers = new Set();
+        const registerData = alpine.data;
+        alpine.data = function (name, provider) {
+            if (arguments.length > 1) {
+                providers.add(String(name));
+            }
+
+            return registerData.apply(this, arguments);
+        };
+
+        try {
+            callback();
+        } finally {
+            alpine.data = registerData;
+        }
+
+        if (providers.size === 0 || !document.body) {
+            return;
+        }
+
+        const initializedRoots = Array.from(document.querySelectorAll('[x-data]')).filter((element) => {
+            if (!element._x_marker) {
+                return false;
+            }
+
+            const expression = (element.getAttribute('x-data') || '').trim();
+            const providerName = expression.match(/^([A-Za-z_$][A-Za-z0-9_$]*)/)?.[1];
+
+            return providerName !== undefined && providers.has(providerName);
+        });
+
+        initializedRoots
+            .filter((element) => !initializedRoots.some((parent) => parent !== element && parent.contains(element)))
+            .forEach((root) => {
+                alpine.destroyTree(root);
+                alpine.initTree(root);
+            });
+    };
+
     if (typeof window.Alpine?.data === 'function') {
-        callback();
+        register();
         return;
     }
 
-    document.addEventListener('alpine:init', callback, { once: true });
+    document.addEventListener('alpine:init', register, { once: true });
 };
 
 window.SM.whenAlpineReady(() => {
