@@ -522,7 +522,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminShopProductEdit1', () => ({
                 ...SM.productMaterials(@js($materialsConfig)),
                 ...SM.allocationRemainder(@js(json_decode(old('allocation_remainder_json', json_encode($product->allocation_remainder ?? null)), true)), @js(app(\App\Services\Finance\ProductCostAllocation::class)->defaultRemainder())),

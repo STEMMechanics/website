@@ -140,7 +140,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopFiles1', () => ({
                     pageUploadDragDepth: 0,
                     stagedWorkshopFiles: @js($attachedFilesValue->map(fn ($file) => [

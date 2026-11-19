@@ -516,7 +516,7 @@
         return;
     }
 
-    document.addEventListener('alpine:init', boot, { once: true });
+    window.SM.whenAlpineReady(boot);
     document.addEventListener('alpine:initialized', boot, { once: true });
 })();
 </script>

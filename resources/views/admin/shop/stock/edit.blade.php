@@ -455,7 +455,7 @@
     @endif
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminShopStockEdit1', () => ({
                 name: @js(old('name', $stockItem->name)),
                 sku: @js(old('sku', $stockItem->sku ?? '')),

@@ -561,7 +561,7 @@
         };
 
         if (!registerEditorStore()) {
-            document.addEventListener('alpine:init', registerEditorStore, { once: true });
+            window.SM.whenAlpineReady(registerEditorStore);
         }
     })();
 </script>

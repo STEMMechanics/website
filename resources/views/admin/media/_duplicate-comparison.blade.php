@@ -187,7 +187,7 @@
 </div>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminMediaDuplicateComparison1', () => ({
         canMerge: @js((bool) $canMerge),
         action: null,

@@ -1962,4 +1962,4 @@ const registerWorkshopPickListPage = () => {
 };
 
 registerWorkshopPickListPage();
-document.addEventListener('alpine:init', registerWorkshopPickListPage);
+window.SM.whenAlpineReady(registerWorkshopPickListPage);

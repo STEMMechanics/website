@@ -294,7 +294,7 @@
     </section>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspWorkshopIndex1', () => ({
                             hoveredWorkshop: null,
                             calendarResizeHandler: null,

@@ -4,7 +4,7 @@ import Link from '@tiptap/extension-link';
 import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
 
-document.addEventListener('alpine:init', () => {
+window.SM.whenAlpineReady(() => {
     Alpine.data('miniEditor', (options = {}) => {
         let editor = null;
         let updatingFromEditor = false;

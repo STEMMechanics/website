@@ -1074,4 +1074,4 @@ const initializeMediaStore = () => {
 };
 
 if (window.Alpine?.store) initializeMediaStore();
-else document.addEventListener('alpine:init', initializeMediaStore, { once: true });
+else window.SM.whenAlpineReady(initializeMediaStore);

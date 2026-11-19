@@ -130,7 +130,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminMediaDuplicates1', () => ({
                         mergeUrl: @js(route('admin.media.duplicates.merge-similar')),
                         ignoreUrl: @js(route('admin.media.duplicates.ignore-similar')),
