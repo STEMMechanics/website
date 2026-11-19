@@ -168,7 +168,7 @@
                                 >
                                     @csrf
                                     <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                    <input type="hidden" name="product_variant_id" :value="selectedOption?.variant_id ?? ''">
+                                    <input type="hidden" name="product_variant_id" :value="$SM.string($SM.get(selectedOption, 'variant_id', ''))">
                                     <input type="hidden" name="quantity" value="1">
                                     <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
                                         <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to cart</span>

@@ -409,7 +409,7 @@ window.SM.whenAlpineReady(function () {
                     });
                 },
                 syncAmountForType() {
-                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)') {
+                    if (this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)) {
                         this.amountDraft = '0.00';
                         return;
                     }
@@ -420,17 +420,17 @@ window.SM.whenAlpineReady(function () {
                     const raw = String(value || '').trim();
                     const amount = parseFloat(raw);
                     if (!Number.isFinite(amount) || amount < 0) {
-                        return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? '0' : '0.00';
+                        return this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE) ? '0' : '0.00';
                     }
 
-                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)') {
+                    if (this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)) {
                         return String(Math.round(amount));
                     }
 
                     return amount.toFixed(2);
                 },
                 formatAmountForType() {
-                    if (this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)') {
+                    if (this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_FREE_SHIPPING)) {
                         this.amountDraft = '0.00';
                         return;
                     }
@@ -438,13 +438,13 @@ window.SM.whenAlpineReady(function () {
                     this.amountDraft = this.formatAmountForCurrentType();
                 },
                 amountStep() {
-                    return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? '1' : '0.01';
+                    return this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE) ? '1' : '0.01';
                 },
                 amountInputMode() {
-                    return this.discountType === '@js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)' ? 'numeric' : 'decimal';
+                    return this.discountType === @js(\App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE) ? 'numeric' : 'decimal';
                 },
                 isEndsAtPast() {
-                    if (this.status !== '@js(\App\Models\Coupon::STATUS_ACTIVE)') {
+                    if (this.status !== @js(\App\Models\Coupon::STATUS_ACTIVE)) {
                         return false;
                     }
 
@@ -498,7 +498,7 @@ window.SM.whenAlpineReady(function () {
                     this.picker.type = type;
                     this.picker.open = true;
                     this.picker.search = '';
-                    this.picker.filter = type === 'products' ? '@js(\App\Models\Product::STATUS_ACTIVE)' : 'all';
+                    this.picker.filter = type === 'products' ? @js(\App\Models\Product::STATUS_ACTIVE) : 'all';
                     this.loadPickerItems(1);
                     this.$nextTick(() => {
                         this.$refs.scopePickerSearch?.focus?.();

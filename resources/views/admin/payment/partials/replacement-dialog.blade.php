@@ -36,7 +36,7 @@
                         x-model="replacementDialogSelectedCandidateId"
                     >
                         <template x-for="candidate in ($SM.get(replacementDialogData, 'candidates', []) || [])" :key="candidate.id">
-                            <option :value="String(candidate.id)" x-text="candidate.label + ' · ' + candidate.date + ' · ' + candidate.amount"></option>
+                            <option :value="$SM.string(candidate.id)" x-text="candidate.label + ' · ' + candidate.date + ' · ' + candidate.amount"></option>
                         </template>
                     </x-ui.select>
                 </div>
@@ -53,8 +53,8 @@
                                 ['Customer', $SM.get(replacementDialogData, 'source.customer')],
                                 ['Method', $SM.get(replacementDialogData, 'source.method')],
                                 ['Amount', $SM.get(replacementDialogData, 'source.amount')],
-                                ['Reference', replacementDialogData?.source?.reference],
-                                ['Notes', replacementDialogData?.source?.notes],
+                                ['Reference', $SM.get(replacementDialogData, 'source.reference')],
+                                ['Notes', $SM.get(replacementDialogData, 'source.notes')],
                             ]" :key="row[0]">
                                 <div class="flex items-start justify-between gap-4 px-4 py-3">
                                     <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500" x-text="row[0]"></dt>
@@ -75,8 +75,8 @@
                                 ['Customer', $SM.get(selectedReplacementCandidate(), 'customer')],
                                 ['Method', $SM.get(selectedReplacementCandidate(), 'method')],
                                 ['Amount', $SM.get(selectedReplacementCandidate(), 'amount')],
-                                ['Reference', selectedReplacementCandidate()?.reference],
-                                ['Notes', selectedReplacementCandidate()?.notes],
+                                ['Reference', $SM.get(selectedReplacementCandidate(), 'reference')],
+                                ['Notes', $SM.get(selectedReplacementCandidate(), 'notes')],
                             ]" :key="row[0]">
                                 <div class="flex items-start justify-between gap-4 px-4 py-3">
                                     <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500" x-text="row[0]"></dt>
@@ -91,11 +91,11 @@
             <div class="border-t border-gray-200 px-6 py-4">
                 <form
                     method="POST"
-                    :action="replacementDialogData?.action || '#'"
+                    :action="$SM.get(replacementDialogData, 'action', '#') || '#'"
                     class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"
                 >
                     @csrf
-                    <input type="hidden" name="matched_payment_id" :value="selectedReplacementCandidate()?.id || ''">
+                    <input type="hidden" name="matched_payment_id" :value="$SM.string($SM.get(selectedReplacementCandidate(), 'id', ''))">
                     <label class="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 sm:mr-auto">
                         <x-ui.checkbox bare small
 

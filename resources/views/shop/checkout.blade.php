@@ -246,7 +246,7 @@
                                                         <div class="min-w-0">
                                                             <a :href="line.product.url" class="block truncate text-sm font-semibold text-gray-900 hover:text-primary-color" x-text="line.product.title"></a>
                                                             <div x-show="line.variant_name" class="mt-0.5 truncate text-xs font-medium text-gray-600" x-text="line.variant_name"></div>
-                                                            <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-xs" :class="line.is_preorder ? 'text-amber-800' : (Number(line.delayed_quantity || 0) > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
+                                                            <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-xs" :class="line.is_preorder ? 'text-amber-800' : (line.delayed_quantity > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
                                                             <div x-show="lineTriggersManualQuote(line)" x-cloak class="mt-1 text-xs font-medium text-amber-800">Requires pickup or a manual shipping quote</div>
                                                         </div>
                                                         <div class="text-right lg:hidden">
