@@ -581,7 +581,7 @@ window.SM.whenAlpineReady(function () {
                     return Number.isFinite(price) ? price : null;
                 },
                 defaultBaseOptionLabel() {
-                    return this.productType === '@js(\App\Models\Product::PRODUCT_TYPE_DIGITAL)' ? 'Home' : 'Base';
+                    return this.productType === @js(\App\Models\Product::PRODUCT_TYPE_DIGITAL) ? 'Home' : 'Base';
                 },
                 baseOptionDisplayName() {
                     return 'Shared allocation defaults';
@@ -762,7 +762,7 @@ window.SM.whenAlpineReady(function () {
                         awaiting_fulfilment: 0,
                         reserved_quantity: 0,
                         allow_backorder: false,
-                        backorder_shipping_estimate_type: '@js(\App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC)',
+                        backorder_shipping_estimate_type: @js(\App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC),
                         backorder_shipping_estimate: '',
                         backorder_shipping_offset_days: '',
                         sort_order: this.variants.length,
@@ -980,12 +980,12 @@ window.SM.whenAlpineReady(function () {
                     this.syncSlugFromTitle();
                     this.syncBaseSkuFromSlug();
                     this.$watch('productType', (value) => {
-                        if (value === '@js(\App\Models\Product::PRODUCT_TYPE_DIGITAL)') {
+                        if (value === @js(\App\Models\Product::PRODUCT_TYPE_DIGITAL)) {
                             this.allowBackorder = false;
                         }
                     });
                     this.$watch('status', (value) => {
-                        if (value !== '@js(\App\Models\Product::STATUS_ACTIVE)') {
+                        if (value !== @js(\App\Models\Product::STATUS_ACTIVE)) {
                             this.isFeatured = false;
                         }
                     });
