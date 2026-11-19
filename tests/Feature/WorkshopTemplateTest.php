@@ -63,9 +63,36 @@ class WorkshopTemplateTest extends TestCase
             ->assertSee('aria-label="Text"', false)
             ->assertSeeText('Paper crafts')
             ->assertSee('name="category_ids[]"', false)
-            ->assertSee('value="'.$category->id.'"', false);
+            ->assertSee('value="'.$category->id.'"', false)
+            ->assertSee('action="'.route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]).'"', false)
+            ->assertSee('name="_method" value="DELETE"', false)
+            ->assertSeeText('Delete blueprint');
 
         $this->assertSame(2, substr_count($response->getContent(), 'aria-label="Show workshop placeholders"'));
+    }
+
+    public function test_blueprint_index_delete_uses_the_individual_delete_route(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create(['name' => 'Delete route check']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop-blueprint.index'))
+            ->assertOk()
+            ->assertSee('action="'.route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]).'"', false)
+            ->assertSee('name="_method" value="DELETE"', false);
+    }
+
+    public function test_admin_can_delete_a_workshop_blueprint(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create(['name' => 'Blueprint to delete']);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]))
+            ->assertRedirect(route('admin.workshop-blueprint.index'));
+
+        $this->assertDatabaseMissing('pick_list_templates', ['id' => $template->getKey()]);
     }
 
     public function test_blueprint_index_shows_workshop_defaults_and_uses_mobile_listing_layout(): void
