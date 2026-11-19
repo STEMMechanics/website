@@ -444,6 +444,17 @@
             </div>
         </form>
     </x-container>
+    @if($editing)
+        <x-container class="pb-6">
+            <div class="flex justify-end">
+                <form method="POST" action="{{ route('admin.workshop-blueprint.destroy', ['pickListTemplate' => $template->getKey()]) }}" x-data x-on:submit.prevent="$SM.confirmAndSubmit($el, 'Delete blueprint?', 'Are you sure you want to delete this workshop blueprint?', 'Delete')">
+                    @csrf
+                    @method('DELETE')
+                    <x-ui.button type="submit" color="danger-outline">Delete blueprint</x-ui.button>
+                </form>
+            </div>
+        </x-container>
+    @endif
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
 document.addEventListener('alpine:init', function () {
