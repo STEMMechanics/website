@@ -1692,12 +1692,12 @@ window.SM.whenAlpineReady(function () {
             this.createLocationSubmitting = true;
             this.createLocationError = '';
             try {
-            const response = await fetch('@js(route('admin.location.store'))', {
+            const response = await fetch(@js(route('admin.location.store')), {
             method: 'POST',
             headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'X-CSRF-TOKEN': '@js(csrf_token())',
+            'X-CSRF-TOKEN': @js(csrf_token()),
             },
             body: JSON.stringify(this.newLocation),
             });
