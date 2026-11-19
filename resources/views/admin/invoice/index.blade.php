@@ -351,7 +351,7 @@
 <x-ui.bulk-editor id="finance-bulk-editor" title="Bulk edit invoices" loader-id="finance-bulk-loader" list="admin-invoice-index" selection-key="admin-invoice-allocation-selection" selection-field="ids[]" />
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminInvoiceIndex1', () => ({
             invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
             invoiceEmailAction: @js((string) session('invoice-email-action', '')),

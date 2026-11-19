@@ -742,4 +742,5 @@
             },
         }
     }
+    window.SM.whenAlpineReady(() => Alpine.data('shopOrderPayment', shopOrderPayment));
 </script>

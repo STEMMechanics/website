@@ -37,4 +37,5 @@
             }, 1500);
         },
     });
+    window.SM.whenAlpineReady(() => Alpine.data('backupPreparation', window.backupPreparation));
 </script>

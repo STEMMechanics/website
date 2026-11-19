@@ -345,4 +345,5 @@
             },
         };
     }
+    window.SM.whenAlpineReady(() => Alpine.data('shopCheckoutPaymentPage', shopCheckoutPaymentPage));
 </script>

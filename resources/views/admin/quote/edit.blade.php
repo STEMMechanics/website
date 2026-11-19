@@ -266,7 +266,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminQuoteEdit1', () => ({
                 quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
                 isLocked: false,

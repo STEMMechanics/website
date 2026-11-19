@@ -136,7 +136,7 @@
     @include('sponsorship.partials.amount-choice-script')
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspSponsorshipCommunitySupport1', () => ({ country: @js($savedCountry), isAustralia() { return ['australia', 'au', 'aus'].includes((this.country || '').trim().toLowerCase()); } }));
 });
 </script>

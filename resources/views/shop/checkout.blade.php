@@ -1526,4 +1526,5 @@
             },
         };
     }
+    window.SM.whenAlpineReady(() => Alpine.data('shopCheckoutPage', shopCheckoutPage));
 </script>

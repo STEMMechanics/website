@@ -195,7 +195,7 @@
 </form>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminMediaDuplicateGroup1', () => ({
         keeper: @js($defaultKeeper),
         advancedKeeper: @js($defaultKeeper),

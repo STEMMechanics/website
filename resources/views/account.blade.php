@@ -246,7 +246,7 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
 {{ $codes ?? '' }}
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-    document.addEventListener('alpine:init', () => {
+    window.SM.whenAlpineReady(() => {
         Alpine.store('tfa', {
             show: false,
             secret: null,

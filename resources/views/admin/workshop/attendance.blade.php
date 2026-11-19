@@ -858,7 +858,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopAttendance1', () => ({
                     tickets: @js($ticketPaymentRows),
                     ticketAttendanceSaveUrl: @js(route('admin.workshop.attendance.tickets', $workshop)),

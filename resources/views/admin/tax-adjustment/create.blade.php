@@ -133,7 +133,7 @@
     </x-container>
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
-document.addEventListener('alpine:init', function () {
+window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminTaxAdjustmentCreate1', () => ({
                 lineMeta: @js($lineCalcMeta),
                 refundQty: {},

@@ -180,6 +180,7 @@ window.bulkWorkshopEditor = function (workshops, initialAdded) {
         };
     }
 
+window.SM.whenAlpineReady(() => Alpine.data('bulkWorkshopEditor', window.bulkWorkshopEditor));
 
 const bulkOriginalValues = new WeakMap();
 let bulkLoadVersion = 0;
