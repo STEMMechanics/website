@@ -19,7 +19,7 @@ class OrganisationMembershipRequestAdminNotification extends Mailable
     public function build(): static
     {
         $this->membershipRequest->loadMissing(['organisation', 'user']);
-        $organisationName = $this->membershipRequest->organisation?->name ?? 'Organisation';
+        $organisationName = $this->membershipRequest->organisation->name ?? 'Organisation';
 
         return $this
             ->subject('Organisation join request needs review: '.$organisationName)

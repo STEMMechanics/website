@@ -159,7 +159,14 @@ class AccountOrganisationController extends Controller
         $user = $this->actingUser($request);
         $directOrganisations = $user->organisations()->with('parent')->orderBy('name')->get();
         $directOrganisationIds = $directOrganisations->map(fn (Organisation $candidate): string => (string) $candidate->id)->all();
-        $managedOrganisations = $directOrganisations->filter(fn (Organisation $candidate): bool => $candidate->pivot?->role === 'contact');
+        $managerOrganisationIds = $user->organisations()
+            ->wherePivot('role', 'contact')
+            ->pluck('organisations.id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+        $managedOrganisations = $directOrganisations->filter(
+            fn (Organisation $candidate): bool => in_array((string) $candidate->id, $managerOrganisationIds, true),
+        );
         $inheritedOrganisationIds = $managedOrganisations
             ->flatMap(fn (Organisation $managedOrganisation): array => $managedOrganisation->descendantIds())
             ->map(fn ($id): string => (string) $id)
@@ -335,7 +342,9 @@ class AccountOrganisationController extends Controller
                 ->where('user_id', $member->id)
                 ->lockForUpdate()
                 ->first();
-            abort_unless($pivot, 404);
+            if ($pivot === null) {
+                abort(404);
+            }
 
             $currentRole = $pivot->role === 'contact' ? 'contact' : 'member';
             if ($currentRole === $role) {
@@ -387,7 +396,9 @@ class AccountOrganisationController extends Controller
                 ->where('user_id', $member->id)
                 ->lockForUpdate()
                 ->first();
-            abort_unless($membership, 404);
+            if ($membership === null) {
+                abort(404);
+            }
 
             if ($membership->role === 'contact') {
                 throw ValidationException::withMessages([
@@ -444,7 +455,9 @@ class AccountOrganisationController extends Controller
                 ->where('user_id', $user->id)
                 ->lockForUpdate()
                 ->first();
-            abort_unless($membership, 404);
+            if ($membership === null) {
+                abort(404);
+            }
 
             DB::table('organisation_user')
                 ->where('organisation_id', $organisation->id)

@@ -36,7 +36,7 @@ class WorkshopReportsTest extends TestCase
             ->assertSee('Download image')
             ->assertSee('Download All Photos')
             ->assertDontSee('Attendance is shown')
-            ->assertSee('NA');
+            ->assertSee('TBC');
 
         $this->actingAs($contact)
             ->get(route('account.workshop-report.photo', [$workshop, $photo]))
@@ -72,7 +72,7 @@ class WorkshopReportsTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_attendance_is_na_when_records_have_not_been_created(): void
+    public function test_attendance_is_tbc_for_past_workshops_without_attendance_records(): void
     {
         Storage::fake('media');
         $contact = User::factory()->create();
@@ -86,7 +86,7 @@ class WorkshopReportsTest extends TestCase
         $this->actingAs($contact)
             ->get(route('account.workshop-report.index'))
             ->assertOk()
-            ->assertSee('NA');
+            ->assertSee('TBC');
 
         $workshop->update(['attendance_no_attendees_confirmed_at' => now()]);
 
@@ -98,6 +98,22 @@ class WorkshopReportsTest extends TestCase
             '/data-label="Attendance"[^>]*>\s*0\s*<\/td>/s',
             $response->getContent(),
         );
+    }
+
+    public function test_attendance_is_not_applicable_for_future_workshops(): void
+    {
+        Storage::fake('media');
+        $contact = User::factory()->create();
+        $startsAt = now()->addDays(3)->setTime(10, 0);
+        $this->workshopFor($contact, [
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHours(2),
+        ]);
+
+        $this->actingAs($contact)
+            ->get(route('account.workshop-report.index'))
+            ->assertOk()
+            ->assertSee('N/A');
     }
 
     public function test_attendance_combines_attended_tickets_and_drop_ins(): void
@@ -168,7 +184,7 @@ class WorkshopReportsTest extends TestCase
         $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
         $csv = $response->streamedContent();
         $this->assertStringContainsString('CSV Report Workshop', $csv);
-        $this->assertStringContainsString('NA', $csv);
+        $this->assertStringContainsString('TBC', $csv);
         $this->assertTrue($workshop->exists);
     }
 

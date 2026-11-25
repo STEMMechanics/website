@@ -111,14 +111,14 @@ class WorkshopDeliveryHistoryTest extends TestCase
         $this->assertNull($secondaryContact->fresh()->primary_organisation_id);
     }
 
-    public function test_removing_a_primary_contact_clears_the_primary_organisation_relationship(): void
+    public function test_removing_manager_access_keeps_the_user_linked_as_a_member(): void
     {
         $admin = $this->createAdminUser();
         $organisation = Organisation::factory()->create(['name' => 'Cairns Libraries']);
         $contact = User::factory()->create([
             'primary_organisation_id' => $organisation->id,
         ]);
-        $organisation->contacts()->attach($contact->id);
+        $organisation->contacts()->attach($contact->id, ['role' => 'contact']);
 
         $this->actingAs($admin)
             ->put(route('admin.organisation.update', $organisation), [
@@ -129,7 +129,12 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertRedirect(route('admin.organisation.edit', $organisation));
 
         $contact->refresh();
-        $this->assertNull($contact->primary_organisation_id);
+        $this->assertSame((string) $organisation->id, (string) $contact->primary_organisation_id);
+        $this->assertDatabaseHas('organisation_user', [
+            'organisation_id' => $organisation->id,
+            'user_id' => $contact->id,
+            'role' => 'member',
+        ]);
     }
 
     public function test_organisation_contact_search_returns_matching_users_without_loading_every_user(): void
@@ -172,16 +177,17 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->assertJsonFragment(['id' => (string) $ghost->id]);
     }
 
-    public function test_admin_can_select_or_create_an_organisation_from_the_user_editor(): void
+    public function test_admin_can_link_and_choose_a_primary_organisation_from_the_user_editor(): void
     {
         $admin = $this->createAdminUser();
         $user = User::factory()->create();
-        Organisation::factory()->create(['name' => 'Existing School']);
+        $organisation = Organisation::factory()->create(['name' => 'Existing School']);
 
         $this->actingAs($admin)
             ->get(route('admin.user.edit', $user))
             ->assertOk()
-            ->assertSee('Organisation (Optional)')
+            ->assertSee('Organisation memberships')
+            ->assertSee('Search by organisation name')
             ->assertSee('Existing School')
             ->assertSee(route('admin.workshop.history', [
                 'requested_by_user_id' => $user->id,
@@ -192,15 +198,17 @@ class WorkshopDeliveryHistoryTest extends TestCase
             ->put(route('admin.user.update', $user), [
                 'firstname' => $user->firstname,
                 'surname' => $user->surname,
-                'organisation_name' => 'New Community Group',
                 'email' => $user->email,
                 'phone' => $user->phone,
                 'groups' => '',
                 'account_terms_days' => 0,
+                'organisation_access_submitted' => 1,
+                'organisation_ids' => [$organisation->id],
+                'organisation_manager_ids' => [],
+                'primary_organisation_id' => $organisation->id,
             ])
             ->assertRedirect();
 
-        $organisation = Organisation::query()->where('name', 'New Community Group')->firstOrFail();
         $this->assertDatabaseHas('organisation_user', [
             'organisation_id' => $organisation->id,
             'user_id' => $user->id,

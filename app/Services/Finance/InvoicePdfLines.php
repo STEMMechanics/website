@@ -289,7 +289,7 @@ class InvoicePdfLines
                 $workshop = $workshops->get($entry['id']);
                 $explicitLocation = $locations->get((string) ($entry['location_id'] ?? ''));
                 $location = $explicitLocation ?? $workshop?->location;
-                $locationName = trim((string) ($location?->name ?? ''));
+                $locationName = trim((string) ($location->name ?? ''));
                 if ($locationName === '' && $workshop instanceof Workshop) {
                     $locationName = $workshop->getLocationName();
                 }

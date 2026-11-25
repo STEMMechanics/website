@@ -345,7 +345,9 @@
                         </div>
                     </div>
                     <p class="mt-2 text-xs text-slate-500">Use the arrow keys to choose a suggestion, then press Enter. No login details are changed.</p>
-                    @error('email', 'viewAs')<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                    @if(isset($errors))
+                        @error('email', 'viewAs')<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                    @endif
                 </div>
                 <div class="sm-dialog-footer flex-col items-stretch sm:flex-row sm:items-center">
                     <x-ui.button color="outline" type="button" data-close-dialog class="w-full sm:w-auto">Cancel</x-ui.button>
@@ -353,7 +355,7 @@
                 </div>
             </form>
         </x-ui.list-dialog>
-        @if($errors->getBag('viewAs')->any())
+        @if(isset($errors) && $errors->getBag('viewAs')->any())
             <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
                 document.addEventListener('DOMContentLoaded', () => {
                     const dialog = document.getElementById('admin-view-as-dialog');

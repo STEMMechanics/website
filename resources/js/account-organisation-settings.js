@@ -28,13 +28,16 @@ if (organisationSwitcher && organisationDetailsForm) {
         if (!nextOrganisationId || nextOrganisationId === currentOrganisationId) return;
 
         if (hasUnsavedChanges()) {
-            const confirmed = typeof window.Swal?.fire === 'function' && typeof window.SM?.confirm === 'function'
-                ? (await window.SM.confirm(
-                    'Unsaved organisation changes',
-                    'Switching organisations will discard the changes you have not saved.',
-                    'Switch organisation',
-                )).isConfirmed
-                : window.confirm('You have unsaved organisation changes. Switch organisations and discard them?');
+            if (typeof window.SM?.confirm !== 'function') {
+                organisationSelect.value = currentOrganisationId;
+                return;
+            }
+
+            const confirmed = (await window.SM.confirm(
+                'Unsaved organisation changes',
+                'Switching organisations will discard the changes you have not saved.',
+                'Switch organisation',
+            )).isConfirmed;
 
             if (!confirmed) {
                 organisationSelect.value = currentOrganisationId;

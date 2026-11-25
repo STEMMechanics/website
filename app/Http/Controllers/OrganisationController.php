@@ -255,12 +255,6 @@ class OrganisationController extends Controller
         }
 
         $organisation->contacts()->syncWithoutDetaching($pivotData);
-        if ($contactIds !== []) {
-            User::query()
-                ->whereIn('id', $contactIds)
-                ->whereNull('primary_organisation_id')
-                ->update(['primary_organisation_id' => $organisation->id]);
-        }
     }
 
     /**
