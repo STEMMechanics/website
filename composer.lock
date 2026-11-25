@@ -8569,16 +8569,16 @@
         },
         {
             "name": "tales-from-a-dev/tailwind-merge-php",
-            "version": "v0.5.0",
+            "version": "v0.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/tales-from-a-dev/tailwind-merge-php.git",
-                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10"
+                "reference": "38cc6f8dc65c7f46357f41e1a56b974e70fab8b4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
-                "reference": "61cbc85c3ced1b5724c816d101bc910f0cf8cc10",
+                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/38cc6f8dc65c7f46357f41e1a56b974e70fab8b4",
+                "reference": "38cc6f8dc65c7f46357f41e1a56b974e70fab8b4",
                 "shasum": ""
             },
             "require": {
@@ -8620,9 +8620,9 @@
             ],
             "support": {
                 "issues": "https://github.com/tales-from-a-dev/tailwind-merge-php/issues",
-                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.5.0"
+                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.5.1"
             },
-            "time": "2026-10-04T11:35:09+00:00"
+            "time": "2026-11-06T15:54:21+00:00"
         },
         {
             "name": "thecodingmachine/safe",
