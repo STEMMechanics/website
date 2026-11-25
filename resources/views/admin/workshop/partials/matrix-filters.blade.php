@@ -32,7 +32,7 @@
 <form
         method="GET"
         action="{{ route('admin.workshop.coverage') }}"
-        class="mb-6 overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm"
+        class="overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm"
         x-data="smCspAdminWorkshopPartialsMatrixFilters1"
 >
     <x-ui.query-inputs :values="request()->only(['list_sort', 'list_direction'])" />
@@ -114,13 +114,16 @@
                     'placeholder' => 'Search and add categories', 'options' => $categoryOptions, 'selectedIds' => $selectedCategoryIds,
                 ])
             </div>
-            <div class="grid gap-x-4 md:grid-cols-2 xl:grid-cols-4">
-                <x-ui.input label="Workshop title" name="search" value="{{ request('search') }}" placeholder="All workshops" />
-                <x-ui.input type="date" label="From date" name="date_from" value="{{ request('date_from') }}" />
-                <x-ui.input type="date" label="To date" name="date_to" value="{{ request('date_to') }}" />
-                <x-ui.checkbox label="Past workshops only" name="past_only" value="1" :checked="request()->boolean('past_only')" class="lg:mt-7" />
-                <x-ui.checkbox label="Include cancelled and drafts" name="include_cancelled" value="1" :checked="request()->boolean('include_cancelled')" />
+            <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <x-ui.input label="Workshop title" name="search" value="{{ request('search') }}" placeholder="All workshops" class="mb-0 xl:col-span-2" />
+                <x-ui.input type="date" label="From date" name="date_from" value="{{ request('date_from') }}" class="mb-0" />
+                <x-ui.input type="date" label="To date" name="date_to" value="{{ request('date_to') }}" class="mb-0" />
             </div>
+            <fieldset class="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
+                <legend class="sr-only">Additional workshop filters</legend>
+                <x-ui.checkbox noWrapper inline label="Past workshops only" label-class="leading-5" name="past_only" value="1" :checked="request()->boolean('past_only')" class="min-h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:border-sky-300" />
+                <x-ui.checkbox noWrapper inline label="Include cancelled and drafts" label-class="leading-5" name="include_cancelled" value="1" :checked="request()->boolean('include_cancelled')" class="min-h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:border-sky-300" />
+            </fieldset>
         </section>
     </div>
 

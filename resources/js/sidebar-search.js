@@ -2,7 +2,7 @@
 document.querySelectorAll('[data-sidebar-search]').forEach((form) => {
     const input = form.querySelector('input[name="q"]');
     const menu = form.parentElement;
-    const links = [...menu.querySelectorAll('a[role="menuitem"]')];
+    const links = [...menu.querySelectorAll('[role="menuitem"]')];
     const headings = [...menu.querySelectorAll('[data-sidebar-heading]')];
     const status = form.querySelector('[data-sidebar-selection-status]');
     let activeLink = null;

@@ -9,6 +9,46 @@
         && $user->shipping_country === $user->billing_country;
     $groupValue = old('groups', implode(', ', $user->groupSlugs()));
     $linkedOrganisation = $user->primaryOrganisation;
+    $linkedOrganisations = $user->organisations->sortBy('name')->values();
+    $hasOldOrganisationState = old('organisation_access_submitted') !== null;
+    $selectedOrganisationIds = collect($hasOldOrganisationState
+        ? old('organisation_ids', [])
+        : $linkedOrganisations->pluck('id')->all())
+        ->map(fn ($id): string => (string) $id)
+        ->values()
+        ->all();
+    $managerOrganisationIds = collect($hasOldOrganisationState
+        ? old('organisation_manager_ids', [])
+        : $linkedOrganisations
+            ->filter(fn ($organisation) => $organisation->pivot?->role === 'contact')
+            ->pluck('id')
+            ->all())
+        ->map(fn ($id): string => (string) $id)
+        ->values()
+        ->all();
+    $primaryOrganisationId = (string) old('primary_organisation_id', $user->primary_organisation_id ?? '');
+    $availableOrganisationsById = $availableOrganisations->keyBy(fn ($organisation): string => (string) $organisation->id);
+    $organisationHierarchyLabel = function ($organisation) use ($availableOrganisationsById): string {
+        $parts = [(string) $organisation->name];
+        $visited = [(string) $organisation->id => true];
+        $parentId = $organisation->parent_id !== null ? (string) $organisation->parent_id : null;
+
+        while ($parentId !== null && isset($availableOrganisationsById[$parentId]) && ! isset($visited[$parentId])) {
+            $parent = $availableOrganisationsById[$parentId];
+            array_unshift($parts, (string) $parent->name);
+            $visited[$parentId] = true;
+            $parentId = $parent->parent_id !== null ? (string) $parent->parent_id : null;
+        }
+
+        return implode(' — ', $parts);
+    };
+    $organisationPickerOptions = $availableOrganisations->map(fn ($organisation) => [
+        'id' => (string) $organisation->id,
+        'label' => $organisationHierarchyLabel($organisation),
+        'edit_url' => route('admin.organisation.edit', $organisation),
+        'parent_id' => $organisation->parent_id !== null ? (string) $organisation->parent_id : null,
+        'children_count' => (int) $organisation->children_count,
+    ])->values()->all();
     $loginUnavailableReason = match (true) {
         $user->isAnonymized() => 'This user cannot log in because the account has been anonymized.',
         ! $user->canReceiveEmail() => 'This user cannot log in because they do not have an email address.',
@@ -237,25 +277,109 @@
                 </div>
                 <div class="flex-1"></div>
             </div>
-            <x-ui.input
-                label="Organisation (Optional)"
-                label-class="justify-between"
-                name="organisation_name"
-                value="{{ $user->primaryOrganisation?->name }}"
-                :suggestions="$organisationSuggestions ?? []"
-                info="Select an existing organisation or enter a new name."
+            <section
+                class="my-5 rounded-xl border border-slate-200 bg-white p-4 sm:p-5"
+                x-data="smCspAdminUserOrganisations"
+                data-organisation-options="{{ json_encode($organisationPickerOptions) }}"
+                data-initial-linked="{{ json_encode($selectedOrganisationIds) }}"
+                data-initial-managers="{{ json_encode($managerOrganisationIds) }}"
+                data-initial-primary="{{ $primaryOrganisationId }}"
             >
-                <x-slot:labelInfo>
-                    @if($linkedOrganisation)
-                        <a
-                            href="{{ route('admin.organisation.edit', $linkedOrganisation) }}"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            class="text-primary-color hover:underline cursor-pointer"
-                        >Open Organisation <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-xxs"></i></a>
-                    @endif
-                </x-slot:labelInfo>
-            </x-ui.input>
+                <input type="hidden" name="organisation_access_submitted" x-bind:value="ready ? 1 : ''">
+                <div class="mb-4">
+                    <h3 class="text-base font-semibold text-slate-900">Organisation memberships</h3>
+                    <p class="mt-1 text-sm text-slate-600">Link or remove organisations, choose the primary, and set manager access. Manager access on a parent organisation also applies to its descendants; membership stays specific to each organisation.</p>
+                </div>
+
+                @error('organisation_ids')
+                    <p class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{ $message }}</p>
+                @enderror
+                @error('primary_organisation_id')
+                    <p class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{ $message }}</p>
+                @enderror
+                @error('organisation_manager_ids')
+                    <p class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{{ $message }}</p>
+                @enderror
+
+                <div class="relative mb-4" x-on:click.outside="closeSearch()">
+                    <label for="admin-user-organisation-search" class="mb-1 block pl-1 text-sm font-medium text-slate-700">Add an organisation</label>
+                    <x-ui.input-control
+                        id="admin-user-organisation-search"
+                        type="search"
+                        x-model="search"
+                        x-on:input="highlightedIndex = 0"
+                        x-on:keydown.arrow-down.prevent="move(1)"
+                        x-on:keydown.arrow-up.prevent="move(-1)"
+                        x-on:keydown.enter.prevent="chooseHighlighted()"
+                        x-on:keydown.escape.prevent="closeSearch()"
+                        autocomplete="off"
+                        placeholder="Search by organisation name"
+                        role="combobox"
+                        aria-autocomplete="list"
+                        aria-controls="admin-user-organisation-results"
+                        x-bind:aria-expanded="search.trim().length >= 2 && results.length > 0"
+                        x-bind:aria-activedescendant="results[highlightedIndex] ? 'admin-user-organisation-option-' + results[highlightedIndex].id : null"
+                        class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                    />
+                    <div id="admin-user-organisation-results" x-cloak x-show="search.trim().length >= 2" class="absolute z-40 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl" role="listbox" aria-label="Organisations to add">
+                        <template x-for="(organisation, index) in results" :key="organisation.id">
+                            <button
+                                type="button"
+                                x-bind:id="'admin-user-organisation-option-' + organisation.id"
+                                x-on:mouseenter="highlightedIndex = index"
+                                x-on:mousedown.prevent
+                                x-on:click="addOrganisation(organisation)"
+                                x-bind:aria-selected="highlightedIndex === index"
+                                x-bind:class="highlightedIndex === index ? 'bg-sky-50' : ''"
+                                class="flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left hover:bg-sky-50"
+                                role="option"
+                            >
+                                <span class="text-sm font-medium text-slate-900" x-text="organisation.label"></span>
+                                <span class="shrink-0 text-xs text-sky-700">Add</span>
+                            </button>
+                        </template>
+                        <p x-cloak x-show="search.trim().length >= 2 && results.length === 0" class="px-3 py-2 text-sm text-slate-500">No unlinked organisations match.</p>
+                    </div>
+                </div>
+
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h4 class="text-sm font-semibold text-slate-800">Linked organisations</h4>
+                    <span class="text-xs text-slate-500"><span x-text="linkedIds.length">{{ count($selectedOrganisationIds) }}</span> linked</span>
+                </div>
+                <template x-for="id in linkedIds" :key="'organisation-member-' + id">
+                    <input type="hidden" name="organisation_ids[]" :value="id">
+                </template>
+                <template x-for="id in managerIds" :key="'organisation-manager-' + id">
+                    <input type="hidden" name="organisation_manager_ids[]" :value="id">
+                </template>
+
+                <div x-show="linkedOrganisations.length > 0" class="grid gap-2 md:grid-cols-2">
+                    <template x-for="organisation in linkedOrganisations" :key="organisation.id">
+                        <article class="flex min-w-0 flex-col gap-3 rounded-lg border border-slate-200 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <div class="truncate font-medium text-slate-900" x-text="organisation.label"></div>
+                                <a x-bind:href="organisation.edit_url" target="_blank" rel="noopener noreferrer" class="mt-1 inline-flex text-xs text-primary-color hover:underline">Open organisation <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[10px]" aria-hidden="true"></i></a>
+                                <p x-show="managerIds.includes(organisation.id) && Number(organisation.children_count) > 0" class="mt-1 text-xs text-slate-500">Manager access includes child organisations.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 sm:justify-end">
+                                <label class="inline-flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                                    <input type="radio" name="primary_organisation_id" x-bind:value="organisation.id" x-model="primaryId" class="h-4 w-4 border-gray-300 text-primary-color focus:ring-primary-color">
+                                    Primary
+                                </label>
+                                <x-ui.checkbox noWrapper inline label="Manager" x-bind:value="organisation.id" x-model="managerIds" class="shrink-0" />
+                                <x-ui.button type="button" color="outline" size="small" x-on:click="removeOrganisation(organisation.id)" x-bind:aria-label="'Remove ' + organisation.label" icon="fa-solid fa-xmark" label="Remove" />
+                            </div>
+                        </article>
+                    </template>
+                </div>
+                <div x-show="linkedOrganisations.length === 0" x-cloak class="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                    No organisations linked. Search above to add one.
+                </div>
+                <label class="mt-3 inline-flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+                    <input type="radio" name="primary_organisation_id" value="" x-model="primaryId" class="h-4 w-4 border-gray-300 text-primary-color focus:ring-primary-color">
+                    No primary organisation
+                </label>
+            </section>
             <x-ui.select label="Account Terms" name="account_terms_days" info="Set the number of days before invoice payment is due. Current means no extra terms.">
                 @foreach(\App\Models\User::accountTermsOptions() as $days => $label)
                     <option value="{{ $days }}" @selected((int) old('account_terms_days', $user->accountTermsDays()) === (int) $days)>{{ $label }}</option>

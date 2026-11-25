@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info' => null, 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false, 'labelClass' => '' ])
+@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info' => null, 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false, 'labelClass' => '', 'suggestionsTeleport' => 'body'])
 
 @php
     if ($error === null) {
@@ -136,7 +136,7 @@
                         x-ref="inputEl"
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
                         autocomplete="{{ $autocomplete }}"
-                        placeholder="{{ $label }}"
+                        placeholder="{{ $placeholder !== '' ? $placeholder : $label }}"
                     type="{{ $type }}"
                     @if($name !== null && $name !== '') name="{{ $name }}" @endif
                     x-model="rawValue"
@@ -150,12 +150,14 @@
                     @disabled($disabled)
                     {{ $controlAttributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
                 />
-                    <template x-teleport="body">
+                    <template x-teleport="{{ $suggestionsTeleport }}">
                         <div
+                            x-ref="dropdownEl"
                             x-show="open"
                             x-cloak
+                            popover="manual"
                             x-on:mousedown.stop
-                            class="z-50 rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden"
+                            class="z-50 overflow-hidden rounded-lg border border-gray-300 bg-white p-0 shadow-lg"
                             :style="dropdownStyle"
                         >
                             <ul class="overflow-auto py-1" :style="'max-height: ' + dropdownListMaxHeight + 'px'">

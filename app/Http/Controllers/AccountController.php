@@ -5,15 +5,21 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UserDelete;
 use App\Mail\UserEmailUpdateRequest;
+use App\Models\Organisation;
+use App\Models\OrganisationMembershipRequest;
 use App\Models\Token;
 use App\Models\User;
 use App\Providers\QRCodeProvider;
+use App\Services\OrganisationNameMatcher;
+use App\Services\OrganisationMembershipService;
 use App\Support\RememberedDeviceManager;
 use App\Support\UserAnonymizer;
+use App\Support\WebsiteUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use RobThree\Auth\Algorithm;
 use RobThree\Auth\TwoFactorAuth;
 
@@ -40,10 +46,61 @@ class AccountController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
+        $pendingOrganisationRequests = OrganisationMembershipRequest::query()
+            ->with(['organisation.parent', 'reviewer'])
+            ->where('user_id', $user->id)
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
+        $organisationMembershipRequests = OrganisationMembershipRequest::query()
+            ->with(['organisation.parent', 'reviewer'])
+            ->where('user_id', $user->id)
+            ->where('status', '!=', 'pending')
+            ->latest()
+            ->limit(20)
+            ->get();
+        $organisationRequestsForApproval = collect();
+        $linkedOrganisations = $user->organisations()->with('parent')->orderBy('name')->get();
+        $linkedOrganisationIds = $linkedOrganisations
+            ->pluck('id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+        $linkedPrimaryOrganisationId = in_array((string) $user->primary_organisation_id, $linkedOrganisationIds, true)
+            ? (string) $user->primary_organisation_id
+            : null;
+        $canViewOrganisation = $linkedOrganisationIds !== [];
+        if ($user->isAdmin()) {
+            $organisationRequestsForApproval = OrganisationMembershipRequest::query()
+                ->with(['organisation', 'user'])
+                ->where('status', 'pending')
+                ->when($linkedOrganisationIds !== [], fn ($query) => $query->whereNotIn('organisation_id', $linkedOrganisationIds))
+                ->latest()
+                ->limit(50)
+                ->get();
+        }
+
         $baseViewData = [
             'user' => $user,
+            'linkedOrganisations' => $linkedOrganisations,
+            'primaryOrganisationId' => $linkedPrimaryOrganisationId,
             'rememberedDevices' => $this->rememberedDeviceManager->listRememberedDevices($user, $request),
             'currentRememberedTokenId' => $this->rememberedDeviceManager->currentTokenId($request),
+            'organisationSuggestions' => Organisation::query()
+                ->when($linkedOrganisationIds !== [], fn ($query) => $query->whereNotIn('id', $linkedOrganisationIds))
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(fn ($name): string => (string) $name)
+                ->all(),
+            'organisationNames' => Organisation::query()
+                ->orderBy('name')
+                ->pluck('name')
+                ->map(fn ($name): string => (string) $name)
+                ->all(),
+            'organisationMatchCandidates' => $request->session()->get('organisation_match_candidates', []),
+            'pendingOrganisationRequests' => $pendingOrganisationRequests,
+            'organisationMembershipRequests' => $organisationMembershipRequests,
+            'organisationRequestsForApproval' => $organisationRequestsForApproval,
+            'canViewOrganisation' => $canViewOrganisation,
         ];
 
         return view('account', $baseViewData);
@@ -60,17 +117,77 @@ class AccountController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request)
+    public function update(Request $request, OrganisationNameMatcher $organisationNames, OrganisationMembershipService $organisationMemberships)
     {
         /** @var User $user */
         $user = auth()->user();
+
+        $requestedOrganisationName = $request->input('organisation_name');
+        $requestedOrganisationName = is_string($requestedOrganisationName)
+            ? (preg_replace('/\s+/u', ' ', trim($requestedOrganisationName)) ?? '')
+            : '';
+        $isNewOrganisationName = $requestedOrganisationName !== ''
+            && ! Organisation::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($requestedOrganisationName)])->exists();
+        $newOrganisationDetailFields = [
+            'new_organisation_type',
+            'new_organisation_website_url',
+            'new_organisation_address',
+            'new_organisation_address2',
+            'new_organisation_city',
+            'new_organisation_state',
+            'new_organisation_postcode',
+            'new_organisation_country',
+        ];
+        $newOrganisationWebsite = $request->input('new_organisation_website_url');
+        $request->merge([
+            'new_organisation_website_url' => ! $isNewOrganisationName
+                ? null
+                : (is_string($newOrganisationWebsite) ? WebsiteUrl::normalize($newOrganisationWebsite) : $newOrganisationWebsite),
+        ]);
+        if (! $isNewOrganisationName) {
+            foreach ($newOrganisationDetailFields as $field) {
+                $request->merge([$field => null]);
+            }
+        }
 
         $validator = Validator::make($request->all(), [
             'firstname' => ['sometimes', 'required', 'string', 'max:120'],
             'surname' => 'required_with:surname,phone',
             'organisation_name' => 'nullable|string|max:255',
+            'organisation_keep_as_entered' => ['nullable', 'boolean'],
+            'new_organisation_type' => $isNewOrganisationName
+                ? ['required', Rule::in(array_keys(Organisation::TYPES))]
+                : ['nullable'],
+            'new_organisation_website_url' => $isNewOrganisationName
+                ? WebsiteUrl::validationRules()
+                : ['nullable'],
+            'new_organisation_address' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:255', 'required_with:new_organisation_address2,new_organisation_city,new_organisation_state,new_organisation_postcode,new_organisation_country']
+                : ['nullable'],
+            'new_organisation_address2' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:255']
+                : ['nullable'],
+            'new_organisation_city' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:120', 'required_with:new_organisation_address,new_organisation_address2,new_organisation_state,new_organisation_postcode,new_organisation_country']
+                : ['nullable'],
+            'new_organisation_state' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:120', 'required_with:new_organisation_address,new_organisation_address2,new_organisation_city,new_organisation_postcode,new_organisation_country']
+                : ['nullable'],
+            'new_organisation_postcode' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:40', 'required_with:new_organisation_address,new_organisation_address2,new_organisation_city,new_organisation_state,new_organisation_country']
+                : ['nullable'],
+            'new_organisation_country' => $isNewOrganisationName
+                ? ['nullable', 'string', 'max:120', 'required_with:new_organisation_address,new_organisation_address2,new_organisation_city,new_organisation_state,new_organisation_postcode']
+                : ['nullable'],
+            'primary_organisation_id' => [
+                'nullable',
+                'uuid',
+                Rule::exists('organisation_user', 'organisation_id')->where(fn ($query) => $query->where('user_id', $user->id)),
+            ],
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'phone' => 'required_with:surname,phone',
+            'use_organisation_billing_address' => ['nullable', 'boolean'],
+            'use_organisation_shipping_address' => ['nullable', 'boolean'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
@@ -109,9 +226,58 @@ class AccountController extends Controller
         }
 
         $userData = $validator->validated();
+        $organisationName = trim((string) ($userData['organisation_name'] ?? ''));
+        $primaryOrganisationSubmitted = $request->exists('primary_organisation_id');
+        $primaryOrganisationId = isset($userData['primary_organisation_id']) && $userData['primary_organisation_id'] !== ''
+            ? (string) $userData['primary_organisation_id']
+            : null;
+        $useOrganisationBillingAddress = (bool) ($userData['use_organisation_billing_address'] ?? false);
+        $useOrganisationShippingAddress = (bool) ($userData['use_organisation_shipping_address'] ?? false);
+
+        if (($useOrganisationBillingAddress || $useOrganisationShippingAddress) && $primaryOrganisationId === null) {
+            return redirect()->back()
+                ->withErrors(['primary_organisation_id' => 'Choose a primary organisation before using its address.'])
+                ->withInput();
+        }
+
+        $organisationName = preg_replace('/\s+/u', ' ', $organisationName) ?? '';
+        if ($organisationName !== ''
+            && ! (bool) ($userData['organisation_keep_as_entered'] ?? false)
+            && ! Organisation::query()->whereRaw('LOWER(name) = ?', [mb_strtolower($organisationName)])->exists()) {
+            $similarOrganisations = $organisationNames->suggestions($organisationName);
+            if ($similarOrganisations !== []) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('organisation_match_candidates', $similarOrganisations);
+            }
+        }
+
+        $organisationDetails = [
+            'type' => $userData['new_organisation_type'] ?? null,
+            'website_url' => $userData['new_organisation_website_url'] ?? null,
+            'billing_address' => $userData['new_organisation_address'] ?? null,
+            'billing_address2' => $userData['new_organisation_address2'] ?? null,
+            'billing_city' => $userData['new_organisation_city'] ?? null,
+            'billing_state' => $userData['new_organisation_state'] ?? null,
+            'billing_postcode' => $userData['new_organisation_postcode'] ?? null,
+            'billing_country' => $userData['new_organisation_country'] ?? null,
+            'shipping_address' => $userData['new_organisation_address'] ?? null,
+            'shipping_address2' => $userData['new_organisation_address2'] ?? null,
+            'shipping_city' => $userData['new_organisation_city'] ?? null,
+            'shipping_state' => $userData['new_organisation_state'] ?? null,
+            'shipping_postcode' => $userData['new_organisation_postcode'] ?? null,
+            'shipping_country' => $userData['new_organisation_country'] ?? null,
+        ];
+
         $userData = User::filterToExistingDatabaseColumns($userData);
-        $organisationName = (string) ($validator->validated()['organisation_name'] ?? '');
         unset($userData['organisation_name']);
+        unset($userData['organisation_keep_as_entered']);
+        foreach ($newOrganisationDetailFields as $field) {
+            unset($userData[$field]);
+        }
+        unset($userData['primary_organisation_id']);
+        $userData['use_organisation_billing_address'] = $useOrganisationBillingAddress;
+        $userData['use_organisation_shipping_address'] = $useOrganisationShippingAddress;
 
         $newEmail = $userData['email'];
         unset($userData['email']);
@@ -135,11 +301,32 @@ class AccountController extends Controller
         }
         $userData['subscribed'] = ($request->get('subscribed', false) === 'on');
         $user->update($userData);
-        $user->syncPrimaryOrganisationByName($organisationName);
+        $membershipResult = ['state' => 'unchanged', 'organisation' => null];
+        if ($organisationName !== '') {
+            $membershipResult = $organisationMemberships->applyProfileOrganisation($user, $organisationName, $organisationDetails);
+        }
+
+        if ($primaryOrganisationSubmitted) {
+            $currentPrimaryOrganisationId = $user->primary_organisation_id !== null
+                ? (string) $user->primary_organisation_id
+                : null;
+            if ($primaryOrganisationId !== $currentPrimaryOrganisationId) {
+                $user->updateQuietly([
+                    'primary_organisation_id' => $primaryOrganisationId,
+                    'use_organisation_account_terms' => false,
+                ]);
+            }
+        }
 
         $this->syncRememberedDevicesFromRequest($request, $user);
 
-        session()->flash('message', 'Your account details have been saved');
+        $message = match ($membershipResult['state']) {
+            'pending' => 'Your account details have been saved. Your request to join '.$membershipResult['organisation']->name.' is waiting for approval.',
+            'auto_approved' => 'Your account details have been saved. Your verified email domain was approved for '.$membershipResult['organisation']->name.'.',
+            'created' => 'Your account details have been saved. You are the first contact for '.$membershipResult['organisation']->name.'.',
+            default => 'Your account details have been saved',
+        };
+        session()->flash('message', $message);
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
 

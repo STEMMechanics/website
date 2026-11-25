@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AccountOrganisationController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\PushDeviceController;
 use App\Http\Controllers\Admin\SponsorshipAdminController;
@@ -62,6 +63,7 @@ use App\Http\Controllers\TaxAdjustmentController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\TimesheetController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ViewAsController;
 use App\Http\Controllers\WellKnownController;
 use App\Http\Controllers\WorkplanCheckoffController;
 use App\Http\Controllers\WorkshopAllocationController;
@@ -218,6 +220,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account', [AccountController::class, 'update'])->name('account.update');
+    Route::post('/account/organisations/link', [AccountOrganisationController::class, 'link'])->name('account.organisation.link');
+    Route::get('/account/organisation', [AccountOrganisationController::class, 'show'])->name('account.organisation.show');
+    Route::patch('/account/organisation', [AccountOrganisationController::class, 'update'])->name('account.organisation.update');
+    Route::patch('/account/organisation/members/{member}/role', [AccountOrganisationController::class, 'updateMemberRole'])->name('account.organisation.member-role.update');
+    Route::delete('/account/organisation/members/{member}', [AccountOrganisationController::class, 'removeMember'])->name('account.organisation.member.remove');
+    Route::delete('/account/organisation/{organisation}/leave', [AccountOrganisationController::class, 'leave'])->name('account.organisation.leave');
+    Route::post('/account/organisation-requests/{membershipRequest}/review', [AccountOrganisationController::class, 'review'])->name('account.organisation-request.review');
+    Route::delete('/account/organisation-requests/{membershipRequest}', [AccountOrganisationController::class, 'cancel'])->name('account.organisation-request.cancel');
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
     Route::get('/account/sponsorships', [SponsorshipController::class, 'accountIndex'])->middleware('nocache')->name('sponsor.account.index');
@@ -228,6 +238,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', [WorkshopReportController::class, 'index'])->name('index');
         Route::get('/export.csv', [WorkshopReportController::class, 'export'])->name('export');
         Route::get('/photos.zip', [WorkshopReportController::class, 'downloadAllPhotos'])->name('photos.download');
+        Route::get('/{workshop}/hero/download', [WorkshopReportController::class, 'downloadHero'])->name('hero.download');
+        Route::get('/{workshop}/promotion-copy/download', [WorkshopReportController::class, 'downloadPromotionCopy'])->name('promotion-copy.download');
         Route::get('/{workshop}/photos/{media}', [WorkshopReportController::class, 'photo'])->name('photo');
         Route::get('/{workshop}/photos/{media}/download', [WorkshopReportController::class, 'downloadPhoto'])->name('photo.download');
     });
@@ -269,6 +281,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'postLogin'])->middleware('throttle:login')->name('login.store');
 Route::get('/logout', [AuthController::class, 'showLogout'])->name('logout.show');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/view-as/exit', [ViewAsController::class, 'exit'])->name('view-as.exit');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'postRegister'])->middleware('throttle:public-form')->name('register.store');
 Route::get('/update-email', [AuthController::class, 'updateEmail'])->name('update.email');
@@ -300,6 +313,8 @@ Route::get('/media/download/{media}', [MediaController::class, 'download'])->nam
 Route::post('/media/download/{media}/unlock', [MediaController::class, 'unlock'])->name('media.download.unlock');
 
 Route::middleware(['admin', 'nocache'])->group(function () {
+    Route::get('/admin/view-as/suggestions', [ViewAsController::class, 'suggestions'])->name('admin.view-as.suggestions');
+    Route::post('/admin/view-as', [ViewAsController::class, 'start'])->name('admin.view-as.start');
     Route::get('/admin/sponsorships', [SponsorshipAdminController::class, 'index'])->name('admin.sponsorship.index');
     Route::get('/admin/sponsorships/overview', fn () => redirect()->route('admin.sponsorship.options'))->name('admin.sponsorship.overview');
     Route::put('/admin/sponsorships/bitcoin', [SponsorshipAdminController::class, 'updateBitcoinSettings'])->name('admin.sponsorship.bitcoin.update');

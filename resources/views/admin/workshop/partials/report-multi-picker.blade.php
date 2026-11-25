@@ -2,11 +2,12 @@
     $pickerOptions = collect($options ?? [])->values();
     $pickerSelectedIds = collect($selectedIds ?? [])->map('strval')->filter()->values()->all();
     $pickerSelected = $pickerOptions->whereIn('id', $pickerSelectedIds)->values();
+    $pickerComponentName = 'smCspAdminWorkshopReportMultiPicker'.str_replace(' ', '', ucwords(str_replace(['_', '-'], ' ', $pickerId)));
 @endphp
 
 <section
     class="{{ $class ?? '' }}"
-    x-data="smCspAdminWorkshopPartialsReportMultiPicker1"
+    x-data="{{ $pickerComponentName }}"
 >
     <div class="mb-1 flex items-center justify-between gap-2">
         <label for="{{ $pickerId }}" class="block pl-1 text-sm">{{ $label }}</label>
@@ -56,7 +57,7 @@
 
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
 window.SM.whenAlpineReady(function () {
-    Alpine.data('smCspAdminWorkshopPartialsReportMultiPicker1', () => ({
+    Alpine.data(@js($pickerComponentName), () => ({
         search: '',
         open: false,
         activeIndex: 0,

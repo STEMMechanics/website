@@ -1,7 +1,7 @@
 @php
     $formRoute = route('admin.workshop.history');
     $organisationOptions = $organisations->map(fn ($item) => ['id' => (string) $item->id, 'label' => ($item->parent ? $item->parent->name.' — ' : '').$item->name])->values();
-    $contactOptions = $contacts->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->getName().($item->primaryOrganisation ? ' — '.$item->primaryOrganisation->name : '')])->values();
+    $contactOptions = $contacts->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->getName().($item->primaryOrganisation ? ' — '.($item->primaryOrganisation->parent ? $item->primaryOrganisation->parent->name.' — ' : '').$item->primaryOrganisation->name : '')])->values();
     $locationOptions = $locations->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->name])->values();
     $categoryOptions = $categories->map(fn ($item) => ['id' => (string) $item->id, 'label' => $item->name])->values();
     $selectedOrganisationIds = collect(request('organisation_ids', request()->filled('organisation_id') ? [request('organisation_id')] : []))->map('strval')->all();
@@ -10,7 +10,7 @@
     $selectedCategoryIds = collect(request('category_ids', request()->filled('category_id') ? [request('category_id')] : []))->map('strval')->all();
 @endphp
 
-<form method="GET" action="{{ $formRoute }}" class="mb-6 overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm">
+<form method="GET" action="{{ $formRoute }}" class="overflow-visible rounded-b-xl border border-gray-200 bg-white shadow-sm">
     <x-ui.query-inputs :values="request()->only(['list_sort', 'list_direction'])" />
     <div class="flex flex-col gap-5 p-4">
         <div class="grid gap-4 md:grid-cols-2">
@@ -32,16 +32,17 @@
             ])
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <x-ui.input label="Workshop search" name="search" value="{{ request('search') }}" placeholder="Title, organisation or contact" />
-            <x-ui.input type="date" label="From date" name="date_from" value="{{ request('date_from') }}" />
-            <x-ui.input type="date" label="To date" name="date_to" value="{{ request('date_to') }}" />
-            <div class="md:mt-7">
-                <x-ui.checkbox label="Past workshops only" name="past_only" value="1" :checked="request()->boolean('past_only')" />
-            </div>
-            <x-ui.checkbox label="Include cancelled and drafts" name="include_cancelled" value="1" :checked="request()->boolean('include_cancelled')" />
-            <x-ui.checkbox label="Include child organisations" name="include_children" value="1" :checked="request()->boolean('include_children')" />
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <x-ui.input label="Workshop search" name="search" value="{{ request('search') }}" placeholder="Title, organisation or contact" class="mb-0 xl:col-span-2" />
+            <x-ui.input type="date" label="From date" name="date_from" value="{{ request('date_from') }}" class="mb-0" />
+            <x-ui.input type="date" label="To date" name="date_to" value="{{ request('date_to') }}" class="mb-0" />
         </div>
+        <fieldset class="grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2 xl:grid-cols-3">
+            <legend class="sr-only">Additional workshop filters</legend>
+            <x-ui.checkbox noWrapper inline label="Past workshops only" label-class="leading-5" name="past_only" value="1" :checked="request()->boolean('past_only')" class="min-h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:border-sky-300" />
+            <x-ui.checkbox noWrapper inline label="Include cancelled and drafts" label-class="leading-5" name="include_cancelled" value="1" :checked="request()->boolean('include_cancelled')" class="min-h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:border-sky-300" />
+            <x-ui.checkbox noWrapper inline label="Include child organisations" label-class="leading-5" name="include_children" value="1" :checked="request()->boolean('include_children')" class="min-h-14 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 hover:border-sky-300" />
+        </fieldset>
     </div>
 
     <div class="flex flex-wrap items-center justify-end gap-3 rounded-b-xl border-t border-gray-200 bg-gray-50 px-4 py-3">

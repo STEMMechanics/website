@@ -555,7 +555,7 @@ window.SM.initializeWorkshopText = item => {
     const automatic = new Set(generatedLines.flatMap(variants));
     const retained = notes.split(/\r\n|\r|\n/).filter(line => !automatic.has(line.trim())).join('\n').trim();
     const intentionallyEmpty = item.details_json?.workshop_notes_mode === 'manual' && !notes;
-    item.notes = intentionallyEmpty || /\{(?:date|workshop|duration|seats)\}/.test(notes)
+    item.notes = intentionallyEmpty || /\{(?:date|workshop|duration|seats|location)\}/.test(notes)
         ? notes
         : [retained, window.SM.defaultWorkshopText].filter(Boolean).join('\n');
     item.details_json ??= {};
@@ -565,7 +565,7 @@ window.SM.initializeWorkshopText = item => {
 window.SM.initializeWorkshopTextIfEditable = (item, isLocked) => {
     if (!isLocked) window.SM.initializeWorkshopText(item);
 };
-window.SM.workshopNotesPreview = (item, catalog = []) => {
+window.SM.workshopNotesPreview = (item, catalog = [], locationCatalog = []) => {
     const rows = item.kind === 'multi_workshop' ? (item.workshops ?? item.details_json?.multi_workshop?.rows ?? []) : [item];
     const rowsWithData = item.kind === 'multi_workshop'
         ? rows.filter(row => window.SM.isWorkshopSpacing(row)
@@ -576,9 +576,11 @@ window.SM.workshopNotesPreview = (item, catalog = []) => {
             || !!row.details_json?.workshop?.linked_workshop_id)
         : rows;
     const entries = rowsWithData.map(row => {
-        if (window.SM.isWorkshopSpacing(row)) return { spacing: true, date: '', workshop: '', duration: '', seats: '' };
+        if (window.SM.isWorkshopSpacing(row)) return { spacing: true, date: '', workshop: '', duration: '', seats: '', location: '' };
         const settings = row.details_json?.workshop ?? {};
         const linked = catalog.find(option => option.id === settings.linked_workshop_id);
+        const locationId = row.location_id ?? settings.location_id ?? linked?.location_id ?? '';
+        const locationOption = locationCatalog.find(option => String(option.id) === String(locationId));
         const date = row.workshop_date ?? settings.date ?? linked?.date ?? '';
         const hours = row.workshop_hours ?? settings.hours;
         const seats = row.workshop_seats ?? settings.seats;
@@ -587,14 +589,16 @@ window.SM.workshopNotesPreview = (item, catalog = []) => {
             workshop: (item.kind === 'workshop' ? settings.name : row.description) || linked?.title || '',
             duration: hours !== '' && hours != null ? `${Number(hours)} ${Number(hours) === 1 ? 'hr' : 'hrs'}` : '',
             seats: seats !== '' && seats != null ? `${Number(seats)} seats` : '',
+            location: linked?.location || locationOption?.display || locationOption?.name || '',
         };
     });
-    return String(item.notes ?? '').split(/\r\n|\r|\n/).flatMap(line => /\{(?:date|workshop|duration|seats)\}/.test(line)
+    return String(item.notes ?? '').split(/\r\n|\r|\n/).flatMap(line => /\{(?:date|workshop|duration|seats|location)\}/.test(line)
         ? entries.map(entry => {
             if (entry.spacing) return '';
             let text = line;
             for (const optional of ['date', 'workshop']) if (!entry[optional]) text = text.replace(new RegExp(`\\{${optional}\\}\\s*-\\s*`), '');
-            return text.replace(/\{(date|workshop|duration|seats)\}/g, (_, token) => entry[token]);
+            if (!entry.location) text = text.replace(/\s*[-–,]\s*\{location\}/, '').replace(/\{location\}\s*[-–,]\s*/, '');
+            return text.replace(/\{(date|workshop|duration|seats|location)\}/g, (_, token) => entry[token]);
         })
         : [line]).join('\n').trim();
 };

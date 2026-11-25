@@ -166,7 +166,7 @@ class WorkshopHistoryController extends Controller
         return [
             'locations' => Location::query()->orderBy('name')->get(),
             'organisations' => Organisation::query()->with('parent')->orderBy('name')->get(),
-            'contacts' => User::query()->whereHas('requestedWorkshops')->orderBy('firstname')->orderBy('surname')->get(),
+            'contacts' => User::query()->with('primaryOrganisation.parent')->whereHas('requestedWorkshops')->orderBy('firstname')->orderBy('surname')->get(),
             'categories' => WorkshopCategory::query()->orderBy('name')->get(),
         ];
     }

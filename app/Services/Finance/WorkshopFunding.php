@@ -195,6 +195,8 @@ class WorkshopFunding
         return $workshops->map(function ($workshop) use ($ticketAttendanceCounts, $sessionAttendanceCounts, $dropInAttendanceCounts): array {
             $ticketAttendanceCount = $sessionAttendanceCounts->get($workshop->id) ?? $ticketAttendanceCounts->get($workshop->id, 0);
             $attendanceCount = (int) $ticketAttendanceCount + (int) $dropInAttendanceCounts->get($workshop->id, 0);
+            $locationName = $workshop->getLocationName();
+            $location = $locationName === '-' ? '' : $locationName;
 
             return [
                 'id' => (string) $workshop->id,
@@ -202,6 +204,7 @@ class WorkshopFunding
                 'title' => $workshop->title,
                 'date' => $workshop->starts_at?->format('Y-m-d'),
                 'location_id' => $workshop->location && ! $workshop->location->isOnline() ? (string) $workshop->location_id : null,
+                'location' => $location,
                 'default_travel_hours' => ($workshop->location && ! $workshop->location->isOnline())
                     ? $workshop->location->default_travel_hours
                     : null,

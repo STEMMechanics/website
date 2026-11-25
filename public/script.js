@@ -600,13 +600,34 @@ let SM = {
         const copyContent = async () => {
             try {
                 await navigator.clipboard.writeText(text);
-                SM.alert('Link copied', 'The link has been copied to the clipboard.', 'success');
+                SM.alert('Copied to clipboard', 'The content has been copied to the clipboard.', 'success');
             } catch (err) {
-                SM.alert('Copy failed', 'Could not copy the link to the clipboard. It may not have permission in your browser.', 'danger');
+                SM.alert('Copy failed', 'Could not copy to the clipboard. Your browser may not have granted clipboard access.', 'danger');
             }
         }
 
         copyContent().then(() => { /* empty */});
+    },
+
+    copyRichTextToClipboard: async (html, text) => {
+        try {
+            if (!navigator.clipboard?.write || typeof window.ClipboardItem !== 'function') {
+                throw new Error('Rich text clipboard is unavailable.');
+            }
+
+            await navigator.clipboard.write([new window.ClipboardItem({
+                'text/html': new Blob([html], { type: 'text/html' }),
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+            })]);
+            SM.alert('Rich text copied', 'Formatted promotion text has been copied to the clipboard.', 'success');
+        } catch (_) {
+            try {
+                await navigator.clipboard.writeText(text);
+                SM.alert('Plain text copied', 'This browser could not copy rich text, so plain text was copied instead.', 'warning');
+            } catch (_) {
+                SM.alert('Copy failed', 'Your browser could not access the clipboard.', 'danger');
+            }
+        }
     },
 
     updateShippingAddress: () => {
@@ -2772,16 +2793,34 @@ window.SM.autocompleteEditor = (config = {}) => ({
     selectedIndex: -1,
     dropdownStyle: '',
     dropdownListMaxHeight: 240,
-    dropdownOpenUp: false,
     init() {
         const initial = this.readBoundValue();
         if (initial !== undefined && initial !== null && initial !== '') this.rawValue = initial;
         this.$watch('rawValue', (value) => this.writeBoundValue(value));
         this.$watch('open', (value) => {
-            if (value) this.$nextTick(() => this.updateDropdownPosition());
-            else this.dropdownStyle = '';
+            if (value) {
+                this.$nextTick(() => {
+                    this.showDropdownPopover();
+                    this.updateDropdownPosition();
+                });
+            } else {
+                this.hideDropdownPopover();
+                this.dropdownStyle = '';
+            }
         });
         this.refresh();
+    },
+    showDropdownPopover() {
+        const dropdown = this.$refs.dropdownEl;
+        if (dropdown && typeof dropdown.showPopover === 'function' && !dropdown.matches(':popover-open')) {
+            dropdown.showPopover();
+        }
+    },
+    hideDropdownPopover() {
+        const dropdown = this.$refs.dropdownEl;
+        if (dropdown && typeof dropdown.hidePopover === 'function' && dropdown.matches(':popover-open')) {
+            dropdown.hidePopover();
+        }
     },
     readBoundValue() {
         if (!this.modelBinding) return undefined;
@@ -2882,14 +2921,10 @@ window.SM.autocompleteEditor = (config = {}) => ({
         const gap = 4;
         const preferredMaxHeight = 240;
         const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
-        const spaceAbove = rect.top - viewportPadding - gap;
-        const availableHeight = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow ? spaceAbove : spaceBelow;
-        this.dropdownOpenUp = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
+        const availableHeight = spaceBelow;
         this.dropdownListMaxHeight = Math.max(40, Math.min(preferredMaxHeight, Math.floor(availableHeight)));
         const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding));
-        this.dropdownStyle = this.dropdownOpenUp
-            ? 'position: fixed; left: ' + left + 'px; width: ' + rect.width + 'px; bottom: ' + Math.max(viewportPadding, window.innerHeight - rect.top + gap) + 'px;'
-            : 'position: fixed; left: ' + left + 'px; width: ' + rect.width + 'px; top: ' + (rect.bottom + gap) + 'px;';
+        this.dropdownStyle = 'position: fixed; inset: auto; margin: 0; left: ' + left + 'px; width: ' + rect.width + 'px; top: ' + (rect.bottom + gap) + 'px;';
     },
     applySelection() {
         if (!this.open) return;
