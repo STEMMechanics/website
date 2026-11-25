@@ -173,11 +173,11 @@
                     <div x-show="taskNote !== null" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="taskNote = null">
                         <div class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-5 shadow-xl" x-on:click.outside="taskNote = null">
                             <div class="flex items-center justify-between gap-2"><h3 class="text-lg font-semibold" x-text="taskName"></h3><x-ui.row-action label="Close editor" icon="fa-solid fa-xmark" tone="neutral" type="button" x-on:click="taskNote = null" /></div>
-                            <div class="mt-4 text-sm text-gray-700 content" x-html="taskNote"></div>
+                            <div class="mt-4 text-sm text-gray-700 content" x-effect="$SM.setSafeHtmlContent($el, taskNote)"></div>
                             <template x-for="(subtask, index) in taskSubtasks" :key="('task-note-subtask-' + (index) + '')">
                                 <section class="mt-5 border-t border-gray-200 pt-4">
                                     <h4 class="font-semibold" x-text="subtask.title"></h4>
-                                    <div class="mt-2 text-sm text-gray-700 content" x-html="subtask.content"></div>
+                                    <div class="mt-2 text-sm text-gray-700 content" x-effect="$SM.setSafeHtmlContent($el, subtask.content)"></div>
                                 </section>
                             </template>
                             <div class="mt-5 flex justify-end"><x-ui.button type="button" x-on:click="taskNote = null">Close</x-ui.button></div>

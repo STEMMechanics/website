@@ -260,7 +260,7 @@ if (isset($workshop)) {
                                 </x-slot>
                                 <option value="">Select location</option>
                                 <template x-for="location in locations" :key="location.id">
-                                    <option :value="String(location.id)" :selected="String(selectedLocationId ?? '') === String(location.id)" x-text="location.name"></option>
+                                    <option :value="location.id" x-text="location.name"></option>
                                 </template>
                             </x-ui.select>
                         </span>
@@ -1372,7 +1372,7 @@ window.SM.whenAlpineReady(function () {
             'name' => (string) $location->name,
             'address' => (string) ($location->address ?? ''),
             ])->values()->all()),
-            selectedLocationId: @js(old('location_id', $workshopModel?->location_id ?? '')),
+            selectedLocationId: @js((string) old('location_id', $workshopModel?->location_id ?? '')),
             createLocationOpen: false,
             createLocationSubmitting: false,
             createLocationError: '',

@@ -128,7 +128,7 @@
             <div class="text-sm font-semibold text-sky-800">Uploading pending files</div>
             <div class="mt-1 text-xs text-sky-700" x-text="$SM.currentPendingUploadState({{ \Illuminate\Support\Js::encode($name) }}).message || 'Preparing upload…'"></div>
             <div class="mt-3 h-2 overflow-hidden rounded-full bg-sky-100">
-                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($SM.currentPendingUploadState({{ \Illuminate\Support\Js::encode($name) }}).progress || 0))) + '%'"></div>
+                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="$SM.pendingUploadProgressStyle({{ \Illuminate\Support\Js::encode($name) }})"></div>
             </div>
         </div>
         <div class="text-xs text-gray-500 mb-4 mt-1">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
@@ -275,6 +275,12 @@
         }
 
         return current;
+    }
+
+    function pendingUploadProgressStyle(name) {
+        const progress = Number(currentPendingUploadState(name).progress || 0);
+        const percentage = Math.max(0, Math.min(100, Number.isFinite(progress) ? progress : 0));
+        return 'width: ' + percentage + '%';
     }
 
     function normalizeFileListData(value) {
@@ -488,6 +494,7 @@
         currentFileList,
         currentStagedFileList,
         currentPendingUploadState,
+        pendingUploadProgressStyle,
         removeFile,
         removePendingFile,
         queuePendingFiles,

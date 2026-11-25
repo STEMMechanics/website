@@ -390,9 +390,9 @@
                 </div>
 
                 <div class="space-y-4">
-                    <template x-for="(method, index) in shippingMethods" :key="method.id ?? ('new-' + (index) + '')">
+                    <template x-for="(method, index) in shippingMethods" :key="method.id || ('new-' + (index) + '')">
                         <section class="rounded-3xl border border-gray-200 bg-gray-50/80 p-3 sm:p-5">
-                            <input type="hidden" :name="('shipping_methods[' + (index) + '][id]')" :value="method.id ?? ''">
+                            <input type="hidden" :name="('shipping_methods[' + (index) + '][id]')" :value="method.id || ''">
                             <input type="hidden" :name="('shipping_methods[' + (index) + '][is_active]')" :value="method.is_active ? 1 : 0">
 
                             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -577,12 +577,12 @@
                                 </div>
 
                                 <div class="mt-4 grid items-start gap-4 xl:grid-cols-2" x-show="!channelUsesFreeCollection(method) || method.packages.length > 0" x-cloak>
-                                    <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id ?? ('package-' + (packageIndex) + '')">
+                                    <template x-for="(packageOption, packageIndex) in method.packages" :key="packageOption.id || ('package-' + (packageIndex) + '')">
                                         <section
                                             class="rounded-2xl border bg-white p-4 shadow-sm"
-                                            :class="Object.keys(validationErrors).some((key) => key.startsWith(('shipping_methods.' + (index) + '.packages.' + (packageIndex) + '.'))) ? 'border-red-300' : 'border-gray-200'"
+                                            :class="hasPackageValidationError(index, packageIndex) ? 'border-red-300' : 'border-gray-200'"
                                         >
-                                            <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][id]')" :value="packageOption.id ?? ''">
+                                            <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][id]')" :value="packageOption.id || ''">
                                             <input type="hidden" :name="('shipping_methods[' + (index) + '][packages][' + (packageIndex) + '][is_active]')" :value="packageOption.is_active ? 1 : 0">
 
                                             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -688,6 +688,10 @@ window.SM.whenAlpineReady(function () {
                 trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
                 validationErrors: @js($validationErrors),
                 trackingLinkTemplates: [],
+                hasPackageValidationError(methodIndex, packageIndex) {
+                    const prefix = 'shipping_methods.' + methodIndex + '.packages.' + packageIndex + '.';
+                    return Object.keys(this.validationErrors || {}).some((key) => key.startsWith(prefix));
+                },
                 init() {
                     this.trackingLinkTemplates = this.parseTrackingLinkTemplates(this.trackingLinkTemplatesSource);
                 },

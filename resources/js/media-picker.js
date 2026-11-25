@@ -1,6 +1,35 @@
 const SMMediaPicker = {
     cameraStream: null,
 
+    uploadProgressStyle: (progress) => {
+        const value = Number(progress);
+        const percentage = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+
+        return `width: ${percentage}%`;
+    },
+
+    uploadProgressLabel: (progress) => {
+        const value = Number(progress);
+        const percentage = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+
+        return `${Math.round(percentage)}% complete`;
+    },
+
+    resultSummary: (currentPage, perPage, total) => {
+        const page = Math.max(1, Number(currentPage) || 1);
+        const pageSize = Math.max(0, Number(perPage) || 0);
+        const resultCount = Math.max(0, Number(total) || 0);
+
+        if (resultCount === 0 || pageSize === 0) {
+            return '';
+        }
+
+        const first = ((page - 1) * pageSize) + 1;
+        const last = Math.min(page * pageSize, resultCount);
+
+        return `Showing ${first} to ${last} of ${resultCount} results`;
+    },
+
     escapeHtml: (value) => {
         return String(value ?? '')
             .replaceAll('&', '&amp;')
@@ -117,7 +146,7 @@ const SMMediaPicker = {
                 <li
                     class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300"
                     data-media-tab-button="${tabId}"
-                    x-on:click.prevent="SMMediaPicker.activateTab('${tabId}')"
+                    x-on:click.prevent="$SMMediaPicker.activateTab('${tabId}')"
                 >${SMMediaPicker.escapeHtml(tab.label)}</li>
             `;
         }).join('');
@@ -205,6 +234,11 @@ const SMMediaPicker = {
         } finally {
             store.camera_starting = false;
         }
+    },
+
+    restartCamera: () => {
+        SMMediaPicker.stopCamera();
+        Alpine.nextTick(() => SMMediaPicker.startCamera());
     },
 
     captureCameraPhoto: () => {
@@ -578,8 +612,19 @@ const SMMediaPicker = {
             params: params,
         })
             .then((response) => {
-                response.data.links[0].label = '<i class="fa-solid fa-angle-left"></i>';
-                response.data.links[response.data.links.length - 1].label = '<i class="fa-solid fa-angle-right"></i>';
+                const currentPage = response.data.current_page;
+                const pagination = (response.data.links || []).map((link, index, links) => {
+                    const isPrevious = index === 0;
+                    const isNext = index === links.length - 1;
+                    const label = isPrevious ? '‹' : (isNext ? '›' : String(link.label || '').replace(/<[^>]*>/g, '').trim());
+
+                    return {
+                        url: link.url,
+                        label,
+                        disabled: link.url === null,
+                        active: link.active === true || String(label) === String(currentPage),
+                    };
+                });
 
                 response.data.data.forEach((file) => {
                     file.extension = file.name.split('.').pop();
@@ -591,6 +636,8 @@ const SMMediaPicker = {
                 store.total = response.data.total;
                 store.items = response.data.data;
                 store.pagination = [];
+                store.previous_page_url = pagination.length > 0 ? pagination[0].url : null;
+                store.next_page_url = pagination.length > 0 ? pagination[pagination.length - 1].url : null;
 
                 response.data.data.forEach((file) => {
                     if(file.status === 'processing' || file.status === 'queued') {
@@ -602,7 +649,7 @@ const SMMediaPicker = {
                 });
 
                 Alpine.nextTick(() => {
-                    store.pagination = response.data.links;
+                    store.pagination = pagination;
                 }).then(() => {
                     /* empty */
                 });
@@ -628,9 +675,9 @@ const SMMediaPicker = {
                 </div>
             </template>
             <ul class="relative z-20 -mb-px flex flex-wrap gap-1 overflow-x-auto">
-                ${store?.allow_uploads ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="upload" x-on:click.prevent="SMMediaPicker.activateTab('upload')">Upload</li>` : ''}
-                ${store?.camera_supported ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="camera" x-on:click.prevent="SMMediaPicker.activateTab('camera')">Camera</li>` : ''}
-                ${store?.allow_browser ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="browser" x-on:click.prevent="SMMediaPicker.activateTab('browser')">Browser</li>` : ''}
+                ${store?.allow_uploads ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="upload" x-on:click.prevent="$SMMediaPicker.activateTab('upload')">Upload</li>` : ''}
+                ${store?.camera_supported ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="camera" x-on:click.prevent="$SMMediaPicker.activateTab('camera')">Camera</li>` : ''}
+                ${store?.allow_browser ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="browser" x-on:click.prevent="$SMMediaPicker.activateTab('browser')">Browser</li>` : ''}
                 ${SMMediaPicker.renderCustomTabButtons()}
             </ul>
             <div
@@ -648,7 +695,7 @@ const SMMediaPicker = {
                         <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
                             <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
                         </div>
-                        <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" />
+                        <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="$SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" />
                         <p class="text-xs mt-2">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
                     </div>
                     <div x-show="$store.media.uploading" x-cloak class="flex h-full w-full flex-col items-center justify-center">
@@ -657,9 +704,9 @@ const SMMediaPicker = {
                             <div class="mt-2 text-lg font-semibold text-gray-900">Media upload in progress</div>
                             <p class="mt-2 text-sm text-gray-600" x-text="$store.media.upload_message || 'Preparing upload...'"></p>
                             <div class="mt-5 h-3 overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($store.media.upload_progress || 0))) + '%'"></div>
+                                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="$SM.mediaPickerProgressStyle($store.media.upload_progress)"></div>
                             </div>
-                            <div class="mt-2 text-xs font-medium text-sky-800" x-text="Math.round(Number($store.media.upload_progress || 0)) + '% complete'"></div>
+                            <div class="mt-2 text-xs font-medium text-sky-800" x-text="$SM.mediaPickerProgressLabel($store.media.upload_progress)"></div>
                         </div>
                     </div>
                 </div>
@@ -696,7 +743,7 @@ const SMMediaPicker = {
                                     type="button"
                                     class="bg-primary-color hover:bg-primary-color-dark justify-center rounded-md text-white px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition mr-6"
                                     x-bind:disabled="!$store.media.camera_ready || $store.media.camera_countdown_active"
-                                    x-on:click.prevent="SMMediaPicker.startCameraCountdown()"
+                                    x-on:click.prevent="$SMMediaPicker.startCameraCountdown()"
                                 >
                                     <span>Capture photo</span>
                                 </button>
@@ -704,7 +751,7 @@ const SMMediaPicker = {
                                     type="button"
                                     class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                                     x-bind:disabled="$store.media.camera_countdown_active"
-                                    x-on:click.prevent="SMMediaPicker.toggleCameraFlipX()"
+                                    x-on:click.prevent="$SMMediaPicker.toggleCameraFlipX()"
                                     title="Flip horizontally"
                                 >
                                     <i class="fa-solid fa-left-right"></i>
@@ -713,7 +760,7 @@ const SMMediaPicker = {
                                     type="button"
                                     class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
                                     x-bind:disabled="$store.media.camera_countdown_active"
-                                    x-on:click.prevent="SMMediaPicker.toggleCameraFlipY()"
+                                    x-on:click.prevent="$SMMediaPicker.toggleCameraFlipY()"
                                     title="Flip vertically"
                                 >
                                     <i class="fa-solid fa-up-down"></i>
@@ -721,7 +768,7 @@ const SMMediaPicker = {
                                 <button
                                     type="button"
                                     class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                                    x-on:click.prevent="SMMediaPicker.stopCamera(); $nextTick(() => SMMediaPicker.startCamera())"
+                                    x-on:click.prevent="$SMMediaPicker.restartCamera()"
                                     title="Restart Camera"
                                 >
                                     <i class="fa-solid fa-power-off"></i>
@@ -731,7 +778,7 @@ const SMMediaPicker = {
                     </div>
                 </div>
                 <div id="content-browser" class="flex flex-col h-full min-h-0 min-w-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
-                    <form x-on:submit.prevent="SMMediaPicker.search()">
+                    <form x-on:submit.prevent="$SMMediaPicker.search()">
                         <div class="flex min-w-0 w-full mb-2">
                             <input class="bg-white min-w-0 w-0 flex-1 px-2.5 py-1 text-base sm:text-xs text-gray-900 rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Search" aria-label="Search media" type="search" enterkeyhint="search" name="search" x-bind:disabled="$store.media.uploading" />
                             <button type="submit" aria-label="Search media" class="shrink-0 min-h-11 sm:min-h-0 hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></button>
@@ -742,23 +789,23 @@ const SMMediaPicker = {
                         <li
                             class="flex text-center p-1 items-center flex-col h-40 w-56 border-2 rounded relative"
                             :class="{
-                                'cursor-pointer border-primary-color': $store.media.selected.some(i => i === item.name),
-                                'cursor-pointer border-white': !$store.media.selected.some(i => i === item.name) && !$store.media.disabled.some(i => i === item.name),
-                                'cursor-not-allowed border-gray-200 bg-gray-100 opacity-60': $store.media.disabled.some(i => i === item.name)
+                                'cursor-pointer border-primary-color': $store.media.selected.includes(item.name),
+                                'cursor-pointer border-white': !$store.media.selected.includes(item.name) && !$store.media.disabled.includes(item.name),
+                                'cursor-not-allowed border-gray-200 bg-gray-100 opacity-60': $store.media.disabled.includes(item.name)
                             }"
-                            x-bind:aria-disabled="$store.media.disabled.some(i => i === item.name) ? 'true' : 'false'"
-                            x-on:click="SMMediaPicker.updateSelection(item.name)"
-                            x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
+                            x-bind:aria-disabled="$store.media.disabled.includes(item.name) ? 'true' : 'false'"
+                            x-on:click="$SMMediaPicker.updateSelection(item.name)"
+                            x-on:dblclick="$SMMediaPicker.doubleClick(item.name)"
                             >
                             <div class="absolute right-1 top-1 z-10">
                                 <span
-                                    x-show="$store.media.selected.some(i => i === item.name)"
+                                    x-show="$store.media.selected.includes(item.name)"
                                     class="flex h-6 w-6 items-center justify-center rounded-full border border-white bg-primary-color text-xs text-white shadow"
                                     title="Selected"
                                     aria-label="Selected"
                                 ><i class="fa-solid fa-check"></i></span>
                                 <span
-                                    x-show="$store.media.disabled.some(i => i === item.name)"
+                                    x-show="$store.media.disabled.includes(item.name)"
                                     class="flex h-6 w-6 items-center justify-center rounded-full border border-white bg-gray-700 text-xs text-white shadow"
                                     x-bind:title="$store.media.disabled_item_text"
                                     x-bind:aria-label="$store.media.disabled_item_text"
@@ -794,47 +841,43 @@ const SMMediaPicker = {
 
                     <div class="flex items-end pt-4 pb-1">
                         <div class="flex w-full items-center justify-between sm:justify-center md:justify-between">
-                            <p x-show="$store.media.total > 0" class="hidden md:block text-xs" x-text="'Showing ' + ((($store.media.current_page - 1) * $store.media.per_page) + 1) + ' to ' + ($store.media.current_page * $store.media.per_page > $store.media.total ? $store.media.total : $store.media.current_page * $store.media.per_page) + ' of ' + ($store.media.total) + ' results'"></p>
-                            <p x-show="$store.media.total === 0" class="hidden md:block text-xs">No items found</p>
+                            <p x-show="$store.media.total" class="hidden md:block text-xs" x-text="$SM.mediaPickerResultSummary($store.media.current_page, $store.media.per_page, $store.media.total)"></p>
+                            <p x-show="!$store.media.total" class="hidden md:block text-xs">No items found</p>
 
                             <ul class="hidden sm:flex border border-gray-300 rounded-lg text-sm">
                                 <template x-for="link in $store.media.pagination">
                                     <li
                                         class="px-2 py-1.5 w-9 border-r last:border-r-0 text-center select-none whitespace-nowrap"
                                         :class="{
-                                            'bg-gray-100':              link.url === null,
-                                            'text-gray-400':            link.url === null,
-                                            'text-primary-color':       link.url !== null && link.label == $store.media.current_page,
-                                            'bg-sky-100':               link.url !== null && link.label == $store.media.current_page,
-                                            'cursor-pointer':           link.url !== null,
-                                            'hover:text-primary-color': link.url !== null,
-                                            'hover:bg-sky-100':         link.url !== null
+                                            'bg-gray-100 text-gray-400': link.disabled,
+                                            'text-primary-color bg-sky-100': link.active,
+                                            'cursor-pointer hover:text-primary-color hover:bg-sky-100': !link.disabled
                                             }"
-                                        x-html="link.label"
-                                        x-on:click="SMMediaPicker.gotoLink(link.url)"></li>
+                                        x-text="link.label"
+                                        x-on:click="$SMMediaPicker.gotoLink(link.url)"></li>
                                 </template>
                             </ul>
 
                             <a
-                                :href="$store.media.pagination[0]?.url"
+                                :href="$store.media.previous_page_url || '#'"
                                 class="sm:hidden px-2 py-1.5 border rounded text-center text-sm select-none whitespace-nowrap cursor-pointer"
                                 :class="{
-                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.pagination[0]?.url,
-                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.pagination[0]?.url
+                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.previous_page_url,
+                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.previous_page_url
                                 }"
-                                x-on:click.prevent="SMMediaPicker.gotoLink($store.media.pagination[0].url)"
-                                :disabled="!$store.media.pagination[0]?.url"
+                                x-on:click.prevent="$SMMediaPicker.gotoLink($store.media.previous_page_url)"
+                                :aria-disabled="!$store.media.previous_page_url"
                                 ><i class="fa-solid fa-angle-left mr-2"></i>Prev
                             </a>
                             <a
-                                :href="$store.media.pagination[$store.media.pagination.length - 1]?.url"
+                                :href="$store.media.next_page_url || '#'"
                                 class="sm:hidden px-2 py-1.5 border rounded text-center text-sm select-none whitespace-nowrap"
                                 :class="{
-                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.pagination[$store.media.pagination.length - 1]?.url,
-                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.pagination[$store.media.pagination.length - 1]?.url
+                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.next_page_url,
+                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.next_page_url
                                 }"
-                                x-on:click.prevent="SMMediaPicker.gotoLink($store.media.pagination[$store.media.pagination.length - 1].url)"
-                                :disabled="!$store.media.pagination[$store.media.pagination.length - 1]?.url"
+                                x-on:click.prevent="$SMMediaPicker.gotoLink($store.media.next_page_url)"
+                                :aria-disabled="!$store.media.next_page_url"
                                 >Next<i class="fa-solid fa-angle-right ml-2"></i>
                             </a>
                         </div>
@@ -847,7 +890,7 @@ const SMMediaPicker = {
                 class="fixed flex top-0 left-0 w-full h-full z-10 bg-sky-800/95 text-white items-center p-4"
                 x-on:dragenter.prevent="showFileDrop = true"
                 x-on:dragover.prevent="showFileDrop = true"
-                x-on:drop.prevent="if ($store.media.uploading) { showFileDrop = false; return; } SMMediaPicker.upload($event.dataTransfer.files); showFileDrop = false;"
+                x-on:drop.prevent="if ($store.media.uploading) { showFileDrop = false; return; } $SMMediaPicker.upload($event.dataTransfer.files); showFileDrop = false;"
                 x-on:dragleave.prevent="showFileDrop = false">
                 <h2
                     class="pointer-events-none flex w-full h-full justify-center items-center text-lg font-bold border-dashed border">
@@ -873,6 +916,8 @@ const SMMediaPicker = {
         } else if (store) {
             store.items = [];
             store.pagination = [];
+            store.previous_page_url = null;
+            store.next_page_url = null;
             store.total = 0;
             store.current_page = 1;
         }
@@ -1036,6 +1081,12 @@ const SMMediaPicker = {
 };
 
 window.SMMediaPicker = SMMediaPicker;
+window.SM = window.SM || {};
+Object.assign(window.SM, {
+    mediaPickerProgressStyle: SMMediaPicker.uploadProgressStyle,
+    mediaPickerProgressLabel: SMMediaPicker.uploadProgressLabel,
+    mediaPickerResultSummary: SMMediaPicker.resultSummary,
+});
 
 const initializeMediaStore = () => {
     if (Alpine.store('media')) return;
@@ -1068,6 +1119,8 @@ const initializeMediaStore = () => {
         disabled: [],
         disabled_item_text: 'Unavailable',
         pagination: [],
+        previous_page_url: null,
+        next_page_url: null,
         custom_tabs: [],
         custom_tab_state: {},
     });

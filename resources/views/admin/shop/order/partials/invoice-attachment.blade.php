@@ -1,6 +1,7 @@
 <div x-data="$SM.storeOrderInvoiceAttachment({{ \Illuminate\Support\Js::encode([
     'optionsUrl' => route('admin.shop.order.invoice.options', $order),
     'reviewUrl' => route('admin.shop.order.invoice.attach', $order),
+    'storeUrl' => route('admin.shop.order.invoice.store', $order),
     'initialInvoiceId' => (int) request()->query('attach_invoice', old('invoice_id', '0')),
     'autoOpen' => request()->has('attach_invoice') || (int) old('invoice_id', '0') > 0,
 ]) }})" x-on:close.capture="dismiss()">
@@ -54,7 +55,7 @@
                 </div>
                 <div x-show="reviewHtml" x-cloak>
                     <x-ui.button color="outline" size="small" class="mb-4" x-on:click="back()" x-bind:disabled="saving">Choose another invoice</x-ui.button>
-                    <div x-html="reviewHtml" x-on:submit.prevent="save($event.target)"></div>
+                    <div x-ref="reviewContainer"></div>
                 </div>
             </div>
         </x-ui.list-dialog>

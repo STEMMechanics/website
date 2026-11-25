@@ -31,10 +31,10 @@
                     <x-ui.button type="submit" color="outline" x-bind:disabled="run && !run.finished">Prepare ZIP</x-ui.button>
                 </form>
             </div>
-            <div x-show="run" x-cloak class="mt-4 rounded-md border p-3" :class="run?.status === 'failed' ? 'border-red-200 bg-red-50' : (run?.status === 'completed' ? 'border-green-200 bg-green-50' : 'border-sky-200 bg-sky-50')">
+            <div x-show="run" x-cloak class="mt-4 rounded-md border p-3" :class="statusClass()">
                 <div class="text-sm" x-text="$SM.get(run, 'status') === 'failed' ? $SM.get(run, 'error_message') : $SM.get(run, 'message')"></div>
-                <div x-show="run && !run.finished" class="mt-2 h-2 overflow-hidden rounded-full bg-white"><div class="h-full animate-pulse rounded-full bg-sky-600" :style="('width:' + (Math.max(5, Number(run?.progress || 0))) + '%')"></div></div>
-                <a x-show="$SM.get(run, 'download_url')" :href="run?.download_url" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-color hover:underline"><i class="fa-solid fa-download"></i> Download ZIP</a>
+                <div x-show="run && !run.finished" class="mt-2 h-2 overflow-hidden rounded-full bg-white"><div class="h-full animate-pulse rounded-full bg-sky-600" :style="progressStyle()"></div></div>
+                <a x-show="$SM.get(run, 'download_url')" :href="downloadUrl()" class="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-primary-color hover:underline"><i class="fa-solid fa-download"></i> Download ZIP</a>
             </div>
         </div>
 
@@ -341,6 +341,18 @@
 <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
     window.fileBackupArchive = (initialRun, startUrl, statusTemplate) => ({
         run: initialRun,
+        statusClass() {
+            if (this.run && this.run.status === 'failed') return 'border-red-200 bg-red-50';
+            if (this.run && this.run.status === 'completed') return 'border-green-200 bg-green-50';
+            return 'border-sky-200 bg-sky-50';
+        },
+        progressStyle() {
+            const progress = this.run ? Number(this.run.progress || 0) : 0;
+            return 'width:' + Math.max(5, Number.isFinite(progress) ? progress : 0) + '%';
+        },
+        downloadUrl() {
+            return this.run && this.run.download_url ? this.run.download_url : '';
+        },
         init() { if (this.run && !this.run.finished) this.poll(); },
         async start(event) {
             const response = await fetch(startUrl, { method: 'POST', headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: new FormData(event.target) });

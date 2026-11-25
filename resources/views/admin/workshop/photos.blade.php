@@ -78,7 +78,7 @@
                                 <span x-text="('' + (preparationIndex) + ' of ' + (preparationTotal) + '')"></span>
                             </div>
                             <div class="h-3 w-full overflow-hidden rounded-full bg-sky-100">
-                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="('width: ' + (preparationTotal > 0 ? Math.round((preparationIndex / preparationTotal) * 100) : 0) + '%')"></div>
+                                <div class="h-3 rounded-full bg-primary-color transition-[width] duration-200" x-bind:style="preparationProgressStyle()"></div>
                             </div>
                         </div>
                     </div>
@@ -263,6 +263,12 @@ window.SM.whenAlpineReady(function () {
                     preparing: false,
                     preparationIndex: 0,
                     preparationTotal: 0,
+                    preparationProgressStyle() {
+                        const percentage = this.preparationTotal > 0
+                            ? Math.round((this.preparationIndex / this.preparationTotal) * 100)
+                            : 0;
+                        return 'width: ' + percentage + '%';
+                    },
                     uploading: false,
                     uploadIndex: 0,
                     uploadProgress: 0,

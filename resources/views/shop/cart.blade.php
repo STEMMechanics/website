@@ -44,7 +44,7 @@
                                 <a :href="line.product.url" class="text-lg font-bold text-gray-900 hover:text-primary-color" x-text="line.product.title"></a>
                                 <div x-show="line.variant_name" class="mt-1 text-sm font-medium text-gray-700" x-text="line.variant_name"></div>
                                 <div class="mt-1 text-sm text-gray-600" x-text="line.product.product_type_label"></div>
-                                <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-sm" :class="line.is_preorder ? 'text-amber-800' : (Number(line.delayed_quantity || 0) > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
+                                <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-sm" :class="line.is_preorder ? 'text-amber-800' : (line.delayed_quantity > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
                                 <div class="text-sm text-gray-500" x-text="('' + (formatMoney(line.unit_price)) + ' each')"></div>
                             </div>
                             <div>
