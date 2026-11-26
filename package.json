@@ -15,7 +15,7 @@
         "autoprefixer": "^10.6.2",
         "axios": "^1.19.0",
         "laravel-vite-plugin": "^3.2.1",
-        "postcss": "^8.5.29",
+        "postcss": "^8.5.33",
         "vite": "^8.3.8"
     },
     "dependencies": {
