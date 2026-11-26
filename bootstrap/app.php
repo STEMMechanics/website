@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\Admin;
+use App\Http\Middleware\ApplyViewAs;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\CanonicalHost;
 use App\Http\Middleware\EnsureFullAccount;
@@ -50,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
             RestoreRememberedDevice::class,
         );
         $middleware->web(append: [
+            ApplyViewAs::class,
             SecurityHeaders::class,
             NoCache::class,
             RestoreRememberedDevice::class,

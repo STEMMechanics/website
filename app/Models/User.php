@@ -372,7 +372,9 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->updateQuietly([
             'primary_organisation_id' => $organisation->id,
         ]);
-        $this->organisations()->syncWithoutDetaching([$organisation->id]);
+        if (! $this->organisations()->whereKey($organisation->id)->exists()) {
+            $this->organisations()->attach($organisation->id, ['role' => 'member']);
+        }
     }
 
     public function requestedWorkshops(): HasMany

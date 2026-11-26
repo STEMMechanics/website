@@ -164,12 +164,12 @@ class UserController extends Controller
 
         return view('admin.user.edit', [
             'user' => $user->load(['groups', 'organisations', 'primaryOrganisation'])->loadCount('requestedWorkshops'),
+            'availableOrganisations' => Organisation::query()->with('parent')->withCount('children')->orderBy('name')->get(),
             'accountCredit' => $accountCredit,
             'cardRefundableCredit' => $this->cardRefundableCreditForUser($user),
             'refundPayment' => $refundPayment,
             'refundPaymentAvailableAmount' => $refundPaymentAvailableAmount,
             'groupSuggestions' => $this->groupSuggestions(),
-            'organisationSuggestions' => Organisation::query()->orderBy('name')->pluck('name')->all(),
         ]);
     }
 
@@ -218,7 +218,6 @@ class UserController extends Controller
         $validated = $request->validate([
             'firstname' => ['required', 'string', 'max:120'],
             'surname' => ['nullable', 'string', 'max:120'],
-            'organisation_name' => 'nullable|string|max:255',
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
             'phone' => '',
             'subscribed' => 'nullable',
@@ -227,6 +226,12 @@ class UserController extends Controller
             'use_organisation_billing_address' => ['nullable', 'boolean'],
             'use_organisation_shipping_address' => ['nullable', 'boolean'],
             'use_organisation_account_terms' => ['nullable', 'boolean'],
+            'organisation_access_submitted' => ['nullable', 'boolean'],
+            'organisation_ids' => ['nullable', 'array', 'max:100'],
+            'organisation_ids.*' => ['required', 'uuid', 'distinct', 'exists:organisations,id'],
+            'primary_organisation_id' => ['nullable', 'uuid', 'exists:organisations,id'],
+            'organisation_manager_ids' => ['nullable', 'array'],
+            'organisation_manager_ids.*' => ['required', 'uuid', 'distinct', 'exists:organisations,id'],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -277,15 +282,115 @@ class UserController extends Controller
         $payload['subscribed'] = ($request->input('subscribed') === 'on');
 
         if ($user->isAdmin()) $payload['dashboard_email_opt_in'] = $request->boolean('dashboard_email_opt_in');
-        $user->update($payload);
-        $user->syncPrimaryOrganisationByName((string) ($validated['organisation_name'] ?? ''));
-        $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
+        if ($request->boolean('organisation_access_submitted')) {
+            $organisationIds = array_values(array_map('strval', $validated['organisation_ids'] ?? []));
+            $managerIds = array_values(array_map('strval', $validated['organisation_manager_ids'] ?? []));
+            $primaryOrganisationId = filled($validated['primary_organisation_id'] ?? null)
+                ? (string) $validated['primary_organisation_id']
+                : null;
+        } else {
+            $organisationIds = $user->organisations()->pluck('organisations.id')->map(fn ($id): string => (string) $id)->all();
+            $managerIds = $user->organisations()->wherePivot('role', 'contact')->pluck('organisations.id')->map(fn ($id): string => (string) $id)->all();
+            $primaryOrganisationId = $user->primary_organisation_id !== null ? (string) $user->primary_organisation_id : null;
+        }
+
+        if (array_diff($managerIds, $organisationIds) !== []) {
+            throw ValidationException::withMessages([
+                'organisation_manager_ids' => 'Manager access can only be assigned to linked organisations.',
+            ]);
+        }
+        if ($primaryOrganisationId !== null && ! in_array($primaryOrganisationId, $organisationIds, true)) {
+            throw ValidationException::withMessages([
+                'primary_organisation_id' => 'Choose a primary organisation that is linked to this user.',
+            ]);
+        }
+
+        $primaryOrganisationChanged = (string) ($user->primary_organisation_id ?? '') !== (string) ($primaryOrganisationId ?? '');
+        if ($primaryOrganisationChanged) {
+            $payload['use_organisation_billing_address'] = false;
+            $payload['use_organisation_shipping_address'] = false;
+        }
+
+        DB::transaction(function () use ($user, $payload, $validated, $organisationIds, $managerIds, $primaryOrganisationId): void {
+            $this->syncOrganisationAccess($user, $organisationIds, $managerIds);
+            $user->update($payload);
+            $user->updateQuietly(['primary_organisation_id' => $primaryOrganisationId]);
+            $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
+        });
 
         session()->flash('message', 'User details have been updated');
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    /**
+     * Synchronize the organisation memberships and manager roles shown on the admin user profile.
+     *
+     * @param array<int, string> $organisationIds
+     * @param array<int, string> $managerIds
+     */
+    private function syncOrganisationAccess(User $user, array $organisationIds, array $managerIds): void
+    {
+        $organisationIds = array_values(array_unique(array_map('strval', $organisationIds)));
+        $managerIds = array_values(array_unique(array_map('strval', $managerIds)));
+        sort($organisationIds);
+        sort($managerIds);
+
+        if (array_diff($managerIds, $organisationIds) !== []) {
+            throw ValidationException::withMessages([
+                'organisation_manager_ids' => 'Manager access can only be assigned to linked organisations.',
+            ]);
+        }
+
+        $currentMemberships = DB::table('organisation_user')
+            ->where('user_id', $user->id)
+            ->orderBy('organisation_id')
+            ->lockForUpdate()
+            ->get(['organisation_id', 'role']);
+        $affectedOrganisationIds = collect($currentMemberships)
+            ->pluck('organisation_id')
+            ->map(fn ($id): string => (string) $id)
+            ->merge($organisationIds)
+            ->unique()
+            ->values();
+        $membershipRows = $affectedOrganisationIds->isEmpty()
+            ? collect()
+            : DB::table('organisation_user')
+                ->whereIn('organisation_id', $affectedOrganisationIds)
+                ->orderBy('organisation_id')
+                ->orderBy('user_id')
+                ->lockForUpdate()
+                ->get(['organisation_id', 'user_id', 'role']);
+
+        foreach ($currentMemberships as $membership) {
+            $organisationId = (string) $membership->organisation_id;
+            $willRemainManager = in_array($organisationId, $organisationIds, true)
+                && in_array($organisationId, $managerIds, true);
+            if ($membership->role !== 'contact' || $willRemainManager) {
+                continue;
+            }
+
+            $hasAnotherManager = $membershipRows->contains(fn ($row): bool =>
+                (string) $row->organisation_id === $organisationId
+                && (string) $row->user_id !== (string) $user->id
+                && $row->role === 'contact'
+            );
+            if (! $hasAnotherManager) {
+                throw ValidationException::withMessages([
+                    'organisation_manager_ids' => 'Keep at least one manager for each linked organisation.',
+                ]);
+            }
+        }
+
+        $syncData = [];
+        foreach ($organisationIds as $organisationId) {
+            $syncData[$organisationId] = [
+                'role' => in_array($organisationId, $managerIds, true) ? 'contact' : 'member',
+            ];
+        }
+        $user->organisations()->sync($syncData);
     }
 
     public function merge(Request $request, User $user, UserMergeService $mergeService)

@@ -71,6 +71,9 @@ import './deployment-status';
 import './workplan-checkoff';
 
 import './admin-ai';
+import './admin-view-as';
+import './admin-user-organisations';
+import './account-organisation-settings';
 import './expense-import-queue';
 import './admin-dashboard-actions';
 

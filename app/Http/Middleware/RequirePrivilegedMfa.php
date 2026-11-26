@@ -62,7 +62,7 @@ class RequirePrivilegedMfa
             return $next($request);
         }
         if ($user->tfa_secret === null && ! self::canEnrol($request, $user)
-            && ! $request->routeIs('security.csp-report', 'logout', 'logout.show')) {
+            && ! $request->routeIs('security.csp-report', 'logout', 'logout.show', 'view-as.exit')) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -80,7 +80,7 @@ class RequirePrivilegedMfa
             || app(RememberedDeviceManager::class)->hasPrivilegedVerification($request, $user)) {
             return $next($request);
         }
-        if ($request->routeIs('security.mfa.*', 'security.csp-report', 'logout', 'logout.show')) {
+        if ($request->routeIs('security.mfa.*', 'security.csp-report', 'logout', 'logout.show', 'view-as.exit')) {
             return $next($request);
         }
         // Only the account screen and initial enrolment endpoints remain available.

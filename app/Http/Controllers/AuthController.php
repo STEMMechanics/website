@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Support\AltchaTrust;
 use App\Support\RememberedDeviceManager;
 use App\Support\SafeRedirect;
+use App\Support\ViewAsSession;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -408,6 +409,18 @@ class AuthController extends Controller
      */
     public function logout(Request $request): RedirectResponse
     {
+        if ($request->session()->has(ViewAsSession::SESSION_KEY)) {
+            $admin = app(ViewAsSession::class)->originalAdmin($request);
+            if ($admin instanceof User) {
+                app(ViewAsSession::class)->clear($request);
+                $request->session()->regenerate();
+
+                return redirect()->route('admin.dashboard')
+                    ->with('message', 'You’ve exited View As mode and returned to your admin account.')
+                    ->with('message-type', 'info');
+            }
+        }
+
         $user = auth()->user();
         if ($user instanceof User) {
             $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);

@@ -108,7 +108,7 @@
                                     @endif
                                 </td>
                                 <td data-label="Attendance" data-mobile-align="center" class="text-center! font-normal">
-                                    {{ $workshop->report_attendance ?? 'NA' }}
+                                    {{ $workshop->report_attendance }}
                                 </td>
                                 <td data-label="Images" data-mobile-align="center" class="text-center!">
                                     @if($photos !== [])
@@ -118,7 +118,7 @@
                                     @endif
                                 </td>
                                 <td data-label="Actions" data-mobile-actions class="text-right!">
-                                    @if($photos !== [] || $workshop->isPubliclyVisible())
+                                    @if($photos !== [] || $workshop->isPubliclyVisible() || $workshop->hero || filled($workshop->report_promotion_copy))
                                         <x-ui.row-actions class="justify-end!">
                                             @if($photos !== [])
                                                 <x-ui.row-action label="View photos" icon="fa-solid fa-images" tone="neutral" type="button" x-on:click="$dispatch('workshop-gallery-open', { id: {{ \Illuminate\Support\Js::encode($galleryId) }} })" />
@@ -127,6 +127,19 @@
                                                     icon="fa-solid fa-download"
                                                     tone="neutral"
                                                     href="{{ route('account.workshop-report.photos.download', [...$filterQuery, 'workshop_id' => $workshop->getKey()]) }}"
+                                                />
+                                            @endif
+                                            @if($workshop->hero)
+                                                <x-ui.row-action label="Download hero image" icon="fa-solid fa-image" tone="neutral" href="{{ route('account.workshop-report.hero.download', $workshop) }}" />
+                                            @endif
+                                            @if(filled($workshop->report_promotion_copy))
+                                                <x-ui.row-action label="Download promotion text" icon="fa-solid fa-file-arrow-down" tone="neutral" href="{{ route('account.workshop-report.promotion-copy.download', $workshop) }}" />
+                                                <x-ui.row-action
+                                                    label="Copy promotion text"
+                                                    icon="fa-regular fa-copy"
+                                                    tone="neutral"
+                                                    x-data
+                                                    x-on:click.prevent="$SM.copyRichTextToClipboard({{ \Illuminate\Support\Js::encode($workshop->report_promotion_copy_html) }}, {{ \Illuminate\Support\Js::encode($workshop->report_promotion_copy) }})"
                                                 />
                                             @endif
                                             @if($workshop->isPubliclyVisible())

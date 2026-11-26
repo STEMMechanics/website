@@ -134,6 +134,22 @@
 @if(trim((string)($appNotice ?? '')) !== '')
     <x-noticebar>{{ $appNotice }}</x-noticebar>
 @endif
+@if(session()->has('view_as'))
+    <div class="w-full border-y border-amber-200 bg-amber-50 text-amber-950 shadow-sm" role="status">
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-2 sm:justify-between">
+            <div class="flex min-w-0 flex-wrap items-center justify-center gap-2.5 text-center sm:justify-start sm:text-left">
+                <span class="text-sm">Viewing the website as <strong class="font-semibold">{{ auth()->user()?->email ?? 'unknown' }}</strong></span>
+            </div>
+            <form method="POST" action="{{ route('view-as.exit') }}" class="inline-flex shrink-0">
+                @csrf
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-semibold text-amber-950 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+                    <i class="fa-solid fa-arrow-right-from-bracket" aria-hidden="true"></i>
+                    Exit
+                </button>
+            </form>
+        </div>
+    </div>
+@endif
 <x-ui.loading-progress />
 <x-navbar />
 <div {{ $id ? 'id='.$id : '' }} class="grow">{{ $slot }}</div>

@@ -5489,8 +5489,19 @@ class WorkshopController extends Controller
         if ($workshopData['hosted_for_organisation_id'] === null && $workshopData['requested_by_user_id'] !== null) {
             $requester = User::query()->find($workshopData['requested_by_user_id']);
             if ($requester instanceof User) {
-                $workshopData['hosted_for_organisation_id'] = $requester->primary_organisation_id
-                    ?? $requester->organisations()->orderBy('organisation_user.id')->value('organisations.id');
+                $organisationIds = $requester->organisations()
+                    ->orderBy('organisation_user.id')
+                    ->pluck('organisations.id')
+                    ->map(fn ($id): string => (string) $id)
+                    ->when($requester->primary_organisation_id !== null, fn ($ids) => $ids->push((string) $requester->primary_organisation_id))
+                    ->unique()
+                    ->values()
+                    ->all();
+                if (count($organisationIds) === 1) {
+                    $workshopData['hosted_for_organisation_id'] = $organisationIds[0];
+                } elseif ($organisationIds === [] && $requester->primary_organisation_id !== null) {
+                    $workshopData['hosted_for_organisation_id'] = $requester->primary_organisation_id;
+                }
             }
         }
     }

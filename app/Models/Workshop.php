@@ -20,10 +20,12 @@ use Illuminate\Support\Str;
 
 /**
  * @property list<int>|null $optional_product_ids
- * @property-read ?int $report_attendance
+ * @property-read int|string $report_attendance
  * @property-read list<string> $report_schedule
  * @property-read string $report_location_name
  * @property-read string|null $report_location_address
+ * @property-read string $report_promotion_copy
+ * @property-read string $report_promotion_copy_html
  * @property-read list<array{title: string, caption: string, alt: string, is_video: bool, thumbnail_url: string, url: string, download_url: string}> $report_photos
  */
 class Workshop extends Model

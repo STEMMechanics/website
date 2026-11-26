@@ -66,7 +66,7 @@ class WorkshopReportController extends Controller
                     implode(' | ', $workshop->report_schedule),
                     $workshop->report_location_name,
                     $workshop->report_location_address ?? '',
-                    $workshop->report_attendance ?? 'NA',
+                    $workshop->report_attendance,
                     collect($workshop->report_photos)->pluck('title')->implode(' | '),
                 ]);
             }
@@ -161,6 +161,66 @@ class WorkshopReportController extends Controller
         abort_unless($this->reports->photoIsAccessible($user, $workshop, $media), 404);
 
         return $this->photoResponse($workshop, $media, null, true);
+    }
+
+    public function downloadHero(Request $request, Workshop $workshop): StreamedResponse
+    {
+        $user = $this->user($request);
+        abort_unless($this->reports->canAccess($user, $workshop), 404);
+
+        $hero = $workshop->hero;
+        abort_unless($hero instanceof Media, 404, 'No hero image is available for this workshop.');
+        $stream = $hero->sourceStorage()->readStream((string) $hero->hash);
+        abort_unless(is_resource($stream), 404);
+
+        try {
+            MediaDownload::query()->create([
+                'media_name' => $hero->name,
+                'user_id' => auth()->id(),
+                'variant' => null,
+                'source' => 'account',
+            ]);
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+
+        $extension = strtolower((string) pathinfo((string) $hero->name, PATHINFO_EXTENSION));
+        if ($extension === '') {
+            $extension = match (strtolower((string) $hero->mime_type)) {
+                'image/png' => 'png',
+                'image/gif' => 'gif',
+                'image/webp' => 'webp',
+                default => 'jpg',
+            };
+        }
+
+        return response()->streamDownload(static function () use ($stream): void {
+            try {
+                fpassthru($stream);
+            } finally {
+                fclose($stream);
+            }
+        }, Str::slug((string) $workshop->title).'-hero.'.$extension, [
+            'Content-Type' => (string) $hero->mime_type,
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function downloadPromotionCopy(Request $request, Workshop $workshop): StreamedResponse
+    {
+        $user = $this->user($request);
+        abort_unless($this->reports->canAccess($user, $workshop), 404);
+
+        $title = e(trim((string) $workshop->title));
+        $copy = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>'.$title.'</title></head><body>'.$this->reports->promotionCopyHtml($workshop).'</body></html>';
+        $filename = Str::slug((string) $workshop->title).'-promotion-text.html';
+
+        return response()->streamDownload(static function () use ($copy): void {
+            echo $copy;
+        }, $filename, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     private function user(Request $request): User

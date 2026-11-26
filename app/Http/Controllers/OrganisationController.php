@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Organisation;
+use App\Models\OrganisationMembershipRequest;
 use App\Models\User;
 use App\Services\InvoiceEmailTemplateService;
 use App\Support\WebsiteUrl;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Validation\ValidationException;
 
 class OrganisationController extends Controller
 {
@@ -46,22 +48,36 @@ class OrganisationController extends Controller
         }
 
         $users = User::query()
-            ->with(['organisations', 'primaryOrganisation'])
+            ->with(['organisations.parent', 'primaryOrganisation.parent'])
             ->when(! $request->boolean('include_ghost'), fn ($query) => $query->whereNotNull('email_verified_at'))
             ->where(function ($query) use ($search): void {
                 $query->where('firstname', 'like', '%'.$search.'%')
                     ->orWhere('surname', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
-                    ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
+                    ->orWhereHas('primaryOrganisation', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('primaryOrganisation.parent', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('organisations', fn ($query) => $query->where('organisations.name', 'like', '%'.$search.'%'))
+                    ->orWhereHas('organisations.parent', fn ($query) => $query->where('name', 'like', '%'.$search.'%'));
             })
             ->orderBy('firstname')
             ->orderBy('surname')
             ->limit(25)
             ->get()
             ->map(function (User $user): array {
-                $organisation = $user->primaryOrganisation ?? $user->organisations->first();
-                $organisationId = $organisation instanceof Organisation ? (string) $organisation->id : '';
-                $organisationName = $organisation instanceof Organisation ? (string) $organisation->name : '';
+                $linkedOrganisations = $user->organisations->sortBy('name')->keyBy(fn (Organisation $organisation): string => (string) $organisation->id);
+                $primaryOrganisation = $user->primaryOrganisation;
+                if ($primaryOrganisation instanceof Organisation) {
+                    $linkedOrganisations->put((string) $primaryOrganisation->id, $primaryOrganisation);
+                }
+                $linkedOrganisations = $linkedOrganisations->sortBy('name')->values();
+                $singleOrganisation = $linkedOrganisations->count() === 1 ? $linkedOrganisations->first() : null;
+                $organisation = $primaryOrganisation ?? $singleOrganisation ?? $linkedOrganisations->first();
+                $organisationName = $organisation instanceof Organisation
+                    ? ($organisation->parent ? $organisation->parent->name.' — '.$organisation->name : (string) $organisation->name)
+                    : '';
+                $organisationSummary = $linkedOrganisations
+                    ->map(fn (Organisation $linkedOrganisation): string => ($linkedOrganisation->parent ? $linkedOrganisation->parent->name.' — ' : '').$linkedOrganisation->name.((string) $linkedOrganisation->id === (string) $primaryOrganisation?->id ? ' (primary)' : ''))
+                    ->implode(', ');
 
                 return [
                     'id' => (string) $user->id,
@@ -69,8 +85,10 @@ class OrganisationController extends Controller
                     'email' => (string) $user->email,
                     'is_anonymized' => $user->isAnonymized(),
                     'edit_url' => route('admin.user.edit', $user),
-                    'organisation_id' => $organisationId,
+                    'organisation_id' => $singleOrganisation instanceof Organisation ? (string) $singleOrganisation->id : '',
                     'organisation_name' => $organisationName,
+                    'organisation_summary' => $organisationSummary,
+                    'organisation_count' => $linkedOrganisations->count(),
                 ];
             })
             ->values();
@@ -85,9 +103,19 @@ class OrganisationController extends Controller
             return response()->json(['organisations' => []]);
         }
 
+        $excludedIds = [];
+        $excludedOrganisation = Organisation::query()->find($request->query('exclude_id'));
+        if ($excludedOrganisation) {
+            $excludedIds = [(string) $excludedOrganisation->id, ...$excludedOrganisation->descendantIds()];
+        }
+
         $organisations = Organisation::query()
             ->with('parent')
-            ->where('name', 'like', '%'.$search.'%')
+            ->when($excludedIds !== [], fn ($query) => $query->whereNotIn('id', $excludedIds))
+            ->where(function ($query) use ($search): void {
+                $query->where('name', 'like', '%'.$search.'%')
+                    ->orWhereHas('parent', fn ($parentQuery) => $parentQuery->where('name', 'like', '%'.$search.'%'));
+            })
             ->orderBy('name')
             ->limit(25)
             ->get()
@@ -110,7 +138,7 @@ class OrganisationController extends Controller
         $logo = $request->file('logo');
         unset($validated['contact_ids'], $validated['logo']);
         $organisation = Organisation::create($validated);
-        $organisation->contacts()->sync($contactIds);
+        $this->syncContacts($organisation, $contactIds);
         $this->saveOrganisationLogo($organisation, $logo);
 
         return redirect()->route('admin.organisation.edit', $organisation)
@@ -130,17 +158,14 @@ class OrganisationController extends Controller
     public function update(Request $request, Organisation $organisation): RedirectResponse
     {
         $validated = $this->validated($request, $organisation);
-        $contactIds = $validated['contact_ids'] ?? [];
+        $contactIds = $validated['contact_ids'] ?? null;
         $logo = $request->file('logo');
         unset($validated['contact_ids'], $validated['logo']);
         $organisation->update($validated);
-        $organisation->contacts()->sync($contactIds);
+        if ($contactIds !== null) {
+            $this->syncContacts($organisation, $contactIds);
+        }
         $this->saveOrganisationLogo($organisation, $logo);
-
-        User::query()
-            ->where('primary_organisation_id', $organisation->id)
-            ->when($contactIds !== [], fn ($query) => $query->whereNotIn('id', $contactIds))
-            ->update(['primary_organisation_id' => null]);
 
         return redirect()->route('admin.organisation.edit', $organisation)
             ->with('message', 'Organisation has been updated')
@@ -168,14 +193,24 @@ class OrganisationController extends Controller
 
     private function formView(?Organisation $organisation = null): View
     {
+        $organisationRequestsForApproval = $organisation
+            ? OrganisationMembershipRequest::query()
+                ->with('user')
+                ->where('organisation_id', $organisation->id)
+                ->where('status', 'pending')
+                ->latest()
+                ->get()
+            : collect();
+
         $organisations = Organisation::query()
+            ->with('parent')
             ->when($organisation, fn ($query) => $query->where('id', '!=', $organisation->id))
             ->orderBy('name')
             ->get();
 
         $invoiceEmailSiteDefaults = app(InvoiceEmailTemplateService::class)->organisationDefaults();
 
-        return view('admin.organisation.edit', compact('organisation', 'organisations', 'invoiceEmailSiteDefaults'));
+        return view('admin.organisation.edit', compact('organisation', 'organisations', 'invoiceEmailSiteDefaults', 'organisationRequestsForApproval'));
     }
 
     public function sponsorshipLogo(Organisation $organisation): Response
@@ -200,23 +235,53 @@ class OrganisationController extends Controller
         }
     }
 
+    /** @param array<int, string> $contactIds */
+    private function syncContacts(Organisation $organisation, array $contactIds): void
+    {
+        $contactIds = array_values(array_unique(array_map('strval', $contactIds)));
+        $currentContactIds = $organisation->contacts()
+            ->wherePivot('role', 'contact')
+            ->pluck('users.id')
+            ->map(fn ($id): string => (string) $id)
+            ->all();
+
+        foreach (array_diff($currentContactIds, $contactIds) as $contactId) {
+            $organisation->contacts()->updateExistingPivot($contactId, ['role' => 'member']);
+        }
+
+        $pivotData = [];
+        foreach ($contactIds as $contactId) {
+            $pivotData[$contactId] = ['role' => 'contact'];
+        }
+
+        $organisation->contacts()->syncWithoutDetaching($pivotData);
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function validated(Request $request, ?Organisation $organisation = null): array
     {
         $request->merge(['website_url' => WebsiteUrl::normalize($request->input('website_url'))]);
+        $request->merge([
+            'auto_approved_email_domains_text' => (string) $request->input('auto_approved_email_domains_text', ''),
+        ]);
+        $invalidParentIds = $organisation
+            ? [(string) $organisation->id, ...$organisation->descendantIds()]
+            : [];
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', Rule::in(array_keys(Organisation::TYPES))],
             'website_url' => WebsiteUrl::validationRules(),
+            'auto_approved_email_domains_text' => ['nullable', 'string', 'max:4000'],
             'abn' => ['nullable', 'string', 'max:20'],
             'foreign_tax_id' => ['nullable', 'string', 'max:100'],
             'logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
             'parent_id' => [
                 'nullable',
                 'exists:organisations,id',
-                Rule::notIn(array_filter([$organisation?->id])),
+                Rule::notIn($invalidParentIds),
             ],
             'billing_address' => ['nullable', 'string', 'max:255', 'required_with:billing_city,billing_postcode,billing_country,billing_state'],
             'billing_address2' => ['nullable', 'string', 'max:255'],
@@ -247,6 +312,21 @@ class OrganisationController extends Controller
             }
         }
         unset($validated['shipping_same_billing']);
+
+        $domains = collect(preg_split('/[,\s]+/', mb_strtolower((string) ($validated['auto_approved_email_domains_text'] ?? ''))) ?: [])
+            ->map(fn (string $domain): string => trim($domain, " .\t\n\r\0\x0B"))
+            ->filter()
+            ->unique()
+            ->values();
+        foreach ($domains as $domain) {
+            if (! preg_match('/^(?=.{3,253}$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/', $domain)) {
+                throw ValidationException::withMessages([
+                    'auto_approved_email_domains_text' => 'Enter email domains such as trc.qld.gov.au, separated by spaces.',
+                ]);
+            }
+        }
+        $validated['auto_approved_email_domains'] = $domains->all() ?: null;
+        unset($validated['auto_approved_email_domains_text']);
 
         return $validated;
     }

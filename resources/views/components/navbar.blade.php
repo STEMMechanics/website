@@ -18,6 +18,26 @@
         $hasMySponsorships = $navUser ? \App\Models\Sponsor::query()->where('user_id', $navUser->id)->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
         $hasMyWorkshopReports = $navUser ? $navUser->requestedWorkshops()->exists() : false;
+        $linkedOrganisationIds = $navUser ? $navUser->organisations()->pluck('organisations.id') : collect();
+        $hasLinkedOrganisation = $linkedOrganisationIds->isNotEmpty();
+        $managedOrganisations = $navUser
+            ? $navUser->organisations()->wherePivot('role', 'contact')->get()
+            : collect();
+        $managedOrganisationIds = $managedOrganisations->map(fn ($organisation): string => (string) $organisation->id);
+        $managedDescendantIds = $managedOrganisations
+            ->flatMap(fn ($organisation): array => $organisation->descendantIds())
+            ->map(fn ($id): string => (string) $id)
+            ->unique();
+        $organisationRequestScopeIds = ($navUser?->isAdmin() ? $linkedOrganisationIds : collect())
+            ->merge($managedOrganisationIds)
+            ->merge($managedDescendantIds)
+            ->unique();
+        $organisationJoinRequestCount = $navUser && ($navUser->isAdmin() || $managedOrganisationIds->isNotEmpty())
+            ? \App\Models\OrganisationMembershipRequest::query()
+                ->whereIn('organisation_id', $organisationRequestScopeIds)
+                ->where('status', 'pending')
+                ->count()
+            : 0;
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -199,6 +219,9 @@
                     </form>
                     <p data-sidebar-empty hidden class="px-4 py-2 text-sm text-gray-500">No matching menu items. Press Enter to search the site.</p>
                     <a href="{{ route('admin.dashboard') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-gauge-high w-4 mr-2"></i>Dashboard</a>
+                    <button type="button" data-open-dialog="admin-view-as-dialog" class="block w-full px-4 py-2 text-left text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" x-on:click="pageMenuOpen=false">
+                        <i class="fa-solid fa-user-secret w-4 mr-2" aria-hidden="true"></i>View As
+                    </button>
                     @else
                 <div class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" @click.prevent="openSearchOverlay()">
                     <i class="fa fa-search w-4 mr-2"></i>Search
@@ -263,6 +286,12 @@
                 <div class="text-lg font-semibold px-4 py-1 text-gray-700">Welcome {{ auth()->user()->firstname ?? strstr(auth()->user()->email, '@', true) }}</div>
                 <div class="border-t border-gray-200 my-2"></div>
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
+                @if($hasLinkedOrganisation)
+                    <a href="{{ route('account.organisation.show') }}" class="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1">
+                        <i class="fa-solid fa-building w-4" aria-hidden="true"></i><span class="flex-1">Organisation</span>
+                        <x-ui.nav-count :count="$organisationJoinRequestCount" :label="$organisationJoinRequestCount.' organisation requests need review'" />
+                    </a>
+                @endif
                 <div class="border-t border-gray-200 my-2"></div>
                 <a href="{{ route('account.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
                 @if($hasMyWorkshopReports)
@@ -297,6 +326,51 @@
     </div>
 
 </nav>
+
+    @if($isAdmin)
+        <x-ui.list-dialog id="admin-view-as-dialog" title="View website as another user" kind="filters" size="small">
+            <form method="POST" action="{{ route('admin.view-as.start') }}" data-initial-email="{{ old('email', '') }}" x-data="smCspAdminViewAs">
+                @csrf
+                <div class="p-5">
+                    <label for="admin-view-as-email" class="mb-2 block text-sm font-medium text-slate-700">User email address</label>
+                    <div class="relative">
+                        <input id="admin-view-as-email" name="email" type="email" required maxlength="255" autocomplete="off" value="{{ old('email', '') }}" data-select-on-dialog-open data-suggestions-url="{{ route('admin.view-as.suggestions') }}" x-ref="email" x-model="email" role="combobox" aria-autocomplete="list" x-on:input.debounce.250ms="searchUsers()" x-on:keydown.arrow-down.prevent="moveSuggestion(1)" x-on:keydown.arrow-up.prevent="moveSuggestion(-1)" x-on:keydown.enter="chooseHighlighted($event)" x-on:keydown.escape="clearSuggestions()" x-bind:aria-expanded="suggestions.length > 0" aria-controls="admin-view-as-suggestions" x-bind:aria-activedescendant="highlightedIndex >= 0 ? 'admin-view-as-option-' + highlightedIndex : null" placeholder="name@example.com" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-200">
+                        <div id="admin-view-as-suggestions" x-cloak x-show="suggestions.length > 0" class="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white p-1 shadow-xl" role="listbox" aria-label="User email suggestions">
+                            <template x-for="(user, index) in suggestions" :key="user.email">
+                                <button type="button" x-bind:id="'admin-view-as-option-' + index" x-on:mouseenter="highlightedIndex = index" x-on:mousedown.prevent x-on:click="chooseUser(user.email)" x-bind:aria-selected="highlightedIndex === index" x-bind:class="highlightedIndex === index ? 'bg-sky-50' : ''" class="block w-full rounded-md px-3 py-2 text-left hover:bg-sky-50" role="option">
+                                    <span class="block text-sm font-medium text-slate-900" x-text="user.email"></span>
+                                    <span class="block text-xs text-slate-500" x-text="user.name"></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">Use the arrow keys to choose a suggestion, then press Enter. No login details are changed.</p>
+                    @if(isset($errors))
+                        @error('email', 'viewAs')<p class="mt-2 text-sm text-red-600" role="alert">{{ $message }}</p>@enderror
+                    @endif
+                </div>
+                <div class="sm-dialog-footer flex-col items-stretch sm:flex-row sm:items-center">
+                    <x-ui.button color="outline" type="button" data-close-dialog class="w-full sm:w-auto">Cancel</x-ui.button>
+                    <x-ui.button type="submit" icon="fa-solid fa-eye" label="View" class="w-full sm:w-auto" />
+                </div>
+            </form>
+        </x-ui.list-dialog>
+        @if(isset($errors) && $errors->getBag('viewAs')->any())
+            <script nonce="{{ \Illuminate\Support\Facades\Vite::cspNonce() }}">
+                document.addEventListener('DOMContentLoaded', () => {
+                    const dialog = document.getElementById('admin-view-as-dialog');
+                    if (!dialog) return;
+                    dialog.showModal();
+                    requestAnimationFrame(() => {
+                        const input = dialog.querySelector('[data-select-on-dialog-open]');
+                        if (!dialog.open || !(input instanceof HTMLInputElement)) return;
+                        input.focus();
+                        input.select();
+                    });
+                });
+            </script>
+        @endif
+    @endif
 
     @if($publicShopAvailable || $workshopBookings !== [])
         <div x-show="cartOpen" @click.away="cartOpen=false" @keydown.escape.window="$SM.setDataValueWhen($el, 'cartOpen', false, cartOpen)" x-cloak class="fixed inset-0 z-260" aria-labelledby="cart-drawer-title" role="dialog" aria-modal="true">

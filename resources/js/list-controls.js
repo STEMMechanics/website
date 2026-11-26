@@ -10,6 +10,14 @@ export function openListDialog(dialog, trigger) {
         });
     }
     dialog.showModal();
+    const autoSelectInput = dialog.querySelector('[data-select-on-dialog-open]');
+    if (autoSelectInput instanceof HTMLInputElement || autoSelectInput instanceof HTMLTextAreaElement) {
+        requestAnimationFrame(() => {
+            if (!dialog.open || !autoSelectInput.isConnected) return;
+            autoSelectInput.focus();
+            autoSelectInput.select();
+        });
+    }
     if (window.innerWidth >= 768) {
         const groups = [...dialog.querySelectorAll('.sm-filter-sections details')];
         groups.forEach((group, index) => { group.open = index === 0; });

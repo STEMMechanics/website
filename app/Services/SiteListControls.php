@@ -92,9 +92,20 @@ class SiteListControls
 
     private function resolveNativeFields(): array
     {
-        return match (request()->route()?->getName()) {
-            'admin.workshop.history', 'admin.workshop.history.csv', 'admin.workshop.history.pdf', 'admin.workshop.coverage', 'admin.workshop.coverage.csv', 'admin.workshop.coverage.pdf' => [
-                'organisation_ids' => ['label' => 'Organisations', 'type' => 'array'],
+        $route = request()->route()?->getName();
+        if (in_array($route, ['admin.workshop.history', 'admin.workshop.history.csv', 'admin.workshop.history.pdf', 'admin.workshop.coverage', 'admin.workshop.coverage.csv', 'admin.workshop.coverage.pdf'], true)) {
+            $organisationOptions = \App\Models\Organisation::query()
+                ->with('parent')
+                ->orderBy('name')
+                ->get()
+                ->mapWithKeys(fn ($organisation): array => [
+                    (string) $organisation->id => ($organisation->parent ? $organisation->parent->name.' — ' : '').$organisation->name,
+                ])
+                ->all();
+
+            return [
+                'organisation_ids' => ['label' => 'Hosted for', 'type' => 'array', 'options' => $organisationOptions],
+                'organisation_id' => ['label' => 'Hosted for', 'type' => 'select', 'options' => $organisationOptions],
                 'location_ids' => ['label' => 'Locations', 'type' => 'array'],
                 'requested_by_user_ids' => ['label' => 'Contacts', 'type' => 'array'],
                 'category_ids' => ['label' => 'Categories', 'type' => 'array'],
@@ -103,7 +114,10 @@ class SiteListControls
                 'past_only' => ['label' => 'Past workshops only', 'type' => 'boolean'],
                 'include_cancelled' => ['label' => 'Include cancelled and drafts', 'type' => 'boolean'],
                 'include_children' => ['label' => 'Include child organisations', 'type' => 'boolean'],
-            ],
+            ];
+        }
+
+        return match ($route) {
             'admin.cost-centre.index' => ['state' => ['label' => 'Status', 'type' => 'select', 'options' => ['all' => 'All', 'active' => 'Active', 'archived' => 'Archived'], 'default' => 'all', 'clear' => 'all']],
             'admin.supplier.index' => [
                 'cost_centre_id' => ['label' => 'Cost centre', 'type' => 'select', 'options' => DB::table('finance_categories')->where('kind', 'cost')->orderBy('name')->pluck('name', 'id')->all()],

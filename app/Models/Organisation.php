@@ -34,6 +34,7 @@ class Organisation extends Model
         'type',
         'parent_id',
         'website_url',
+        'auto_approved_email_domains',
         'logo_path',
         'abn',
         'foreign_tax_id',
@@ -63,6 +64,7 @@ class Organisation extends Model
 
     protected $casts = [
         'account_terms_days' => 'integer',
+        'auto_approved_email_domains' => 'array',
         'sponsorship_recognition_public' => 'boolean',
         'sponsorship_recognition_approved_at' => 'datetime',
         'sponsorship_recognition_approval_notified_at' => 'datetime',
@@ -103,6 +105,12 @@ class Organisation extends Model
             ->orderBy('surname');
     }
 
+    /** @return HasMany<OrganisationMembershipRequest, $this> */
+    public function membershipRequests(): HasMany
+    {
+        return $this->hasMany(OrganisationMembershipRequest::class);
+    }
+
     /** @return HasMany<Sponsor, $this> */
     public function sponsorshipProfiles(): HasMany
     {
@@ -139,6 +147,21 @@ class Organisation extends Model
             $childIds = array_values(array_diff($childIds, $ids));
             $ids = [...$ids, ...$childIds];
             $pending = $childIds;
+        }
+
+        return $ids;
+    }
+
+    /** @return array<int, string> */
+    public function ancestorIds(): array
+    {
+        $ids = [];
+        $nextId = $this->parent_id !== null ? (string) $this->parent_id : null;
+
+        while ($nextId !== null && ! in_array($nextId, $ids, true)) {
+            $ids[] = $nextId;
+            $nextId = self::query()->whereKey($nextId)->value('parent_id');
+            $nextId = $nextId !== null ? (string) $nextId : null;
         }
 
         return $ids;

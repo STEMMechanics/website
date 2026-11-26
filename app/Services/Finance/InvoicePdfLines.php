@@ -2,6 +2,7 @@
 
 namespace App\Services\Finance;
 
+use App\Models\Location;
 use App\Models\Workshop;
 use Illuminate\Support\Carbon;
 
@@ -23,22 +24,34 @@ class InvoicePdfLines
     public static function withWorkshopDetails(iterable $items): array
     {
         $items = collect($items)->toArray();
-        $linkedEntries = collect($items)
+        $entries = collect($items)
             ->reject(fn (array $item): bool => isset($item['workshop_details']))
             ->flatMap(fn (array $item): array => self::workshopEntries($item))
+            ->values();
+        $linkedEntries = $entries
             ->filter(fn (array $entry): bool => trim((string) ($entry['id'] ?? '')) !== '')
             ->values();
         $workshops = $linkedEntries->isEmpty()
             ? collect()
             : Workshop::query()
+                ->with('location')
                 ->whereIn('id', $linkedEntries->pluck('id')->unique()->all())
                 ->get()
                 ->keyBy(fn (Workshop $workshop): string => (string) $workshop->getKey());
+        $locationIds = $entries
+            ->pluck('location_id')
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter()
+            ->unique()
+            ->values();
+        $locations = $locationIds->isEmpty()
+            ? collect()
+            : Location::query()->whereIn('id', $locationIds->all())->get()->keyBy(fn (Location $location): string => (string) $location->getKey());
 
         $result = [];
         foreach ($items as $item) {
             if (! isset($item['workshop_details'])) {
-                $details = self::presentableWorkshops($item, $workshops);
+                $details = self::presentableWorkshops($item, $workshops, $locations);
                 if ($details !== []) {
                     $item['workshop_details'] = $details;
                 }
@@ -51,11 +64,31 @@ class InvoicePdfLines
 
     public static function descriptionForPdf(array $item): string
     {
-        if (($item['kind'] ?? '') === 'workshop' && ! empty($item['workshop_details']) && ! array_key_exists('name', $item['details_json']['workshop'] ?? [])) {
-            return 'Charged per hour, per seat';
+        $description = (string) ($item['description'] ?? '');
+        if (($item['kind'] ?? '') === 'workshop'
+            && ! empty($item['workshop_details'])
+            && ! array_key_exists('name', $item['details_json']['workshop'] ?? [])
+            && ! str_contains($description, '{location}')) {
+            $description = 'Charged per hour, per seat';
         }
 
-        return (string) ($item['description'] ?? '');
+        if (str_contains($description, '{location}')) {
+            $locations = collect($item['workshop_details'] ?? [])
+                ->pluck('location_name')
+                ->map(fn ($name): string => trim((string) $name))
+                ->filter()
+                ->unique()
+                ->implode(', ');
+
+            if ($locations === '') {
+                $description = preg_replace('/\{location\}\s*[-–,]\s*/', '', $description) ?? $description;
+                $description = preg_replace('/\s*[-–,]\s*\{location\}/', '', $description) ?? $description;
+            } else {
+                $description = str_replace('{location}', $locations, $description);
+            }
+        }
+
+        return trim($description);
     }
 
     public static function notesForPdf(array $item): string
@@ -65,7 +98,7 @@ class InvoicePdfLines
         }
         $notes = trim((string) ($item['notes'] ?? ''));
         if (in_array($item['kind'] ?? '', ['workshop', 'multi_workshop'], true)
-            && (($item['details_json']['workshop_notes_mode'] ?? '') === 'template' || preg_match('/\{(?:date|workshop|duration|seats)\}/', $notes))) {
+            && (($item['details_json']['workshop_notes_mode'] ?? '') === 'template' || preg_match('/\{(?:date|workshop|duration|seats|location)\}/', $notes))) {
             return self::renderWorkshopText($notes, $item['workshop_details'] ?? []);
         }
         $noteLines = preg_split('/\r\n|\r|\n/', $notes) ?: [];
@@ -148,7 +181,7 @@ class InvoicePdfLines
     {
         $lines = [];
         foreach (preg_split('/\r\n|\r|\n/', $template) ?: [] as $line) {
-            if (! preg_match('/\{(?:date|workshop|duration|seats)\}/', $line)) {
+            if (! preg_match('/\{(?:date|workshop|duration|seats|location)\}/', $line)) {
                 $lines[] = $line;
 
                 continue;
@@ -161,7 +194,7 @@ class InvoicePdfLines
                     continue;
                 }
                 $text = $line;
-                foreach (['date', 'workshop'] as $optional) {
+                foreach (['date', 'workshop', 'location'] as $optional) {
                     if (($workshop[$optional] ?? '') === '') {
                         $text = preg_replace('/\{'.$optional.'\}\s*-\s*/', '', $text);
                     }
@@ -169,6 +202,7 @@ class InvoicePdfLines
                 $lines[] = strtr($text, [
                     '{date}' => $workshop['date'], '{workshop}' => $workshop['workshop'],
                     '{duration}' => $workshop['duration'], '{seats}' => $workshop['seats'],
+                    '{location}' => $workshop['location'],
                 ]);
                 if ($workshop['spacer_after'] ?? false) {
                     $lines[] = '';
@@ -236,22 +270,32 @@ class InvoicePdfLines
             'date' => $source['workshop_date'] ?? $settings['date'] ?? null,
             'hours' => $source['workshop_hours'] ?? $settings['hours'] ?? null,
             'seats' => $source['workshop_seats'] ?? $settings['seats'] ?? null,
+            'location_id' => $settings['location_id'] ?? $source['location_id'] ?? null,
             'spacer_after' => (bool) ($source['spacer_after'] ?? false),
         ];
     }
 
-    private static function presentableWorkshops(array $item, $workshops): array
+    private static function presentableWorkshops(array $item, $workshops, $locations): array
     {
         return collect(self::workshopEntries($item))
-            ->map(function (array $entry) use ($workshops): array {
+            ->map(function (array $entry) use ($workshops, $locations): array {
                 if ($entry['spacing'] ?? false) {
                     return [
                         'id' => '', 'title' => '- (space)', 'label' => '',
-                        'date' => '', 'workshop' => '', 'duration' => '', 'seats' => '',
+                        'date' => '', 'workshop' => '', 'duration' => '', 'seats' => '', 'location' => '',
                         'spacing' => true, 'spacer_after' => false,
                     ];
                 }
                 $workshop = $workshops->get($entry['id']);
+                $explicitLocation = $locations->get((string) ($entry['location_id'] ?? ''));
+                $location = $explicitLocation ?? $workshop?->location;
+                $locationName = trim((string) ($location->name ?? ''));
+                if ($locationName === '' && $workshop instanceof Workshop) {
+                    $locationName = $workshop->getLocationName();
+                }
+                if ($locationName === '-') {
+                    $locationName = '';
+                }
                 $title = trim((string) ($entry['description'] !== '' ? $entry['description'] : data_get($workshop, 'title', '')));
                 $date = self::formatDate($entry['date'] ?? null, $workshop);
                 $hours = is_numeric($entry['hours'] ?? null) ? (float) $entry['hours'] : null;
@@ -266,6 +310,8 @@ class InvoicePdfLines
                     'date' => $date, 'workshop' => $title,
                     'duration' => $hours !== null ? self::formatNumber($hours).' '.($hours === 1.0 ? 'hr' : 'hrs') : '',
                     'seats' => $seats !== null ? self::formatNumber($seats).' seats' : '',
+                    'location_name' => $locationName,
+                    'location' => $locationName,
                     'spacer_after' => (bool) ($entry['spacer_after'] ?? false),
                 ];
             })

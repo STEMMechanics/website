@@ -2,6 +2,11 @@
 
 @source "../**/*.{blade.php,js,php,vue}";
 
+/* Keep Alpine's conditional content hidden until Alpine initializes it. */
+[x-cloak] {
+    display: none !important;
+}
+
 /* Keep hover utilities inactive on disabled shared buttons and their contents. */
 @custom-variant hover {
     @media (hover: hover) {

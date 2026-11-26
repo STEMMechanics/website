@@ -267,10 +267,27 @@ if (isset($workshop)) {
                     </div>
                 </div>
                 @php
+                    $selectedContactId = (string) old('requested_by_user_id', $workshopModel?->requested_by_user_id ?? '');
                     $selectedContact = $workshopModel?->requestedBy;
+                    if ((string) ($selectedContact?->id ?? '') !== $selectedContactId) {
+                        $selectedContact = $selectedContactId !== ''
+                            ? \App\Models\User::query()->with(['organisations.parent', 'primaryOrganisation.parent'])->find($selectedContactId)
+                            : null;
+                    }
+                    $selectedContact?->loadMissing(['organisations.parent', 'primaryOrganisation.parent']);
+                    $selectedContactOrganisations = collect($selectedContact?->organisations ?? [])
+                        ->keyBy(fn ($organisation) => (string) $organisation->id);
+                    if ($selectedContact?->primaryOrganisation) {
+                        $selectedContactOrganisations->put((string) $selectedContact->primaryOrganisation->id, $selectedContact->primaryOrganisation);
+                    }
+                    $selectedContactOrganisations = $selectedContactOrganisations->sortBy('name')->values();
+                    $selectedContactOrganisationCount = $selectedContactOrganisations->count();
+                    $selectedContactOrganisationSummary = $selectedContactOrganisations
+                        ->map(fn ($organisation) => ($organisation->parent ? $organisation->parent->name.' — ' : '').$organisation->name.((string) $organisation->id === (string) $selectedContact?->primary_organisation_id ? ' (primary)' : ''))
+                        ->implode(', ');
                     $selectedHost = $workshopModel?->hostedFor;
                     $selectedContactLabel = $selectedContact
-                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContact->primaryOrganisation ? ' · '.$selectedContact->primaryOrganisation->name : ''))
+                        ? trim($selectedContact->getName().' · '.$selectedContact->email.($selectedContactOrganisationSummary !== '' ? ' · '.$selectedContactOrganisationSummary : ''))
                         : '';
                     $selectedHostLabel = $selectedHost
                         ? ($selectedHost->parent ? $selectedHost->parent->name.' — ' : '').$selectedHost->name
@@ -292,7 +309,7 @@ if (isset($workshop)) {
                             <template x-for="(contact, contactIndex) in contactResults" :key="contact.id">
                                 <x-ui.button variant="plain" type="button" role="option" tabindex="-1" x-bind:id="'requested_by_user_option_' + contact.id" x-bind:aria-selected="contactSelectedIndex === contactIndex" x-bind:class="contactSelectedIndex === contactIndex ? 'bg-sky-100' : ''" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:mouseenter="contactSelectedIndex = contactIndex" x-on:mousedown.prevent x-on:click="chooseContact(contact)">
                                     <span class="block text-gray-900" x-text="contact.name"></span>
-                                    <span class="block text-xs text-gray-500" x-text="('' + (contact.email) + '' + (contact.organisation_name ? (' · ' + (contact.organisation_name) + '') : '') + '')"></span>
+                                    <span class="block text-xs text-gray-500" x-text="('' + (contact.email) + '' + ((contact.organisation_summary || contact.organisation_name) ? (' · ' + (contact.organisation_summary || contact.organisation_name)) : '') + '')"></span>
                                 </x-ui.button>
                             </template>
                         </div>
@@ -312,6 +329,7 @@ if (isset($workshop)) {
                                 <x-ui.button variant="plain" type="button" class="block w-full border-b border-gray-100 px-3 py-2 text-left text-sm last:border-0 hover:bg-sky-50" x-on:click="chooseHost(organisation)" x-text="organisation.label"></x-ui.button>
                             </template>
                         </div>
+                        <p class="mt-2 text-xs text-slate-500" x-show="contactId && contactOrganisationCount > 1 && !hostId" x-cloak>This requester is linked to multiple organisations. Choose which one this workshop is for.</p>
                         @error('hosted_for_organisation_id')<div class="ml-2 mt-1 text-xs text-red-600">{{ $message }}</div>@enderror
                     </div>
                 </div>
@@ -1764,12 +1782,14 @@ window.SM.whenAlpineReady(function () {
     Alpine.data('smCspAdminWorkshopEdit2', () => ({
                         contactId: @js((string) old('requested_by_user_id', $workshopModel?->requested_by_user_id ?? '')),
                         contactSearch: @js($selectedContactLabel),
+                        contactOrganisationCount: @js($selectedContactOrganisationCount),
                         contactResults: [],
                         contactSearching: false,
                         contactSearchOpen: false,
                         contactSelectedIndex: -1,
                         hostId: @js((string) old('hosted_for_organisation_id', $workshopModel?->hosted_for_organisation_id ?? '')),
                         hostSearch: @js($selectedHostLabel),
+                        hostWasAutoSelected: false,
                         hostResults: [],
                         hostSearching: false,
                         contactSequence: 0,
@@ -1777,6 +1797,8 @@ window.SM.whenAlpineReady(function () {
                         editContact() {
                             this.closeContacts();
                             this.contactId = '';
+                            this.contactOrganisationCount = 0;
+                            if (this.hostWasAutoSelected) this.clearHost();
                             this.contactSearchOpen = true;
                         },
                         async findContacts() {
@@ -1800,17 +1822,23 @@ window.SM.whenAlpineReady(function () {
                             }
                         },
                         chooseContact(contact) {
+                            if (this.contactId !== contact.id && this.hostWasAutoSelected) this.clearHost();
                             this.contactId = contact.id;
-                            this.contactSearch = `${contact.name} · ${contact.email}${contact.organisation_name ? ` · ${contact.organisation_name}` : ''}`;
+                            this.contactOrganisationCount = Number(contact.organisation_count || 0);
+                            const organisationSummary = contact.organisation_summary || contact.organisation_name || '';
+                            this.contactSearch = `${contact.name} · ${contact.email}${organisationSummary ? ` · ${organisationSummary}` : ''}`;
                             this.closeContacts();
-                            if (!this.hostId && contact.organisation_id) {
+                            if (!this.hostId && this.contactOrganisationCount === 1 && contact.organisation_id) {
                                 this.hostId = contact.organisation_id;
                                 this.hostSearch = contact.organisation_name;
+                                this.hostWasAutoSelected = true;
                             }
                         },
                         clearContact() {
                             this.contactId = '';
                             this.contactSearch = '';
+                            this.contactOrganisationCount = 0;
+                            if (this.hostWasAutoSelected) this.clearHost();
                             this.closeContacts();
                         },
                         moveContact(step) {
@@ -1833,6 +1861,7 @@ window.SM.whenAlpineReady(function () {
                             this.contactSearching = false;
                         },
                         async findHosts() {
+                            this.hostWasAutoSelected = false;
                             this.hostId = '';
                             const term = this.hostSearch.trim();
                             const sequence = ++this.hostSequence;
@@ -1851,11 +1880,13 @@ window.SM.whenAlpineReady(function () {
                         chooseHost(organisation) {
                             this.hostId = organisation.id;
                             this.hostSearch = organisation.label;
+                            this.hostWasAutoSelected = false;
                             this.hostResults = [];
                         },
                         clearHost() {
                             this.hostId = '';
                             this.hostSearch = '';
+                            this.hostWasAutoSelected = false;
                             this.hostResults = [];
                         },
                     }));
