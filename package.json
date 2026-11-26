@@ -10,7 +10,7 @@
         "snyk:test": "snyk test --all-projects --exclude=vendor"
     },
     "devDependencies": {
-        "@tailwindcss/vite": "^4.3.3",
+        "@tailwindcss/vite": "^4.3.5",
         "@vitejs/plugin-react": "^6.1.2",
         "autoprefixer": "^10.6.2",
         "axios": "^1.19.0",
