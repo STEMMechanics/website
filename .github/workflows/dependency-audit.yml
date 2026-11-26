@@ -2,44 +2,109 @@ name: dependency-audit
 
 on:
   pull_request:
+  push:
+    branches: ["main"]
+    paths:
+      - "composer.json"
+      - "composer.lock"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/dependency-audit.yml"
+      - ".github/scripts/*dependency_audit*"
+  schedule:
+    # 08:17 Australia/Brisbane; GitHub schedules run in UTC.
+    - cron: "17 22 * * *"
   workflow_dispatch:
+    inputs:
+      notification_test:
+        description: "Create or reopen an assigned test issue to check notification delivery"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 jobs:
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      report: ${{ steps.scan.outputs.report }}
+      validation: ${{ steps.validate.outcome }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           tools: composer:v2
-          extensions: imagick, mbstring, fileinfo, zip, redis
 
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
           node-version: '24'
 
+      - name: Test audit reporting
+        run: python3 -m unittest discover -s .github/scripts -p 'test_dependency_audit.py'
+
       - name: Validate composer files
+        id: validate
         run: composer validate --strict
-
-      - name: Install PHP dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist --ignore-platform-req=ext-redis
-
-      - name: Audit Composer dependencies
-        run: composer audit
-
-      - name: Clean install Node dependencies
-        run: npm ci
-
-      - name: Audit production npm dependencies
-        run: npm audit --omit=dev --audit-level=high
-
-      # Keep reporting build-tool vulnerabilities without blocking production changes.
-      - name: Report all npm dependency findings
-        run: npm audit --audit-level=high
         continue-on-error: true
+
+      # Read lockfiles directly so install failures cannot hide advisories.
+      # The collector runs every audit even when an earlier audit finds problems.
+      - name: Audit Composer and npm lockfiles
+        id: scan
+        if: ${{ !cancelled() }}
+        run: python3 .github/scripts/dependency_audit.py collect
+        continue-on-error: true
+
+      - name: Save audit reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: dependency-audit-reports
+          path: audit-reports/
+          retention-days: 30
+
+      - name: Enforce audit policy
+        if: ${{ always() }}
+        env:
+          VALIDATION: ${{ steps.validate.outcome }}
+          SCAN: ${{ steps.scan.outcome }}
+        run: |
+          test "$VALIDATION" = success
+          test "$SCAN" = success
+
+  notify:
+    # PR code never receives an issue-writing token, including Dependabot PRs.
+    if: ${{ always() && !cancelled() && github.event_name != 'pull_request' }}
+    needs: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: dependency-audit-issues
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Report urgent dependencies or scan failures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUDIT_REPORT: ${{ needs.audit.outputs.report }}
+          AUDIT_JOB_RESULT: ${{ needs.audit.result }}
+          AUDIT_VALIDATION_RESULT: ${{ needs.audit.outputs.validation }}
+          NOTIFICATION_TEST: ${{ github.event_name == 'workflow_dispatch' && inputs.notification_test }}
+          AUDIT_ASSIGNEE: nomadjimbob
+          AUDIT_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: python3 .github/scripts/dependency_audit.py notify

@@ -2,18 +2,21 @@ version: 2
 
 updates:
   - package-ecosystem: "composer"
+    assignees: ["nomadjimbob"]
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
 
   - package-ecosystem: "npm"
+    assignees: ["nomadjimbob"]
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 3
 
   - package-ecosystem: "github-actions"
+    assignees: ["nomadjimbob"]
     directory: "/"
     schedule:
       interval: "monthly"
