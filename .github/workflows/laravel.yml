@@ -81,6 +81,10 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Test workshop photo editor
+        if: ${{ matrix.shard == 1 }}
+        run: node --test tests/Browser/workshop-photo-editor.test.cjs
+
       - name: Run migrations
         env:
           DB_CONNECTION: sqlite

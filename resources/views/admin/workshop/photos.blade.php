@@ -169,7 +169,17 @@
                         <thead><tr><th class="w-10 text-center border-r-0!"><x-ui.checkbox id="workshop-existing-select-all" aria-label="Select all existing media" :small="true" :noWrapper="true" inputClass="mx-auto" x-bind:checked="existingTotal > 0 && existingSelected === existingTotal" x-effect="$el.indeterminate = existingSelected > 0 && existingSelected < existingTotal" x-on:change="selectAllExisting($el.checked)" /></th><x-ui.list-heading class="border-l-0!" label="Media" /><x-ui.list-heading class="hidden text-center lg:table-cell" label="Tags" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Storage" /><x-ui.list-heading class="hidden w-24 text-center md:table-cell" label="Visibility" /><x-ui.list-heading class="text-center! w-36" label="Actions" /></tr></thead>
                         <tbody class="bg-white">
                     @foreach($photos as $photo)
-                        <tr data-photo-row x-data="smCspAdminWorkshopPhotos3">
+                        <tr data-photo-row x-data="smCspAdminWorkshopPhotos3"
+                            data-photo-editor="{{ json_encode([
+                                'title' => $photo->title,
+                                'photographedAt' => optional($photo->photographed_at)->format('Y-m-d'),
+                                'tags' => collect(explode(',', (string) $photo->tags))->map(fn ($tag) => trim($tag))->filter()->values()->all(),
+                                'storage' => $photo->storageDiskName(),
+                                'visibility' => in_array($photo->visibility, ['private', 'public'], true) ? $photo->visibility : 'private',
+                                'caption' => $photo->caption ?? '',
+                                'notes' => $photo->consent_notes ?? '',
+                                'updateUrl' => route('admin.workshop.photos.update', [$workshop, $photo]),
+                            ]) }}">
                             <td data-mobile-select class="text-center border-r-0!"><x-ui.checkbox aria-label="Select {{ $photo->title }}" :small="true" :noWrapper="true" inputClass="mx-auto" data-photo-select data-photo-name="{{ $photo->name }}" x-on:change="$SM.dispatchWindowEvent('photo-existing-selection-changed')" /></td>
                             <td data-mobile-primary class="px-3 py-3">
                                 <div class="sm-workshop-media-card-content flex min-w-0 items-center gap-3">
@@ -1114,7 +1124,45 @@ window.SM.whenAlpineReady(function () {
                     },
                 }));
     Alpine.data('smCspAdminWorkshopPhotos2', () => ({ dirty: false, saving: false, existingSelected: 0, existingTotal: @js($photos->count()), refreshSelection() { this.existingSelected = this.$el.querySelectorAll('[data-photo-select]:checked').length }, selectAllExisting(checked) { this.$el.querySelectorAll('[data-photo-select]').forEach((input) => input.checked = checked); this.refreshSelection(); window.dispatchEvent(new CustomEvent('photo-existing-selection-changed')); } }));
-    Alpine.data('smCspAdminWorkshopPhotos3', () => ({ editing: false, saving: false, error: '', title: @js($photo->title), photographedAt: @js(optional($photo->photographed_at)->format('Y-m-d')), tags: @js(collect(explode(',', (string) $photo->tags))->map(fn($tag) => trim($tag))->filter()->values()->all()), tagDraft: '', storage: @js($photo->storageDiskName()), visibility: @js(in_array($photo->visibility, ['private','public'], true) ? $photo->visibility : 'private'), caption: @js($photo->caption ?? ''), notes: @js($photo->consent_notes ?? ''), async save() { this.saving = true; this.error = ''; try { await axios.put(@js(route('admin.workshop.photos.update', [$workshop, $photo])), { _token: @js(csrf_token()), title: this.title, photographed_at: this.photographedAt, tags: this.tags.join(', '), storage_disk: this.storage, visibility: this.visibility, caption: this.caption, consent_notes: this.notes }, { headers: { Accept: 'application/json' } }); this.editing = false; window.SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true }); } catch (error) { this.error = error.response?.data?.message || 'Could not save this media item.'; } finally { this.saving = false; } } }));
+    Alpine.data('smCspAdminWorkshopPhotos3', () => ({
+        editing: false,
+        saving: false,
+        error: '',
+        title: '',
+        photographedAt: '',
+        tags: [],
+        tagDraft: '',
+        storage: 'media',
+        visibility: 'private',
+        caption: '',
+        notes: '',
+        updateUrl: '',
+        init() {
+            Object.assign(this, JSON.parse(this.$el.dataset.photoEditor));
+        },
+        async save() {
+            this.saving = true;
+            this.error = '';
+            try {
+                await axios.put(this.updateUrl, {
+                    _token: @js(csrf_token()),
+                    title: this.title,
+                    photographed_at: this.photographedAt,
+                    tags: this.tags.join(', '),
+                    storage_disk: this.storage,
+                    visibility: this.visibility,
+                    caption: this.caption,
+                    consent_notes: this.notes,
+                }, { headers: { Accept: 'application/json' } });
+                this.editing = false;
+                window.SM?.notice?.('Photo updated', 'Workshop photo metadata updated.', 'success', { toast: true });
+            } catch (error) {
+                this.error = error.response?.data?.message || 'Could not save this media item.';
+            } finally {
+                this.saving = false;
+            }
+        },
+    }));
     Alpine.data('smCspAdminWorkshopPhotos4', () => ({ selectedCount: 0, totalCount: 0, existingNames: [], refreshExistingNames() { this.existingNames = [...document.querySelectorAll('#workshop-existing-photos-form [data-photo-select]:checked')].map((input) => input.dataset.photoName).filter(Boolean) }, downloadSelected() { if (this.existingNames.length === 0) return; const query = new URLSearchParams(); this.existingNames.forEach((name) => query.append('media_names[]', name)); window.location.href = @js(route('admin.workshop.photos.zip', $workshop)) + '?' + query.toString(); } }));
 });
 </script>

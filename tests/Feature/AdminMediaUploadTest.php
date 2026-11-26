@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use App\Helpers;
+use App\Jobs\Media\GenerateVariants;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
-use App\Jobs\Media\GenerateVariants;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -345,7 +345,7 @@ class AdminMediaUploadTest extends TestCase
             ->assertSee('x-on:change="$SM.uploadFilesFromInput($el, \'appendFiles\', false)"', false)
             ->assertSeeText('Select')
             ->assertSeeText('Actions')
-            ->assertSee("variant=thumbnail", false)
+            ->assertSee('variant=thumbnail', false)
             ->assertSeeText('Tags')
             ->assertSee('class="hidden px-3 py-3 text-center text-gray-600 lg:table-cell"', false)
             ->assertSeeText('Hatched tags are currently present on only some selected items.')
@@ -353,6 +353,88 @@ class AdminMediaUploadTest extends TestCase
             ->assertDontSeeText('Remove Tags')
             ->assertSee('workshop-photos-progress-title', false)
             ->assertSee("require_mime_type: 'image/*,video/*'", false);
+    }
+
+    public function test_workshop_photo_page_renders_without_attached_photos(): void
+    {
+        $this->withoutVite();
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create(['user_id' => $admin->id, 'location_id' => Location::factory()->create()->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']))
+            ->assertOk()
+            ->assertViewHas('photos', fn ($photos) => $photos->isEmpty())
+            ->assertSeeText('Select Local Files')
+            ->assertDontSee('<tr data-photo-row', false);
+    }
+
+    public function test_workshop_photo_page_renders_when_filters_or_pagination_hide_every_photo(): void
+    {
+        $this->withoutVite();
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        Media::query()->where('name', 'stemmechanics-logo.png')->update(['visibility' => 'public']);
+        $workshop = Workshop::factory()->create(['user_id' => $admin->id, 'location_id' => Location::factory()->create()->id]);
+        $workshop->photos()->attach('stemmechanics-logo.png', ['collection' => 'workshop_photos']);
+
+        foreach ([['search' => 'no-matching-photo'], ['visibility' => 'private'], ['page' => 99]] as $query) {
+            $this->actingAs($admin)
+                ->get(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos', ...$query]))
+                ->assertOk()
+                ->assertViewHas('photos', fn ($photos) => $photos->isEmpty())
+                ->assertDontSee('<tr data-photo-row', false);
+        }
+    }
+
+    public function test_each_workshop_photo_row_receives_its_own_editor_values_and_update_url(): void
+    {
+        $this->withoutVite();
+        $admin = $this->makeAdminUser();
+        $this->makeDefaultWorkshopHero($admin);
+        $workshop = Workshop::factory()->create(['user_id' => $admin->id, 'location_id' => Location::factory()->create()->id]);
+        $first = Media::query()->create([
+            'name' => 'first-photo.jpg', 'title' => 'First "photo" <script>not code</script>',
+            'hash' => str_repeat('1', 64), 'mime_type' => 'image/jpeg', 'size' => 1024,
+            'user_id' => $admin->id, 'visibility' => 'public', 'storage_disk' => 'media',
+            'photographed_at' => '2026-11-20', 'tags' => 'first, workshop',
+            'caption' => 'First caption & details', 'consent_notes' => 'First consent',
+        ]);
+        $second = Media::query()->create([
+            'name' => 'second-photo.jpg', 'title' => 'Second photo',
+            'hash' => str_repeat('2', 64), 'mime_type' => 'image/jpeg', 'size' => 2048,
+            'user_id' => $admin->id, 'visibility' => 'private', 'storage_disk' => 'archive',
+            'photographed_at' => '2026-11-21', 'tags' => 'second',
+            'caption' => 'Second caption', 'consent_notes' => 'Second consent',
+        ]);
+        $workshop->photos()->attach([$first->name, $second->name], ['collection' => 'workshop_photos']);
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop.media', ['workshop' => $workshop, 'section' => 'photos']))
+            ->assertOk();
+        $document = new \DOMDocument;
+        @$document->loadHTML($response->getContent());
+        $rows = (new \DOMXPath($document))->query('//tr[@data-photo-editor]');
+        $this->assertCount(2, $rows);
+        $states = [];
+        foreach ($rows as $row) {
+            $state = json_decode($row->getAttribute('data-photo-editor'), true, flags: JSON_THROW_ON_ERROR);
+            $states[$state['updateUrl']] = $state;
+        }
+        foreach ([$first, $second] as $photo) {
+            $url = route('admin.workshop.photos.update', [$workshop, $photo]);
+            $this->assertSame([
+                'title' => $photo->title,
+                'photographedAt' => $photo->photographed_at->format('Y-m-d'),
+                'tags' => array_map('trim', explode(',', $photo->tags)),
+                'storage' => $photo->storageDiskName(),
+                'visibility' => $photo->visibility,
+                'caption' => $photo->caption,
+                'notes' => $photo->consent_notes,
+                'updateUrl' => $url,
+            ], $states[$url]);
+        }
     }
 
     public function test_workshop_file_queue_uploads_and_attaches_one_file(): void
